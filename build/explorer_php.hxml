@@ -1,3 +1,0 @@
--cp src
--php bin/server
--main PhpExplorer

@@ -1,0 +1,142 @@
+.body{
+	font-family: Verdana, Arial;
+	font-size: 14pt;
+}
+.folderTreeView{
+	float:left;
+	width:300px;
+}
+.filesView{
+	float:left;
+}
+.fileUI{
+	background-position	: left center;
+	background-repeat	: no-repeat;
+	padding-left		: 30px;
+	display 			: block;
+	padding-top			: 2px;
+	width				: 250px;	
+	background-image	: url('imgs/icons/txt.png');
+	height				: 25px;
+}
+.smallFont{
+	font-family: Verdana, Arial;
+	font-size: 10pt;
+}
+.fileManager{
+	display:block;
+	height:150px;
+}
+.fileUploadStatus{
+}
+.uploadStatus{
+	width: 500px;
+	height:200px;
+	background-color: #dddddd;
+}
+.noMargin{
+	margin-top:0px;
+	margin-left:0px;
+	margin-right:0px;
+	margin-bottom:0px;
+}
+.progressBar{
+	display:block;
+	height:25px;
+	width:200px;
+
+	background-color = #222222;
+}
+.progressBar.bar{
+	display:block;
+	height:25px;
+	width:1px;
+	background-color = #335577;
+}
+/*
+.XmlList{
+    overflow: auto;
+	padding: 0px;
+	margin: 0px;
+}
+.XmlList li{
+    border-width: 1px 0;
+    border-style: solid;
+    border-width: thin;
+    border-collapse: separate;
+	border-spacing: 0;
+    list-style-type: none;
+    vertical-align: top;
+    background-color: DarkSlateGrey;
+    color: white;
+    padding: 0 5px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.XmlList .listSelectedItem{
+    background-color: DarkRed;
+}
+.pannel-element-horizontal{
+    float: left;
+    height: 100%;
+}
+.Pannel{
+    border-style: groove;
+    border-width: thin;
+    border-color: gray;
+    float: left;
+    margin-right: 5px;
+    height: 80%;
+    width: 40%;
+    overflow: hidden;
+}
+.Pannel button {
+    border-radius: 5px 5px 5px 5px;
+    border-style: solid;
+    border-width: medium;
+    color: white;
+    margin-bottom: 3px;
+    background-color: DarkSlateGray;
+    padding: 2px 6px;
+}
+.pannel-header{
+	background-color: Gainsboro;
+    padding: 5px;
+    padding-top: 0px;
+}
+.pannel-header h1{
+    font-size: 14pt;
+    font-variant: small-caps;
+    margin-bottom: 0;
+    margin-top: 0;
+}
+.pannel-element-horizontal h1{
+    overflow: auto;
+    width: 100px;
+}
+.pannel-footer{
+	background-color: Gainsboro;
+}
+.Draggable{
+    
+}
+.draggable-dragzone{
+    cursor: move
+}
+.draggable-dropzone{
+    background-color: DarkSlateGray;
+    border: 1px solid green;
+    width: 40%;
+    height: 80%;
+    float: left;
+}
+
+*/
+.draggable-phantom{
+    padding: 0px !important;
+    margin: 0px !important;
+    border: 0px !important;
+    background-color: DarkRed !important;
+	width:0px  !important;
+	height:0px  !important;
+}

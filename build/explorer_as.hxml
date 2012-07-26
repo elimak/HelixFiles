@@ -1,6 +1,0 @@
--cp src
--cp ../haxe_libs/Cocktail/src/
--main JsExplorer
--swf bin/fileExplorer.swf
---remap js:cocktail
--swf-version 11

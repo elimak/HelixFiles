@@ -1,0 +1,3 @@
+-php bin/server
+-main filemanager.server.FileManager
+-cp src
