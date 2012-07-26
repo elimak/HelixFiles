@@ -42,16 +42,20 @@
 }
 .progressBar{
 	display:block;
-	height:25px;
-	width:200px;
-
-	background-color = #222222;
+	height:20px;
+	width:210px;
+	background-color: #ffffff;
 }
-.progressBar.bar{
-	display:block;
-	height:25px;
-	width:1px;
-	background-color = #335577;
+.progressBar .bar{
+	height:10px;
+	width:0px;
+	background-color: #335577;
+	position:relative;
+	margin-top:5px;
+	margin-left:5px;
+	margin-right:5px;
+	margin-bottom:5px;
+	top:5px;
 }
 /*
 .XmlList{

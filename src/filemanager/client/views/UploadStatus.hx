@@ -14,32 +14,38 @@ import js.Lib;
 class UploadStatus extends View
 {
 
-	private var _currentQueue :  Hash<FileToUpload>;
+	//private var _currentQueueData 	:  Hash<FileToUpload>;
+	private var _currentQueueUIs 	:  Hash<FileUploadStatus>;
 	
 	public function new (rootElement:HtmlDom, SLPId:String) {
 		
 		Locator.registerSLDisplay(SLPId, this, "UploadStatus");
 		
 		rootElement.className = "uploadStatus smallFont";
-		_currentQueue = new Hash<FileToUpload>();
+		//_currentQueueData = new Hash<FileToUpload>();
+		_currentQueueUIs = new Hash<FileUploadStatus>();
 	
 		super(rootElement, SLPId);	
 	}
 	
 	public function onUpdate( uploadUpdate : FileToUpload ): Void
 	{
-		if ( _currentQueue.exists(uploadUpdate.file.name)) {
+		if ( _currentQueueUIs.exists(uploadUpdate.file.name)) {
 			updateStatus(uploadUpdate);
 		}
 		else {
-			_currentQueue.set(uploadUpdate.file.name, uploadUpdate);
+			//_currentQueueData.set(uploadUpdate.file.name, uploadUpdate);
 			var fileUploadStatus : FileUploadStatus = new FileUploadStatus(uploadUpdate, SLPlayerInstanceId);
+			_currentQueueUIs.set(uploadUpdate.file.name, fileUploadStatus);
 			rootElement.appendChild(fileUploadStatus.rootElement);
+			
+			updateStatus(uploadUpdate);
 		}
 	}
 	
 	private function updateStatus(uploadUpdate:FileToUpload) 
 	{
-		Log.trace("UploadStatus - updateStatus() -  update view of "+uploadUpdate.file.name);
+		var fileName : String = cast uploadUpdate.file.name;
+		_currentQueueUIs.get(fileName).update (uploadUpdate);
 	}
 }

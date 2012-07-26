@@ -13926,30 +13926,28 @@ filemanager.client.models.FilesModel.prototype = {
 		var response = haxe.Json.parse(msg.data);
 		switch(response.type) {
 		case "progress":
-			this._uploadsQueue.get(response.result.filepath).progressPercent = response.result.percentuploaded;
-			this.onUploadUpdate(this._uploadsQueue.get(response.filepath));
+			this._uploadsQueue.get(response.result.filename).progressPercent = response.result.percentuploaded;
+			this.onUploadUpdate(this._uploadsQueue.get(response.result.filename));
 			break;
 		case "completed":
 			var tempFile = response.result.filename;
-			this._api.deleteFile(response.result.filename,function(file) {
-				_g.onUploadUpdate(_g._uploadsQueue.get(response.result.filepath));
+			this._api.deleteTempFile(response.result.filename,function(file) {
+				_g.onUploadUpdate(_g._uploadsQueue.get(response.result.filename));
 			});
-			this._uploadsQueue.get(response.result.filepath).completed = true;
-			this.onUploadUpdate(this._uploadsQueue.get(response.result.filepath));
-			this._uploadsQueue.remove(response.result.filepath);
+			this._uploadsQueue.get(response.result.filename).completed = true;
+			this.onUploadUpdate(this._uploadsQueue.get(response.result.filename));
 			break;
 		case "started":
-			this._uploadsQueue.get(response.result.filepath).started = true;
-			this.onUploadUpdate(this._uploadsQueue.get(response.result.filepath));
+			this._uploadsQueue.get(response.result.filename).started = true;
+			this.onUploadUpdate(this._uploadsQueue.get(response.result.filename));
 			break;
 		case "error":
-			haxe.Log.trace("FilesModel - handleUploadProgress() - response: error " + Std.string(response.error),{ fileName : "FilesModel.hx", lineNumber : 165, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
+			haxe.Log.trace("FilesModel - handleUploadProgress() - response: error " + Std.string(response.error),{ fileName : "FilesModel.hx", lineNumber : 164, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
 			break;
 		}
 	}
 	,handleUploadInitialized: function(response) {
 		if(this._uploadsQueue.exists(response.filepath)) {
-			this._uploadsQueue.get(response.filepath).initialized = true;
 			var uploadWorker = new Worker("fileupload.js");
 			uploadWorker.onmessage = $bind(this,this.handleUploadProgress);
 			uploadWorker.onerror = $bind(this,this.handleError);
@@ -13968,9 +13966,11 @@ filemanager.client.models.FilesModel.prototype = {
 		while( $it0.hasNext() ) {
 			var key = $it0.next();
 			var filehelper = this._uploadsQueue.get(key);
-			if(!filehelper.initialized) this._api.backupAsTemporary(filehelper.file.name,$bind(this,this.handleUploadInitialized));
-			this._uploadsQueue.get(filehelper.file.name).initialized = true;
-			this.onUploadUpdate(this._uploadsQueue.get(filehelper.file.name));
+			if(!filehelper.initialized) {
+				this._api.backupAsTemporary(filehelper.file.name,$bind(this,this.handleUploadInitialized));
+				this._uploadsQueue.get(filehelper.file.name).initialized = true;
+				this.onUploadUpdate(this._uploadsQueue.get(filehelper.file.name));
+			}
 		}
 	}
 	,browseFiles: function(evt) {
@@ -14017,10 +14017,10 @@ filemanager.client.services.Api.prototype = {
 	defaultOnError: function(err) {
 		haxe.Log.trace("Error (API default error handler) : " + Std.string(err),{ fileName : "Api.hx", lineNumber : 91, className : "filemanager.client.services.Api", methodName : "defaultOnError"});
 	}
-	,deleteFile: function(fullpath,onSuccess,onError) {
+	,deleteTempFile: function(fullpath,onSuccess,onError) {
 		var cnx = haxe.remoting.HttpAsyncConnection.urlConnect("server/index.php");
 		if(onError != null) cnx.setErrorHandler(onError); else cnx.setErrorHandler($bind(this,this.defaultOnError));
-		cnx.resolve("api").resolve("deleteFile").call([fullpath],onSuccess);
+		cnx.resolve("api").resolve("deleteTempFile").call([fullpath],onSuccess);
 	}
 	,backupAsTemporary: function(fullpath,onSuccess,onError) {
 		var cnx = haxe.remoting.HttpAsyncConnection.urlConnect("server/index.php");
@@ -14187,7 +14187,7 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 filemanager.client.views.UploadStatus = function(rootElement,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"UploadStatus");
 	rootElement.className = "uploadStatus smallFont";
-	this._currentQueue = new Hash();
+	this._currentQueueUIs = new Hash();
 	filemanager.client.views.base.View.call(this,rootElement,SLPId);
 };
 $hxClasses["filemanager.client.views.UploadStatus"] = filemanager.client.views.UploadStatus;
@@ -14195,16 +14195,18 @@ filemanager.client.views.UploadStatus.__name__ = ["filemanager","client","views"
 filemanager.client.views.UploadStatus.__super__ = filemanager.client.views.base.View;
 filemanager.client.views.UploadStatus.prototype = $extend(filemanager.client.views.base.View.prototype,{
 	updateStatus: function(uploadUpdate) {
-		haxe.Log.trace("UploadStatus - updateStatus() -  update view of " + Std.string(uploadUpdate.file.name),{ fileName : "UploadStatus.hx", lineNumber : 43, className : "filemanager.client.views.UploadStatus", methodName : "updateStatus"});
+		var fileName = uploadUpdate.file.name;
+		this._currentQueueUIs.get(fileName).update(uploadUpdate);
 	}
 	,onUpdate: function(uploadUpdate) {
-		if(this._currentQueue.exists(uploadUpdate.file.name)) this.updateStatus(uploadUpdate); else {
-			this._currentQueue.set(uploadUpdate.file.name,uploadUpdate);
+		if(this._currentQueueUIs.exists(uploadUpdate.file.name)) this.updateStatus(uploadUpdate); else {
 			var fileUploadStatus = new filemanager.client.views.uis.FileUploadStatus(uploadUpdate,this.SLPlayerInstanceId);
+			this._currentQueueUIs.set(uploadUpdate.file.name,fileUploadStatus);
 			this.rootElement.appendChild(fileUploadStatus.rootElement);
+			this.updateStatus(uploadUpdate);
 		}
 	}
-	,_currentQueue: null
+	,_currentQueueUIs: null
 	,__class__: filemanager.client.views.UploadStatus
 });
 filemanager.client.views.base.LabelButton = function(label,SLPId) {
@@ -14234,7 +14236,7 @@ filemanager.client.views.base.ProgressBar = function(SLPId) {
 	var viewDom = js.Lib.document.createElement("div");
 	viewDom.className = "progressBar noMargin";
 	this._bar = js.Lib.document.createElement("div");
-	viewDom.className = "progressBar.bar noMargin";
+	this._bar.className = "bar";
 	viewDom.appendChild(this._bar);
 	filemanager.client.views.base.View.call(this,viewDom,SLPId);
 };
@@ -14242,11 +14244,24 @@ $hxClasses["filemanager.client.views.base.ProgressBar"] = filemanager.client.vie
 filemanager.client.views.base.ProgressBar.__name__ = ["filemanager","client","views","base","ProgressBar"];
 filemanager.client.views.base.ProgressBar.__super__ = filemanager.client.views.base.View;
 filemanager.client.views.base.ProgressBar.prototype = $extend(filemanager.client.views.base.View.prototype,{
-	setStyle: function() {
-		this.rootElement.style.cursor = cocktail.core.unit.UnitManager.getCSSCursor(cocktail.core.style.Cursor.pointer);
+	value: null
+	,getFullBarWidth: function() {
+		return 200;
 	}
+	,set_value: function(percent) {
+		if(this._fullBarWidth == null) this._fullBarWidth = this.getFullBarWidth();
+		this._value = percent;
+		this._bar.style.width = this._value * this._fullBarWidth + "px";
+		return this.get_value();
+	}
+	,get_value: function() {
+		return this._value;
+	}
+	,_fullBarWidth: null
+	,_value: null
 	,_bar: null
 	,__class__: filemanager.client.views.base.ProgressBar
+	,__properties__: {set_value:"set_value",get_value:"get_value"}
 });
 filemanager.client.views.uis = {}
 filemanager.client.views.uis.FileUI = function(data,SLPId) {
@@ -14278,7 +14293,10 @@ filemanager.client.views.uis.FileUploadStatus = function(data,SLPId) {
 	var viewDom = js.Lib.document.createElement("div");
 	viewDom.className = "fileUploadStatus smallFont";
 	this._fileName = js.Lib.document.createTextNode(data.file.name);
-	this._statusUpload = js.Lib.document.createTextNode("Pending");
+	this._status = "Pending";
+	this._statusUpload = js.Lib.document.createElement("p");
+	this._statusUpload.className = "noMargin";
+	this._statusUpload.innerHTML = "Pending";
 	this._progressBar = new filemanager.client.views.base.ProgressBar(SLPId);
 	this._cancel = new filemanager.client.views.base.LabelButton("Cancel",SLPId);
 	viewDom.appendChild(this._fileName);
@@ -14291,7 +14309,18 @@ $hxClasses["filemanager.client.views.uis.FileUploadStatus"] = filemanager.client
 filemanager.client.views.uis.FileUploadStatus.__name__ = ["filemanager","client","views","uis","FileUploadStatus"];
 filemanager.client.views.uis.FileUploadStatus.__super__ = filemanager.client.views.base.View;
 filemanager.client.views.uis.FileUploadStatus.prototype = $extend(filemanager.client.views.base.View.prototype,{
-	_cancel: null
+	updateStatus: function(value) {
+		if(value != this._status) {
+			this._statusUpload.innerHTML = value;
+			this._status = value;
+		}
+	}
+	,update: function(uploadUpdate) {
+		this._progressBar.set_value(uploadUpdate.progressPercent);
+		if(uploadUpdate.initialized == true && uploadUpdate.completed == false) this.updateStatus("Progress"); else if(uploadUpdate.initialized == false && uploadUpdate.completed == false) this.updateStatus("Pending"); else if(uploadUpdate.initialized == true && uploadUpdate.completed == true) this.updateStatus("Complete");
+	}
+	,_status: null
+	,_cancel: null
 	,_statusUpload: null
 	,_fileName: null
 	,_progressBar: null
@@ -19571,6 +19600,9 @@ cocktail.core.style.CSSConstants.TRANSITION_PROPERTY_STYLE_NAME = "transition-pr
 cocktail.core.style.CSSConstants.TRANSITION_TIMING_FUNCTION_STYLE_NAME = "transition-timing-function";
 cocktail.core.style.transition.TransitionManager.TRANSITION_UPDATE_SPEED = 20;
 filemanager.client.services.Api.GATEWAY_URL = "server/index.php";
+filemanager.client.views.uis.FileUploadStatus.PENDING = "Pending";
+filemanager.client.views.uis.FileUploadStatus.PROGRESS = "Progress";
+filemanager.client.views.uis.FileUploadStatus.COMPLETE = "Complete";
 haxe.Serializer.USE_CACHE = false;
 haxe.Serializer.USE_ENUM_INDEX = false;
 haxe.Serializer.BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";

@@ -106,9 +106,9 @@ class FilesModel
 			var filehelper : FileToUpload = cast _uploadsQueue.get(key);
 			if ( !filehelper.initialized ) {
 				_api.backupAsTemporary(filehelper.file.name, handleUploadInitialized);
+				_uploadsQueue.get(filehelper.file.name).initialized = true;
+				onUploadUpdate(_uploadsQueue.get(filehelper.file.name));
 			}
-			_uploadsQueue.get(filehelper.file.name).initialized = true;
-			onUploadUpdate(_uploadsQueue.get(filehelper.file.name));
 		}
 	}
 	
@@ -125,7 +125,6 @@ class FilesModel
 	private function handleUploadInitialized(response: FileUpdatedVO): Void
 	{
 		if( _uploadsQueue.exists(response.filepath)) {
-			_uploadsQueue.get(response.filepath).initialized = true;
 			
 			var uploadWorker = new Worker('fileupload.js');
 			uploadWorker.onmessage = handleUploadProgress;
@@ -145,21 +144,21 @@ class FilesModel
 		
 		switch (response.type) {
 			case "progress"	: 
-				_uploadsQueue.get(response.result.filepath).progressPercent = response.result.percentuploaded;
-				onUploadUpdate(_uploadsQueue.get(response.filepath));
+				_uploadsQueue.get(response.result.filename).progressPercent = response.result.percentuploaded;
+				onUploadUpdate(_uploadsQueue.get(response.result.filename));
 				
 			case "completed": 
 				var tempFile : String = response.result.filename;
-				_api.deleteFile(response.result.filename, function( file: FileUpdatedVO ) {
-									onUploadUpdate (_uploadsQueue.get(response.result.filepath));
+				_api.deleteTempFile(response.result.filename, function( file: FileUpdatedVO ) {
+									onUploadUpdate (_uploadsQueue.get(response.result.filename));
 								});
-				_uploadsQueue.get(response.result.filepath).completed = true;
-				onUploadUpdate(_uploadsQueue.get(response.result.filepath));
-				_uploadsQueue.remove(response.result.filepath);
+				_uploadsQueue.get(response.result.filename).completed = true;
+				onUploadUpdate(_uploadsQueue.get(response.result.filename));
+				//_uploadsQueue.remove(response.result.filename);
 				
 			case "started"	: 
-				_uploadsQueue.get(response.result.filepath).started = true;
-				onUploadUpdate(_uploadsQueue.get(response.result.filepath));
+				_uploadsQueue.get(response.result.filename).started = true;
+				onUploadUpdate(_uploadsQueue.get(response.result.filename));
 				
 			case "error"	: 
 				Log.trace("FilesModel - handleUploadProgress() - response: error "+response.error);

@@ -73,14 +73,14 @@ class Api
  * @param	onSuccess
  * @param	?onError
  */
-	public function deleteFile (fullpath: String, onSuccess: FileUpdatedVO->Void, ?onError: Dynamic->Void) : Void
+	public function deleteTempFile (fullpath: String, onSuccess: FileUpdatedVO->Void, ?onError: Dynamic->Void) : Void
 	{
 		var cnx = HttpAsyncConnection.urlConnect(GATEWAY_URL);
 		
 		if (onError != null) cnx.setErrorHandler( onError );
 		else cnx.setErrorHandler( defaultOnError );
 			
-		cnx.api.deleteFile.call([fullpath], onSuccess);
+		cnx.api.deleteTempFile.call([fullpath], onSuccess);
 	}
 	
 /**
