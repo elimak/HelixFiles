@@ -1,0 +1,4 @@
+-cp src
+-cp ../haxe_libs/Cocktail/src/
+-main JsExplorer
+-js bin/explorer.js
