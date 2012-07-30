@@ -48,7 +48,7 @@ class ProgressBar extends View
 	}
 	
 	private function getFullBarWidth() : Int{
-		return 200;
+		return rootElement.clientWidth;
 	}
 	
 	public var value(get_value, set_value):Float;

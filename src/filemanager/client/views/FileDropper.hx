@@ -17,11 +17,15 @@ class FileDropper extends View
 	public function new (rootElement:HtmlDom, SLPId:String) {
 		
 		Locator.registerSLDisplay(SLPId, this, "FileDropper");
+		rootElement.className = "fileDropper noMargin";
 		
-		// TODO: use the css
-		rootElement.style.width = "500px";
-		rootElement.style.height = "100px";
-		rootElement.style.backgroundColor = "#335577";
+		var instruction = Lib.document.createElement("p");
+		instruction.className = "dropText mediumFont";
+		var txtInstruc = Lib.document.createTextNode("Drop your files here");
+		rootElement.appendChild(instruction);
+		instruction.appendChild(txtInstruc);
+		
+		Log.trace("FileDropper - FileDropper() "+instruction);
 		
 		rootElement.addEventListener('dragover', handleDragOver, false);
 		rootElement.addEventListener('drop', handleFileSelect, false);

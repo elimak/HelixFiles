@@ -23,14 +23,31 @@
 	font-family: Verdana, Arial;
 	font-size: 10pt;
 }
+.mediumFont{
+	font-family: Verdana, Arial;
+	font-size: 12pt;
+}
 .fileManager{
 	display:block;
-	height:150px;
+	height:200px;
 }
 .fileUploadStatus{
 }
+.fileUploadStatus div{
+	display:inline-block;
+	width:120px;
+}
+.fileUploadStatus .titleTrack{
+	width: 240px;
+}
+.fileDropper{
+	width:600px;
+	height:100px;
+	background-color: #335577;
+	color:#ffffff;
+}
 .uploadStatus{
-	width: 500px;
+	width: 600px;
 	height:200px;
 	background-color: #dddddd;
 }
@@ -40,10 +57,17 @@
 	margin-right:0px;
 	margin-bottom:0px;
 }
+.dropText{
+	margin:auto;
+	height: 25px;
+	width: 200px;
+	top: 35px;
+	position: relative;
+}
 .progressBar{
 	display:block;
 	height:20px;
-	width:210px;
+	width:120px;
 	background-color: #ffffff;
 }
 .progressBar .bar{

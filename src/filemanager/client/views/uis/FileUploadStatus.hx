@@ -33,9 +33,11 @@ class FileUploadStatus extends View
 		var viewDom = Lib.document.createElement("div");
 		viewDom.className = "fileUploadStatus smallFont";
 		
-		_fileName = Lib.document.createTextNode(data.file.name);
+		_fileName = Lib.document.createElement("div");
+		_fileName.className = "titleTrack";
+		_fileName.appendChild (Lib.document.createTextNode(data.file.name));
 		_status = PENDING;
-		_statusUpload = Lib.document.createElement("p");
+		_statusUpload = Lib.document.createElement("div");
 		_statusUpload.className = "noMargin";
 		_statusUpload.innerHTML = PENDING;
 		

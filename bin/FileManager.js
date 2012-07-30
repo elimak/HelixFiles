@@ -14059,9 +14059,13 @@ filemanager.client.views.base.View.prototype = $extend(slplayer.ui.DisplayObject
 });
 filemanager.client.views.FileDropper = function(rootElement,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"FileDropper");
-	rootElement.style.width = "500px";
-	rootElement.style.height = "100px";
-	rootElement.style.backgroundColor = "#335577";
+	rootElement.className = "fileDropper noMargin";
+	var instruction = js.Lib.document.createElement("p");
+	instruction.className = "dropText mediumFont";
+	var txtInstruc = js.Lib.document.createTextNode("Drop your files here");
+	rootElement.appendChild(instruction);
+	instruction.appendChild(txtInstruc);
+	haxe.Log.trace("FileDropper - FileDropper() " + Std.string(instruction),{ fileName : "FileDropper.hx", lineNumber : 28, className : "filemanager.client.views.FileDropper", methodName : "new"});
 	rootElement.addEventListener("dragover",$bind(this,this.handleDragOver),false);
 	rootElement.addEventListener("drop",$bind(this,this.handleFileSelect),false);
 	filemanager.client.views.base.View.call(this,rootElement,SLPId);
@@ -14099,7 +14103,6 @@ filemanager.client.views.FilesView.prototype = $extend(filemanager.client.views.
 		var _g1 = 0, _g = data.length;
 		while(_g1 < _g) {
 			var i = _g1++;
-			haxe.Log.trace("FilesView - setList() " + Std.string(data[i]),{ fileName : "FilesView.hx", lineNumber : 30, className : "filemanager.client.views.FilesView", methodName : "setList"});
 			var file = new filemanager.client.views.uis.FileUI(data[i],this.SLPlayerInstanceId);
 			this.rootElement.appendChild(file.rootElement);
 		}
@@ -14115,7 +14118,11 @@ $hxClasses["filemanager.client.views.FolderTreeView"] = filemanager.client.views
 filemanager.client.views.FolderTreeView.__name__ = ["filemanager","client","views","FolderTreeView"];
 filemanager.client.views.FolderTreeView.__super__ = filemanager.client.views.base.View;
 filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.views.base.View.prototype,{
-	handleOnFolderClick: function(target,folderData,evt) {
+	initialize: function(data) {
+		this._data = data;
+		this.buildView();
+	}
+	,handleOnFolderClick: function(target,folderData,evt) {
 		target.isOpen = !target.isOpen;
 		if(this._currentFolderUISelected != null && this._currentFolderUISelected != target) {
 			this._currentFolderUISelected.isSelected = false;
@@ -14173,10 +14180,6 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 		this.rootElement.appendChild(this._rootFolder.rootElement);
 		this.createSubFolders(this._data,this._rootFolder,1);
 	}
-	,initialize: function(data) {
-		this._data = data;
-		this.buildView();
-	}
 	,_currentFolderUISelected: null
 	,onSelectFolder: null
 	,_folderStatus: null
@@ -14194,17 +14197,14 @@ $hxClasses["filemanager.client.views.UploadStatus"] = filemanager.client.views.U
 filemanager.client.views.UploadStatus.__name__ = ["filemanager","client","views","UploadStatus"];
 filemanager.client.views.UploadStatus.__super__ = filemanager.client.views.base.View;
 filemanager.client.views.UploadStatus.prototype = $extend(filemanager.client.views.base.View.prototype,{
-	updateStatus: function(uploadUpdate) {
-		var fileName = uploadUpdate.file.name;
-		this._currentQueueUIs.get(fileName).update(uploadUpdate);
-	}
-	,onUpdate: function(uploadUpdate) {
-		if(this._currentQueueUIs.exists(uploadUpdate.file.name)) this.updateStatus(uploadUpdate); else {
+	onUpdate: function(uploadUpdate) {
+		if(!this._currentQueueUIs.exists(uploadUpdate.file.name)) {
 			var fileUploadStatus = new filemanager.client.views.uis.FileUploadStatus(uploadUpdate,this.SLPlayerInstanceId);
 			this._currentQueueUIs.set(uploadUpdate.file.name,fileUploadStatus);
 			this.rootElement.appendChild(fileUploadStatus.rootElement);
-			this.updateStatus(uploadUpdate);
 		}
+		var fileName = uploadUpdate.file.name;
+		this._currentQueueUIs.get(fileName).update(uploadUpdate);
 	}
 	,_currentQueueUIs: null
 	,__class__: filemanager.client.views.UploadStatus
@@ -14246,7 +14246,7 @@ filemanager.client.views.base.ProgressBar.__super__ = filemanager.client.views.b
 filemanager.client.views.base.ProgressBar.prototype = $extend(filemanager.client.views.base.View.prototype,{
 	value: null
 	,getFullBarWidth: function() {
-		return 200;
+		return this.rootElement.clientWidth;
 	}
 	,set_value: function(percent) {
 		if(this._fullBarWidth == null) this._fullBarWidth = this.getFullBarWidth();
@@ -14292,9 +14292,11 @@ filemanager.client.views.uis.FileUploadStatus = function(data,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"FileUploadStatus");
 	var viewDom = js.Lib.document.createElement("div");
 	viewDom.className = "fileUploadStatus smallFont";
-	this._fileName = js.Lib.document.createTextNode(data.file.name);
+	this._fileName = js.Lib.document.createElement("div");
+	this._fileName.className = "titleTrack";
+	this._fileName.appendChild(js.Lib.document.createTextNode(data.file.name));
 	this._status = "Pending";
-	this._statusUpload = js.Lib.document.createElement("p");
+	this._statusUpload = js.Lib.document.createElement("div");
 	this._statusUpload.className = "noMargin";
 	this._statusUpload.innerHTML = "Pending";
 	this._progressBar = new filemanager.client.views.base.ProgressBar(SLPId);

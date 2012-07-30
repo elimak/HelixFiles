@@ -13,8 +13,6 @@ import js.Lib;
 
 class UploadStatus extends View
 {
-
-	//private var _currentQueueData 	:  Hash<FileToUpload>;
 	private var _currentQueueUIs 	:  Hash<FileUploadStatus>;
 	
 	public function new (rootElement:HtmlDom, SLPId:String) {
@@ -22,29 +20,27 @@ class UploadStatus extends View
 		Locator.registerSLDisplay(SLPId, this, "UploadStatus");
 		
 		rootElement.className = "uploadStatus smallFont";
-		//_currentQueueData = new Hash<FileToUpload>();
 		_currentQueueUIs = new Hash<FileUploadStatus>();
 	
 		super(rootElement, SLPId);	
 	}
-	
+
+// ----------------------------------- // 
+// HANDLES ALL UPDATE of the UPLOADS
+// ----------------------------------- //
+/**
+ * When a queue of files is uploaded, the updates for each files can be "started, progress, complete, error"
+ * all updates are handled here and routed to their specific uis in order to be visually monitored.
+ * @param	uploadUpdate
+ */
+
 	public function onUpdate( uploadUpdate : FileToUpload ): Void
 	{
-		if ( _currentQueueUIs.exists(uploadUpdate.file.name)) {
-			updateStatus(uploadUpdate);
-		}
-		else {
-			//_currentQueueData.set(uploadUpdate.file.name, uploadUpdate);
+		if ( !_currentQueueUIs.exists(uploadUpdate.file.name)) {
 			var fileUploadStatus : FileUploadStatus = new FileUploadStatus(uploadUpdate, SLPlayerInstanceId);
 			_currentQueueUIs.set(uploadUpdate.file.name, fileUploadStatus);
 			rootElement.appendChild(fileUploadStatus.rootElement);
-			
-			updateStatus(uploadUpdate);
 		}
-	}
-	
-	private function updateStatus(uploadUpdate:FileToUpload) 
-	{
 		var fileName : String = cast uploadUpdate.file.name;
 		_currentQueueUIs.get(fileName).update (uploadUpdate);
 	}

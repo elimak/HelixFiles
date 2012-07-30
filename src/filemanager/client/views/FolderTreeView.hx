@@ -16,7 +16,7 @@ class FolderTreeView extends View
 {
 	private var _rootFolder 	: FolderUI;		// top folder
 	private var _data			: FolderVO;		// store the data loaded (full tree in Json/Dynamic)
-	private var _folderStatus	: Hash<Bool>;	// stores only the status open/closed of the folders based on their path
+	private var _folderStatus	: Hash<Bool>;	// stores only the status open/closed of the folders based on their path (path is unique)
 	
 	public var onSelectFolder 	: String->Void;
 	
@@ -27,19 +27,19 @@ class FolderTreeView extends View
 		super(rootElement, SLPId);	
 		_folderStatus = new Hash<Bool>();
 	}
-	
-	public function initialize ( data: FolderVO )
-	{
-		_data = data;
-		buildView();
-	}
-	
+		
+// ----------------------------------------- // 
+// CREATE & UPDATE FOLDERS + SUB/FOLDERS
+// ----------------------------------------- //
+
+// PRIVATE
+
 	/**
 	 * Build the entire tree folder. when a folder is closed the
 	 * children still exist but their height is set to 0 & their label is removed
 	 */
-	private function buildView() 
-	{
+	private function buildView() {
+		
 		// create the top folder
 		_rootFolder = new FolderUI((_data.children.length > 0), 0, _data.name, SLPlayerInstanceId);
 		_rootFolder.isOpen = _data.open;
@@ -60,10 +60,9 @@ class FolderTreeView extends View
 	 * @param	target
 	 * @param	inDescendant
 	 */
-	private function createSubFolders( currentFolder: FolderVO, target: FolderUI , inDescendant: Int) 
-	{
-		for (i in 0...currentFolder.children.length) 
-		{
+	private function createSubFolders( currentFolder: FolderVO, target: FolderUI , inDescendant: Int)  {
+		
+		for (i in 0...currentFolder.children.length) {
 			var child 		: FolderVO 	= currentFolder.children[i];
 			var childPath	: String 	= child.path + "/" + child.name;
 			
@@ -84,27 +83,40 @@ class FolderTreeView extends View
 			createSubFolders(child, folderChild, (inDescendant + 1));
 		}
 	}
-	
-	private function updateSubFolders( target: FolderUI ) 
-	{
-		for (i in 0...target.subFolders.length) 
-		{
+		
+	/**
+	 * Check according to the state of the parent folder
+	 * if the folders children must be visible or not
+	 * @param	target
+	 */
+	private function updateSubFolders( target: FolderUI ) {
+		
+		for (i in 0...target.subFolders.length) {
 			var folderChild : FolderUI = target.subFolders[i];
 			folderChild.isVisible = target.isOpen;
 			folderChild.refresh();
 		}
 	}
 	
-	private function makeInteractive(folder:FolderUI, data: FolderVO) 
-	{
+	/**
+	 * Add interaction on click
+	 * @param	folder
+	 * @param	data
+	 */
+	private function makeInteractive(folder:FolderUI, data: FolderVO) {
 		var handelClickCallback = callback(handleOnFolderClick, folder, data);
 		folder.rootElement.onclick = handelClickCallback;
 	}
+		
+// ----------------------------------- // 
+// HANDLES FOLDER's INTERACTION
+// ----------------------------------- //
+
+// PRIVATE
+
+	private function handleOnFolderClick( target: FolderUI, folderData: FolderVO, evt: Event ) : Void {
 	
-	private function handleOnFolderClick( target: FolderUI, folderData: FolderVO, evt: Event ) : Void
-	{
-		// toggles the properties isOpen
-		target.isOpen = !target.isOpen;
+		target.isOpen = !target.isOpen;		// toggles the properties isOpen
 		
 		// deselects the previous selected folder
 		if( _currentFolderUISelected != null && _currentFolderUISelected != target){
@@ -112,23 +124,29 @@ class FolderTreeView extends View
 			_currentFolderUISelected.refresh();
 		}
 		
-		// stores the current folder as the one being selected
-		target.isSelected = true;
+		target.isSelected = true;			// stores the current folder as the one being selected
 		_currentFolderUISelected = target;
 		
-		// stores the value isOpen based on the unique path of the folder
-		var folderPath	: String = folderData.path;
+		
+		var folderPath	: String = folderData.path;	// stores the value isOpen based on the unique path of the folder
 		_folderStatus.set(folderPath, target.isOpen);
 
-		// updates the full data tree
-		folderData.open = target.isOpen;
 		
-		// updates the visuals
-		updateSubFolders(target);
-		
+		folderData.open = target.isOpen;	// updates the full data tree
+		updateSubFolders(target);			// updates the visuals	
 		target.refresh();
 		
-		// requests the list of files from the selected folder
-		onSelectFolder(folderPath);
+		onSelectFolder(folderPath);			// requests the list of files from the selected folder
+	}
+		
+// ------------------------ // 
+// INITIALIZE WITH DATA 
+// ------------------------ //
+
+// PUBLIC
+
+	public function initialize ( data: FolderVO ){
+		_data = data;
+		buildView();
 	}
 }

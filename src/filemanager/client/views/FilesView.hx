@@ -5,7 +5,6 @@ import filemanager.client.views.uis.FileUI;
 import filemanager.cross.FileVO;
 import filemanager.cross.FolderVO;
 import haxe.Log;
-
 import js.Dom;
 
 /**
@@ -21,13 +20,17 @@ class FilesView extends View
 		super(rootElement, SLPId);
 	}
 	
-	public function setList( data: Array<FileVO>) 
-	{
-		clear();
+/**
+ * Show a list of files contained into the current selected folder.
+ * @param	data
+ */
+	public function setList( data: Array<FileVO>) {
 		
-		for (i in 0...data.length) 
-		{
-			Log.trace("FilesView - setList() "+data[i]);
+		// remove all children
+		clear(); 
+		
+		// and recreate the list 
+		for (i in 0...data.length) {
 			var file : FileUI = new FileUI(data[i], SLPlayerInstanceId);
 			rootElement.appendChild(file.rootElement);
 		}
