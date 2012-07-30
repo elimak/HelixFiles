@@ -204,10 +204,12 @@ class FilesModel
 // UPLOAD MANAGEMENT
 // ------------------------ //
 
-	public function onCancelUpload ( trackID: String ) Void {
+	public function onCancelUpload ( trackID: String ) : Void {
 		// find the ref in the queue and remove it
 		// find the worker and stop it?
 		// restaure the temp file if there is one
 		// update the uis when the upload was cancelled
+		
+		Log.trace("FilesModel - onCancelUpload() "+trackID);
 	}
 }

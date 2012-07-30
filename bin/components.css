@@ -38,6 +38,16 @@
 	padding: 2px 6px;
 	margin-top: 5px;
 }
+.toolBox{
+}
+.toolBox div{
+	display: inline-block;
+	padding: 2px 6px;
+	margin-top: 5px;
+	margin-bottom: 5px;
+	margin-right: 5px;
+	margin-left: 5px;
+}
 .fileDropper{
 	width:600px;
 	height:100px;

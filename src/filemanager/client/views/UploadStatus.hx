@@ -13,6 +13,7 @@ import js.Lib;
 
 class UploadStatus extends View
 {
+	public var onCancelUpload		: String->Void;
 	private var _currentQueueUIs 	:  Hash<FileUploadStatus>;
 	
 	public function new (rootElement:HtmlDom, SLPId:String) {
@@ -39,6 +40,11 @@ class UploadStatus extends View
 		if ( !_currentQueueUIs.exists(uploadUpdate.file.name)) {
 			var fileUploadStatus : FileUploadStatus = new FileUploadStatus(uploadUpdate, SLPlayerInstanceId);
 			_currentQueueUIs.set(uploadUpdate.file.name, fileUploadStatus);
+			
+			if( this.onCancelUpload != null ){
+				fileUploadStatus.onCancelUpload = this.onCancelUpload;
+			}
+			
 			rootElement.appendChild(fileUploadStatus.rootElement);
 		}
 		var fileName : String = cast uploadUpdate.file.name;

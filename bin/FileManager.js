@@ -13866,7 +13866,7 @@ filemanager.client.FileManager.__name__ = ["filemanager","client","FileManager"]
 filemanager.client.FileManager.__super__ = slplayer.ui.DisplayObject;
 filemanager.client.FileManager.prototype = $extend(slplayer.ui.DisplayObject.prototype,{
 	showFiles: function(data) {
-		haxe.Log.trace("FileManager - showFolders() " + data.toString(),{ fileName : "FileManager.hx", lineNumber : 74, className : "filemanager.client.FileManager", methodName : "showFiles"});
+		haxe.Log.trace("FileManager - showFolders() " + data.toString(),{ fileName : "FileManager.hx", lineNumber : 75, className : "filemanager.client.FileManager", methodName : "showFiles"});
 	}
 	,updateFilesList: function(inData) {
 		var filesViews = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"FilesView");
@@ -13896,6 +13896,7 @@ filemanager.client.FileManager.prototype = $extend(slplayer.ui.DisplayObject.pro
 		this._fileDropper.onFileDropped = ($_=this._filesModel,$bind($_,$_.uploadSelectedFiles));
 		var uploadStatus = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"UploadStatus");
 		this._uploadStatus = uploadStatus[0];
+		this._uploadStatus.onCancelUpload = ($_=this._filesModel,$bind($_,$_.onCancelUpload));
 		this._filesModel.onUploadUpdate = ($_=this._uploadStatus,$bind($_,$_.onUpdate));
 	}
 	,_application: null
@@ -13913,25 +13914,28 @@ filemanager.client.models.FilesModel = function() {
 $hxClasses["filemanager.client.models.FilesModel"] = filemanager.client.models.FilesModel;
 filemanager.client.models.FilesModel.__name__ = ["filemanager","client","models","FilesModel"];
 filemanager.client.models.FilesModel.prototype = {
-	renameFile: function() {
+	onCancelUpload: function(trackID) {
+		haxe.Log.trace("FilesModel - onCancelUpload() " + trackID,{ fileName : "FilesModel.hx", lineNumber : 213, className : "filemanager.client.models.FilesModel", methodName : "onCancelUpload"});
 	}
-	,copyFile: function() {
+	,renameFile: function(filePath,newName) {
 	}
-	,moveFile: function() {
+	,pasteFile: function(newPath) {
 	}
-	,deleteFile: function() {
+	,copyFile: function(filePath) {
+	}
+	,moveFile: function(filePath,newPath) {
+	}
+	,deleteFile: function(filePath) {
 	}
 	,validateFileName: function(filename) {
-		filename = StringTools.replace(filename," ","_");
-		filename = StringTools.replace(filename,"$","_");
-		filename = StringTools.replace(filename,"+","_");
-		haxe.Log.trace("FilesModel - validateFileName() " + filename,{ fileName : "FilesModel.hx", lineNumber : 180, className : "filemanager.client.models.FilesModel", methodName : "validateFileName"});
+		filename = StringTools.replace(filename," ","");
+		filename = StringTools.replace(filename,"$","");
+		filename = StringTools.replace(filename,"+","");
 		return filename;
 	}
 	,handleUploadProgress: function(msg) {
 		var _g = this;
 		var response = haxe.Json.parse(msg.data);
-		haxe.Log.trace("FilesModel - handleUploadProgress() " + Std.string(response),{ fileName : "FilesModel.hx", lineNumber : 151, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
 		switch(response.type) {
 		case "progress":
 			this._uploadsQueue.get(response.result.filename).progressPercent = response.result.percentuploaded;
@@ -13950,7 +13954,7 @@ filemanager.client.models.FilesModel.prototype = {
 			this.onUploadUpdate(this._uploadsQueue.get(response.result.filename));
 			break;
 		case "error":
-			haxe.Log.trace("FilesModel - handleUploadProgress() - response: error " + Std.string(response.error),{ fileName : "FilesModel.hx", lineNumber : 172, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
+			haxe.Log.trace("FilesModel - handleUploadProgress() - response: error " + Std.string(response.error),{ fileName : "FilesModel.hx", lineNumber : 169, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
 			break;
 		}
 	}
@@ -13969,7 +13973,7 @@ filemanager.client.models.FilesModel.prototype = {
 			var file = files[_g];
 			++_g;
 			var fileToUpload = { file : file, validateFileName : this.validateFileName(file.name), initialized : false, progressPercent : 0, completed : false, started : false};
-			haxe.Log.trace("FilesModel - uploadSelectedFiles() " + this.validateFileName(file.name),{ fileName : "FilesModel.hx", lineNumber : 106, className : "filemanager.client.models.FilesModel", methodName : "uploadSelectedFiles"});
+			haxe.Log.trace("FilesModel - uploadSelectedFiles() " + this.validateFileName(file.name),{ fileName : "FilesModel.hx", lineNumber : 105, className : "filemanager.client.models.FilesModel", methodName : "uploadSelectedFiles"});
 			this._uploadsQueue.set(this.validateFileName(file.name),fileToUpload);
 		}
 		var $it0 = this._uploadsQueue.keys();
@@ -13992,7 +13996,7 @@ filemanager.client.models.FilesModel.prototype = {
 		this._api.getTreeFolder(folderpath,onSuccess);
 	}
 	,handleError: function(e) {
-		haxe.Log.trace("FilesModel - handleError() ERROR: Line " + Std.string(e.lineno) + " in " + Std.string(e.filename) + ": " + Std.string(e.message),{ fileName : "FilesModel.hx", lineNumber : 65, className : "filemanager.client.models.FilesModel", methodName : "handleError"});
+		haxe.Log.trace("FilesModel - handleError() ERROR: Line " + Std.string(e.lineno) + " in " + Std.string(e.filename) + ": " + Std.string(e.message),{ fileName : "FilesModel.hx", lineNumber : 64, className : "filemanager.client.models.FilesModel", methodName : "handleError"});
 	}
 	,onUploadUpdate: null
 	,_uploadsQueue: null
@@ -14197,6 +14201,32 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 	,_rootFolder: null
 	,__class__: filemanager.client.views.FolderTreeView
 });
+filemanager.client.views.ToolBox = function(rootElement,SLPId) {
+	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"ToolBox");
+	this._download = new filemanager.client.views.uis.buttons.DownloadButton("Download",SLPId);
+	this._copy = new filemanager.client.views.uis.buttons.CopyButton("Copy",SLPId);
+	this._paste = new filemanager.client.views.uis.buttons.PasteButton("Paste",SLPId);
+	this._delete = new filemanager.client.views.uis.buttons.DeleteButton("Delete",SLPId);
+	this._upload = new filemanager.client.views.uis.buttons.UploadButton("Upload",SLPId);
+	rootElement.className = "toolBox smallFont";
+	rootElement.appendChild(this._download.rootElement);
+	rootElement.appendChild(this._copy.rootElement);
+	rootElement.appendChild(this._paste.rootElement);
+	rootElement.appendChild(this._delete.rootElement);
+	rootElement.appendChild(this._upload.rootElement);
+	filemanager.client.views.base.View.call(this,rootElement,SLPId);
+};
+$hxClasses["filemanager.client.views.ToolBox"] = filemanager.client.views.ToolBox;
+filemanager.client.views.ToolBox.__name__ = ["filemanager","client","views","ToolBox"];
+filemanager.client.views.ToolBox.__super__ = filemanager.client.views.base.View;
+filemanager.client.views.ToolBox.prototype = $extend(filemanager.client.views.base.View.prototype,{
+	_upload: null
+	,_delete: null
+	,_paste: null
+	,_copy: null
+	,_download: null
+	,__class__: filemanager.client.views.ToolBox
+});
 filemanager.client.views.UploadStatus = function(rootElement,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"UploadStatus");
 	rootElement.className = "uploadStatus smallFont";
@@ -14211,12 +14241,14 @@ filemanager.client.views.UploadStatus.prototype = $extend(filemanager.client.vie
 		if(!this._currentQueueUIs.exists(uploadUpdate.file.name)) {
 			var fileUploadStatus = new filemanager.client.views.uis.FileUploadStatus(uploadUpdate,this.SLPlayerInstanceId);
 			this._currentQueueUIs.set(uploadUpdate.file.name,fileUploadStatus);
+			if(this.onCancelUpload != null) fileUploadStatus.set_onCancelUpload(this.onCancelUpload);
 			this.rootElement.appendChild(fileUploadStatus.rootElement);
 		}
 		var fileName = uploadUpdate.file.name;
 		this._currentQueueUIs.get(fileName).update(uploadUpdate);
 	}
 	,_currentQueueUIs: null
+	,onCancelUpload: null
 	,__class__: filemanager.client.views.UploadStatus
 });
 filemanager.client.views.base.LabelButton = function(label,SLPId) {
@@ -14300,7 +14332,7 @@ filemanager.client.views.uis.FileUploadStatus = function(data,SLPId) {
 	this._statusUpload.className = "noMargin statusTxt";
 	this._statusUpload.innerHTML = "Pending";
 	this._progressBar = new filemanager.client.views.uis.ProgressBar(SLPId);
-	this._cancel = new filemanager.client.views.uis.buttons.CancelButton("Cancel",SLPId);
+	this._cancel = new filemanager.client.views.uis.buttons.CancelButton("Cancel",SLPId,data.validateFileName);
 	viewDom.appendChild(this._fileName);
 	viewDom.appendChild(this._progressBar.rootElement);
 	viewDom.appendChild(this._statusUpload);
@@ -14311,7 +14343,13 @@ $hxClasses["filemanager.client.views.uis.FileUploadStatus"] = filemanager.client
 filemanager.client.views.uis.FileUploadStatus.__name__ = ["filemanager","client","views","uis","FileUploadStatus"];
 filemanager.client.views.uis.FileUploadStatus.__super__ = filemanager.client.views.base.View;
 filemanager.client.views.uis.FileUploadStatus.prototype = $extend(filemanager.client.views.base.View.prototype,{
-	updateStatus: function(value) {
+	onCancelUpload: null
+	,set_onCancelUpload: function(value) {
+		this._onCancelUpload = value;
+		if(this._cancel != null) this._cancel.requestCancelUpload = value;
+		return this._onCancelUpload;
+	}
+	,updateStatus: function(value) {
 		if(value != this._status) {
 			this._statusUpload.innerHTML = value;
 			this._status = value;
@@ -14330,12 +14368,14 @@ filemanager.client.views.uis.FileUploadStatus.prototype = $extend(filemanager.cl
 			this._cancel.set_enabled(false);
 		}
 	}
+	,_onCancelUpload: null
 	,_status: null
 	,_cancel: null
 	,_statusUpload: null
 	,_fileName: null
 	,_progressBar: null
 	,__class__: filemanager.client.views.uis.FileUploadStatus
+	,__properties__: {set_onCancelUpload:"set_onCancelUpload"}
 });
 filemanager.client.views.uis.FolderUI = function(isFull,isDescendant,inTitle,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"FolderUI");
@@ -14458,7 +14498,8 @@ filemanager.client.views.uis.ProgressBar.prototype = $extend(filemanager.client.
 	,__properties__: {set_value:"set_value",get_value:"get_value"}
 });
 filemanager.client.views.uis.buttons = {}
-filemanager.client.views.uis.buttons.CancelButton = function(label,SLPId) {
+filemanager.client.views.uis.buttons.CancelButton = function(label,SLPId,fileName) {
+	this._fileName = fileName;
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"CancelButton");
 	filemanager.client.views.base.LabelButton.call(this,label,SLPId);
 	this.rootElement.className = "buttons cancelButton";
@@ -14467,7 +14508,72 @@ $hxClasses["filemanager.client.views.uis.buttons.CancelButton"] = filemanager.cl
 filemanager.client.views.uis.buttons.CancelButton.__name__ = ["filemanager","client","views","uis","buttons","CancelButton"];
 filemanager.client.views.uis.buttons.CancelButton.__super__ = filemanager.client.views.base.LabelButton;
 filemanager.client.views.uis.buttons.CancelButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
-	__class__: filemanager.client.views.uis.buttons.CancelButton
+	handleClick: function(e) {
+		if(this.requestCancelUpload != null && this.get_enabled() == true) this.requestCancelUpload(this._fileName);
+	}
+	,_fileName: null
+	,requestCancelUpload: null
+	,__class__: filemanager.client.views.uis.buttons.CancelButton
+});
+filemanager.client.views.uis.buttons.CopyButton = function(label,SLPId) {
+	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"CopyButton");
+	filemanager.client.views.base.LabelButton.call(this,label,SLPId);
+	this.rootElement.className = "buttons copyButton";
+	this.set_enabled(true);
+};
+$hxClasses["filemanager.client.views.uis.buttons.CopyButton"] = filemanager.client.views.uis.buttons.CopyButton;
+filemanager.client.views.uis.buttons.CopyButton.__name__ = ["filemanager","client","views","uis","buttons","CopyButton"];
+filemanager.client.views.uis.buttons.CopyButton.__super__ = filemanager.client.views.base.LabelButton;
+filemanager.client.views.uis.buttons.CopyButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
+	__class__: filemanager.client.views.uis.buttons.CopyButton
+});
+filemanager.client.views.uis.buttons.DeleteButton = function(label,SLPId) {
+	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"DeleteButton");
+	filemanager.client.views.base.LabelButton.call(this,label,SLPId);
+	this.rootElement.className = "buttons deleteButton";
+	this.set_enabled(true);
+};
+$hxClasses["filemanager.client.views.uis.buttons.DeleteButton"] = filemanager.client.views.uis.buttons.DeleteButton;
+filemanager.client.views.uis.buttons.DeleteButton.__name__ = ["filemanager","client","views","uis","buttons","DeleteButton"];
+filemanager.client.views.uis.buttons.DeleteButton.__super__ = filemanager.client.views.base.LabelButton;
+filemanager.client.views.uis.buttons.DeleteButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
+	__class__: filemanager.client.views.uis.buttons.DeleteButton
+});
+filemanager.client.views.uis.buttons.DownloadButton = function(label,SLPId) {
+	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"DownloadButton");
+	filemanager.client.views.base.LabelButton.call(this,label,SLPId);
+	this.rootElement.className = "buttons downloadButton";
+	this.set_enabled(true);
+};
+$hxClasses["filemanager.client.views.uis.buttons.DownloadButton"] = filemanager.client.views.uis.buttons.DownloadButton;
+filemanager.client.views.uis.buttons.DownloadButton.__name__ = ["filemanager","client","views","uis","buttons","DownloadButton"];
+filemanager.client.views.uis.buttons.DownloadButton.__super__ = filemanager.client.views.base.LabelButton;
+filemanager.client.views.uis.buttons.DownloadButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
+	__class__: filemanager.client.views.uis.buttons.DownloadButton
+});
+filemanager.client.views.uis.buttons.PasteButton = function(label,SLPId) {
+	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"PasteButton");
+	filemanager.client.views.base.LabelButton.call(this,label,SLPId);
+	this.rootElement.className = "buttons pasteButton";
+	this.set_enabled(true);
+};
+$hxClasses["filemanager.client.views.uis.buttons.PasteButton"] = filemanager.client.views.uis.buttons.PasteButton;
+filemanager.client.views.uis.buttons.PasteButton.__name__ = ["filemanager","client","views","uis","buttons","PasteButton"];
+filemanager.client.views.uis.buttons.PasteButton.__super__ = filemanager.client.views.base.LabelButton;
+filemanager.client.views.uis.buttons.PasteButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
+	__class__: filemanager.client.views.uis.buttons.PasteButton
+});
+filemanager.client.views.uis.buttons.UploadButton = function(label,SLPId) {
+	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"UploadButton");
+	filemanager.client.views.base.LabelButton.call(this,label,SLPId);
+	this.rootElement.className = "buttons uploadButton";
+	this.set_enabled(true);
+};
+$hxClasses["filemanager.client.views.uis.buttons.UploadButton"] = filemanager.client.views.uis.buttons.UploadButton;
+filemanager.client.views.uis.buttons.UploadButton.__name__ = ["filemanager","client","views","uis","buttons","UploadButton"];
+filemanager.client.views.uis.buttons.UploadButton.__super__ = filemanager.client.views.base.LabelButton;
+filemanager.client.views.uis.buttons.UploadButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
+	__class__: filemanager.client.views.uis.buttons.UploadButton
 });
 filemanager.cross = {}
 filemanager.cross.FileUpdatedVO = function() {
@@ -19121,18 +19227,20 @@ slplayer.core.Application.prototype = {
 		this.registeredComponents.set(componentClassName,args);
 	}
 	,registerComponentsforInit: function() {
-		slplayer.ui.interaction.Draggable;
-		this.registerComponent("slplayer.ui.interaction.Draggable");
 		filemanager.client.views.UploadStatus;
 		this.registerComponent("filemanager.client.views.UploadStatus");
-		filemanager.client.FileManager;
-		this.registerComponent("filemanager.client.FileManager");
 		filemanager.client.views.FilesView;
 		this.registerComponent("filemanager.client.views.FilesView");
 		filemanager.client.views.FolderTreeView;
 		this.registerComponent("filemanager.client.views.FolderTreeView");
 		filemanager.client.views.FileDropper;
 		this.registerComponent("filemanager.client.views.FileDropper");
+		filemanager.client.FileManager;
+		this.registerComponent("filemanager.client.FileManager");
+		slplayer.ui.interaction.Draggable;
+		this.registerComponent("slplayer.ui.interaction.Draggable");
+		filemanager.client.views.ToolBox;
+		this.registerComponent("filemanager.client.views.ToolBox");
 	}
 	,initMetaParameters: function() {
 	}

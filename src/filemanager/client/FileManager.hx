@@ -37,17 +37,17 @@ class FileManager extends DisplayObject
 		_filesModel.getTreeFolder("../files", showFolders);
 		_filesModel.getFiles("../files", showFiles);
 		
-		var fileDroppers 	: Array<DisplayObject> = Locator.getSLDisplay( SLPlayerInstanceId, "FileDropper");
+		var fileDroppers : Array<DisplayObject> = Locator.getSLDisplay( SLPlayerInstanceId, "FileDropper");
 		_fileDropper = cast fileDroppers[0];
 		_fileDropper.onFileDropped = _filesModel.uploadSelectedFiles;
 		
-		var uploadStatus	: Array<DisplayObject> = Locator.getSLDisplay( SLPlayerInstanceId, "UploadStatus");
+		var uploadStatus : Array<DisplayObject> = Locator.getSLDisplay( SLPlayerInstanceId, "UploadStatus");
 		_uploadStatus = cast uploadStatus[0];
-		_filesModel.onUploadUpdate = _uploadStatus.onUpdate;
 		_uploadStatus.onCancelUpload = _filesModel.onCancelUpload;
+		_filesModel.onUploadUpdate = _uploadStatus.onUpdate;
 	}
 	
-	private function showFolders( data: FolderVO ) :Void
+	private function showFolders( data: FolderVO ) : Void
 	{
 		var folderTreeViews : Array<DisplayObject> = Locator.getSLDisplay( SLPlayerInstanceId, "FolderTreeView");
 		var folderView 	: FolderTreeView = cast folderTreeViews[0];

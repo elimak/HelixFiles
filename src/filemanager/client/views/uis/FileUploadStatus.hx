@@ -20,14 +20,14 @@ class FileUploadStatus extends View
 	private var _fileName 		: HtmlDom;
 	private var _statusUpload	: HtmlDom;
 	
-	private var _cancel	: LabelButton;
+	private var _cancel	: CancelButton;
 	private var _status	: String;
 	
 	public static inline var PENDING 	: String = "Pending";
 	public static inline var PROGRESS 	: String = "Progress";
 	public static inline var COMPLETE 	: String = "Complete";
 	
-	private var _onCancelUpload : Event->Void;
+	private var _onCancelUpload : String->Void;
 	
 	public function new( data : FileToUpload , SLPId:String ) {
 		
@@ -45,7 +45,7 @@ class FileUploadStatus extends View
 		_statusUpload.innerHTML = PENDING;
 		
 		_progressBar = new ProgressBar(SLPId);
-		_cancel = new CancelButton( "Cancel", SLPId);
+		_cancel = new CancelButton( "Cancel", SLPId, data.validateFileName);
 		
 		viewDom.appendChild(_fileName);
 		viewDom.appendChild(_progressBar.rootElement);
@@ -80,13 +80,13 @@ class FileUploadStatus extends View
 		}
 	}
 	
-	private function set_onCancelUpload(value:Event -> Void):Event -> Void {
-		_onCancelUpload = value
-		if ( _cancel != undefined ) {
-			_cancel.onclicked = value;
+	private function set_onCancelUpload(value:String -> Void):String -> Void {
+		_onCancelUpload = value;
+		if ( _cancel != null ) {
+			_cancel.requestCancelUpload = value;
 		}
 		return _onCancelUpload;
 	}
 	
-	public var onCancelUpload(null, set_onCancelUpload):Event -> Void;
+	public var onCancelUpload(null, set_onCancelUpload):String -> Void;
 }
