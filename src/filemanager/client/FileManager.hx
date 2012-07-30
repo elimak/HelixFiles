@@ -4,6 +4,7 @@ import filemanager.client.models.Locator;
 import filemanager.client.views.FileDropper;
 import filemanager.client.views.FilesView;
 import filemanager.client.views.FolderTreeView;
+import filemanager.client.views.uis.SimpleDialogPanel;
 import filemanager.client.views.UploadStatus;
 import filemanager.cross.FileVO;
 import filemanager.cross.FolderVO;
@@ -23,24 +24,44 @@ class FileManager extends DisplayObject
 	private var _filesModel		: FilesModel;
 	private var _folderView		: FolderTreeView;
 	private var _uploadStatus	: UploadStatus;
+	private var _dialogPanel	: SimpleDialogPanel;
 	private var _fileDropper	: FileDropper;
 	private var _application	: Application;
 	
 	public function new(rootElement:HtmlDom, SLPId:String){
 		super(rootElement, SLPId);
 		_application = Application.get(SLPId);
+		
+		// todo : move this 
+		showDialogPanel ( true );
+	}
+	
+	private function showDialogPanel( b: Bool) 
+	{
+		if (_dialogPanel == null) {
+			// Create and store the dialog box
+			_dialogPanel = new SimpleDialogPanel( SLPlayerInstanceId, rootElement);
+		}
+		if( b ){
+			_dialogPanel.show("My title");
+		}else {
+			_dialogPanel.hide();
+		}
 	}
 	
 	override public function init() 
 	{
+		// create model
 		_filesModel = new FilesModel();
 		_filesModel.getTreeFolder("../files", showFolders);
 		_filesModel.getFiles("../files", showFiles);
 		
+		// locate and store File Dropper for upload
 		var fileDroppers : Array<DisplayObject> = Locator.getSLDisplay( SLPlayerInstanceId, "FileDropper");
 		_fileDropper = cast fileDroppers[0];
 		_fileDropper.onFileDropped = _filesModel.uploadSelectedFiles;
 		
+		// Locate and store Upload status - list of ui monitoring each separated upload
 		var uploadStatus : Array<DisplayObject> = Locator.getSLDisplay( SLPlayerInstanceId, "UploadStatus");
 		_uploadStatus = cast uploadStatus[0];
 		_uploadStatus.onCancelUpload = _filesModel.onCancelUpload;

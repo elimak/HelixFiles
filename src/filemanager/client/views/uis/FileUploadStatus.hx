@@ -2,6 +2,7 @@ package filemanager.client.views.uis;
 import filemanager.client.models.Locator;
 import filemanager.client.views.base.LabelButton;
 import filemanager.client.views.uis.buttons.CancelButton;
+import filemanager.client.views.uis.buttons.CancelUploadButton;
 import filemanager.client.views.uis.ProgressBar;
 import filemanager.client.views.base.View;
 import filemanager.client.models.FilesModel;
@@ -20,7 +21,7 @@ class FileUploadStatus extends View
 	private var _fileName 		: HtmlDom;
 	private var _statusUpload	: HtmlDom;
 	
-	private var _cancel	: CancelButton;
+	private var _cancel	: CancelUploadButton;
 	private var _status	: String;
 	
 	public static inline var PENDING 	: String = "Pending";
@@ -45,7 +46,7 @@ class FileUploadStatus extends View
 		_statusUpload.innerHTML = PENDING;
 		
 		_progressBar = new ProgressBar(SLPId);
-		_cancel = new CancelButton( "Cancel", SLPId, data.validateFileName);
+		_cancel = new CancelUploadButton( "Cancel", SLPId, data.validateFileName);
 		
 		viewDom.appendChild(_fileName);
 		viewDom.appendChild(_progressBar.rootElement);

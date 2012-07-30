@@ -1,23 +1,19 @@
 package filemanager.client.views.uis.buttons;
 import filemanager.client.models.Locator;
 import filemanager.client.views.base.LabelButton;
-import js.Lib;
-import js.Dom;
 
 /**
  * ...
  * @author valerie.elimak - blog.elimak.com
  */
 
-class CancelButton extends LabelButton 
+class CreateFolderButton extends LabelButton
 {
-	
 	public function new(label: String, SLPId:String ) 
 	{
-		Locator.registerSLDisplay(SLPId, this, "CancelButton");
+		Locator.registerSLDisplay(SLPId, this, "CreateFolderButton");
 		super(label, SLPId);
-		
-		rootElement.className = "buttons cancelButton";
+		rootElement.className = "buttons createFolderButton";
+		enabled = true;
 	}
-	
 }

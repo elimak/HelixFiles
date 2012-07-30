@@ -2,6 +2,7 @@ package filemanager.client.views;
 import filemanager.client.models.Locator;
 import filemanager.client.views.base.View;
 import filemanager.client.views.uis.buttons.CopyButton;
+import filemanager.client.views.uis.buttons.CreateFolderButton;
 import filemanager.client.views.uis.buttons.DeleteButton;
 import filemanager.client.views.uis.buttons.DownloadButton;
 import filemanager.client.views.uis.buttons.PasteButton;
@@ -17,11 +18,12 @@ import js.Dom;
 
 class ToolBox extends View
 {
-	private var _download	: DownloadButton;
-	private var _copy		: CopyButton;
-	private var _paste		: PasteButton;
-	private var _delete		: DeleteButton;
-	private var _upload		: UploadButton;
+	private var _download		: DownloadButton;
+	private var _copy			: CopyButton;
+	private var _paste			: PasteButton;
+	private var _delete			: DeleteButton;
+	private var _upload			: UploadButton;
+	private var _createFolder	: CreateFolderButton;
 	
 	public function new (rootElement:HtmlDom, SLPId:String) {
 		
@@ -32,8 +34,8 @@ class ToolBox extends View
 		_paste 		= new PasteButton( "Paste", SLPId);
 		_delete 	= new DeleteButton( "Delete", SLPId);
 		_upload 	= new UploadButton( "Upload", SLPId);
-		
-	//	var viewDom = Lib.document.createElement("div");
+		_createFolder 	= new CreateFolderButton( "Create New Folder", SLPId);
+
 		rootElement.className = "toolBox smallFont";
 		
 		rootElement.appendChild(_download.rootElement);
@@ -41,6 +43,7 @@ class ToolBox extends View
 		rootElement.appendChild(_paste.rootElement);
 		rootElement.appendChild(_delete.rootElement);
 		rootElement.appendChild(_upload.rootElement);
+		rootElement.appendChild(_createFolder.rootElement);
 		
 		super(rootElement, SLPId);
 	}

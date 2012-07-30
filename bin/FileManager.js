@@ -13860,13 +13860,14 @@ filemanager.client = {}
 filemanager.client.FileManager = function(rootElement,SLPId) {
 	slplayer.ui.DisplayObject.call(this,rootElement,SLPId);
 	this._application = slplayer.core.Application.get(SLPId);
+	this.showDialogPanel(true);
 };
 $hxClasses["filemanager.client.FileManager"] = filemanager.client.FileManager;
 filemanager.client.FileManager.__name__ = ["filemanager","client","FileManager"];
 filemanager.client.FileManager.__super__ = slplayer.ui.DisplayObject;
 filemanager.client.FileManager.prototype = $extend(slplayer.ui.DisplayObject.prototype,{
 	showFiles: function(data) {
-		haxe.Log.trace("FileManager - showFolders() " + data.toString(),{ fileName : "FileManager.hx", lineNumber : 75, className : "filemanager.client.FileManager", methodName : "showFiles"});
+		haxe.Log.trace("FileManager - showFolders() " + data.toString(),{ fileName : "FileManager.hx", lineNumber : 96, className : "filemanager.client.FileManager", methodName : "showFiles"});
 	}
 	,updateFilesList: function(inData) {
 		var filesViews = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"FilesView");
@@ -13899,8 +13900,13 @@ filemanager.client.FileManager.prototype = $extend(slplayer.ui.DisplayObject.pro
 		this._uploadStatus.onCancelUpload = ($_=this._filesModel,$bind($_,$_.onCancelUpload));
 		this._filesModel.onUploadUpdate = ($_=this._uploadStatus,$bind($_,$_.onUpdate));
 	}
+	,showDialogPanel: function(b) {
+		if(this._dialogPanel == null) this._dialogPanel = new filemanager.client.views.uis.SimpleDialogPanel(this.SLPlayerInstanceId,this.rootElement);
+		if(b) this._dialogPanel.show("My title"); else this._dialogPanel.hide();
+	}
 	,_application: null
 	,_fileDropper: null
+	,_dialogPanel: null
 	,_uploadStatus: null
 	,_folderView: null
 	,_filesModel: null
@@ -13915,7 +13921,9 @@ $hxClasses["filemanager.client.models.FilesModel"] = filemanager.client.models.F
 filemanager.client.models.FilesModel.__name__ = ["filemanager","client","models","FilesModel"];
 filemanager.client.models.FilesModel.prototype = {
 	onCancelUpload: function(trackID) {
-		haxe.Log.trace("FilesModel - onCancelUpload() " + trackID,{ fileName : "FilesModel.hx", lineNumber : 213, className : "filemanager.client.models.FilesModel", methodName : "onCancelUpload"});
+		haxe.Log.trace("FilesModel - onCancelUpload() " + trackID,{ fileName : "FilesModel.hx", lineNumber : 216, className : "filemanager.client.models.FilesModel", methodName : "onCancelUpload"});
+	}
+	,createNewFolder: function(folderName) {
 	}
 	,renameFile: function(filePath,newName) {
 	}
@@ -14208,19 +14216,22 @@ filemanager.client.views.ToolBox = function(rootElement,SLPId) {
 	this._paste = new filemanager.client.views.uis.buttons.PasteButton("Paste",SLPId);
 	this._delete = new filemanager.client.views.uis.buttons.DeleteButton("Delete",SLPId);
 	this._upload = new filemanager.client.views.uis.buttons.UploadButton("Upload",SLPId);
+	this._createFolder = new filemanager.client.views.uis.buttons.CreateFolderButton("Create New Folder",SLPId);
 	rootElement.className = "toolBox smallFont";
 	rootElement.appendChild(this._download.rootElement);
 	rootElement.appendChild(this._copy.rootElement);
 	rootElement.appendChild(this._paste.rootElement);
 	rootElement.appendChild(this._delete.rootElement);
 	rootElement.appendChild(this._upload.rootElement);
+	rootElement.appendChild(this._createFolder.rootElement);
 	filemanager.client.views.base.View.call(this,rootElement,SLPId);
 };
 $hxClasses["filemanager.client.views.ToolBox"] = filemanager.client.views.ToolBox;
 filemanager.client.views.ToolBox.__name__ = ["filemanager","client","views","ToolBox"];
 filemanager.client.views.ToolBox.__super__ = filemanager.client.views.base.View;
 filemanager.client.views.ToolBox.prototype = $extend(filemanager.client.views.base.View.prototype,{
-	_upload: null
+	_createFolder: null
+	,_upload: null
 	,_delete: null
 	,_paste: null
 	,_copy: null
@@ -14332,7 +14343,7 @@ filemanager.client.views.uis.FileUploadStatus = function(data,SLPId) {
 	this._statusUpload.className = "noMargin statusTxt";
 	this._statusUpload.innerHTML = "Pending";
 	this._progressBar = new filemanager.client.views.uis.ProgressBar(SLPId);
-	this._cancel = new filemanager.client.views.uis.buttons.CancelButton("Cancel",SLPId,data.validateFileName);
+	this._cancel = new filemanager.client.views.uis.buttons.CancelUploadButton("Cancel",SLPId,data.validateFileName);
 	viewDom.appendChild(this._fileName);
 	viewDom.appendChild(this._progressBar.rootElement);
 	viewDom.appendChild(this._statusUpload);
@@ -14497,9 +14508,43 @@ filemanager.client.views.uis.ProgressBar.prototype = $extend(filemanager.client.
 	,__class__: filemanager.client.views.uis.ProgressBar
 	,__properties__: {set_value:"set_value",get_value:"get_value"}
 });
+filemanager.client.views.uis.SimpleDialogPanel = function(SLPId,parent) {
+	this._parent = parent;
+	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"SimpleDialogPanel");
+	var root = js.Lib.document.createElement("div");
+	root.className = "simpleDialogPanel";
+	this._title = js.Lib.document.createElement("span");
+	root.appendChild(this._title);
+	this._input = js.Lib.document.createElement("input");
+	root.appendChild(this._input);
+	this._cancel = new filemanager.client.views.uis.buttons.CancelButton("Cancel",SLPId);
+	root.appendChild(this._cancel.rootElement);
+	this._confirm = new filemanager.client.views.uis.buttons.ConfirmButton("Confirm",SLPId);
+	root.appendChild(this._confirm.rootElement);
+	filemanager.client.views.base.View.call(this,root,SLPId);
+};
+$hxClasses["filemanager.client.views.uis.SimpleDialogPanel"] = filemanager.client.views.uis.SimpleDialogPanel;
+filemanager.client.views.uis.SimpleDialogPanel.__name__ = ["filemanager","client","views","uis","SimpleDialogPanel"];
+filemanager.client.views.uis.SimpleDialogPanel.__super__ = filemanager.client.views.base.View;
+filemanager.client.views.uis.SimpleDialogPanel.prototype = $extend(filemanager.client.views.base.View.prototype,{
+	hide: function() {
+		this._parent.removeChild(this.rootElement);
+		haxe.Log.trace("SimpleDialogPanel - hide() ",{ fileName : "SimpleDialogPanel.hx", lineNumber : 57, className : "filemanager.client.views.uis.SimpleDialogPanel", methodName : "hide"});
+	}
+	,show: function(title) {
+		this._title.innerHTML = title;
+		this._parent.appendChild(this.rootElement);
+		haxe.Log.trace("SimpleDialogPanel - show() " + title,{ fileName : "SimpleDialogPanel.hx", lineNumber : 52, className : "filemanager.client.views.uis.SimpleDialogPanel", methodName : "show"});
+	}
+	,_parent: null
+	,_confirm: null
+	,_cancel: null
+	,_input: null
+	,_title: null
+	,__class__: filemanager.client.views.uis.SimpleDialogPanel
+});
 filemanager.client.views.uis.buttons = {}
-filemanager.client.views.uis.buttons.CancelButton = function(label,SLPId,fileName) {
-	this._fileName = fileName;
+filemanager.client.views.uis.buttons.CancelButton = function(label,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"CancelButton");
 	filemanager.client.views.base.LabelButton.call(this,label,SLPId);
 	this.rootElement.className = "buttons cancelButton";
@@ -14508,12 +14553,37 @@ $hxClasses["filemanager.client.views.uis.buttons.CancelButton"] = filemanager.cl
 filemanager.client.views.uis.buttons.CancelButton.__name__ = ["filemanager","client","views","uis","buttons","CancelButton"];
 filemanager.client.views.uis.buttons.CancelButton.__super__ = filemanager.client.views.base.LabelButton;
 filemanager.client.views.uis.buttons.CancelButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
+	__class__: filemanager.client.views.uis.buttons.CancelButton
+});
+filemanager.client.views.uis.buttons.CancelUploadButton = function(label,SLPId,fileName) {
+	this._fileName = fileName;
+	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"CancelUploadButton");
+	filemanager.client.views.base.LabelButton.call(this,label,SLPId);
+	this.rootElement.className = "buttons cancelButton";
+};
+$hxClasses["filemanager.client.views.uis.buttons.CancelUploadButton"] = filemanager.client.views.uis.buttons.CancelUploadButton;
+filemanager.client.views.uis.buttons.CancelUploadButton.__name__ = ["filemanager","client","views","uis","buttons","CancelUploadButton"];
+filemanager.client.views.uis.buttons.CancelUploadButton.__super__ = filemanager.client.views.base.LabelButton;
+filemanager.client.views.uis.buttons.CancelUploadButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
 	handleClick: function(e) {
 		if(this.requestCancelUpload != null && this.get_enabled() == true) this.requestCancelUpload(this._fileName);
 	}
 	,_fileName: null
 	,requestCancelUpload: null
-	,__class__: filemanager.client.views.uis.buttons.CancelButton
+	,__class__: filemanager.client.views.uis.buttons.CancelUploadButton
+});
+filemanager.client.views.uis.buttons.ConfirmButton = function(label,SLPId) {
+	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"ConfirmButton");
+	filemanager.client.views.base.LabelButton.call(this,label,SLPId);
+	this.rootElement.className = "buttons confirmButton";
+};
+$hxClasses["filemanager.client.views.uis.buttons.ConfirmButton"] = filemanager.client.views.uis.buttons.ConfirmButton;
+filemanager.client.views.uis.buttons.ConfirmButton.__name__ = ["filemanager","client","views","uis","buttons","ConfirmButton"];
+filemanager.client.views.uis.buttons.ConfirmButton.__super__ = filemanager.client.views.base.LabelButton;
+filemanager.client.views.uis.buttons.ConfirmButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
+	handleClick: function(e) {
+	}
+	,__class__: filemanager.client.views.uis.buttons.ConfirmButton
 });
 filemanager.client.views.uis.buttons.CopyButton = function(label,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"CopyButton");
@@ -14526,6 +14596,18 @@ filemanager.client.views.uis.buttons.CopyButton.__name__ = ["filemanager","clien
 filemanager.client.views.uis.buttons.CopyButton.__super__ = filemanager.client.views.base.LabelButton;
 filemanager.client.views.uis.buttons.CopyButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
 	__class__: filemanager.client.views.uis.buttons.CopyButton
+});
+filemanager.client.views.uis.buttons.CreateFolderButton = function(label,SLPId) {
+	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"CreateFolderButton");
+	filemanager.client.views.base.LabelButton.call(this,label,SLPId);
+	this.rootElement.className = "buttons createFolderButton";
+	this.set_enabled(true);
+};
+$hxClasses["filemanager.client.views.uis.buttons.CreateFolderButton"] = filemanager.client.views.uis.buttons.CreateFolderButton;
+filemanager.client.views.uis.buttons.CreateFolderButton.__name__ = ["filemanager","client","views","uis","buttons","CreateFolderButton"];
+filemanager.client.views.uis.buttons.CreateFolderButton.__super__ = filemanager.client.views.base.LabelButton;
+filemanager.client.views.uis.buttons.CreateFolderButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
+	__class__: filemanager.client.views.uis.buttons.CreateFolderButton
 });
 filemanager.client.views.uis.buttons.DeleteButton = function(label,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"DeleteButton");

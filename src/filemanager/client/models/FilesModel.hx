@@ -200,6 +200,9 @@ class FilesModel
 	// TODO: we need a dialog panel to implement this
 	public function renameFile ( filePath: String, newName: String) { }
 	
+	// TODO: we need a dialog panel to implement this
+	public function createNewFolder ( folderName : String ) {}
+	
 // ------------------------ // 
 // UPLOAD MANAGEMENT
 // ------------------------ //
