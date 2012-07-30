@@ -44,6 +44,7 @@ class FileManager extends DisplayObject
 		var uploadStatus	: Array<DisplayObject> = Locator.getSLDisplay( SLPlayerInstanceId, "UploadStatus");
 		_uploadStatus = cast uploadStatus[0];
 		_filesModel.onUploadUpdate = _uploadStatus.onUpdate;
+		_uploadStatus.onCancelUpload = _filesModel.onCancelUpload;
 	}
 	
 	private function showFolders( data: FolderVO ) :Void

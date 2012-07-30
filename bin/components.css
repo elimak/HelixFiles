@@ -1,5 +1,5 @@
 .body{
-	font-family: Verdana, Arial;
+	font-family:'Verdana',Arial,sans-serif;
 	font-size: 14pt;
 }
 .folderTreeView{
@@ -34,11 +34,9 @@
 .fileUploadStatus{
 }
 .fileUploadStatus div{
-	display:inline-block;
-	width:120px;
-}
-.fileUploadStatus .titleTrack{
-	width: 240px;
+	display: inline-block;
+	padding: 2px 6px;
+	margin-top: 5px;
 }
 .fileDropper{
 	width:600px;
@@ -65,21 +63,56 @@
 	position: relative;
 }
 .progressBar{
-	display:block;
-	height:20px;
-	width:120px;
+	width: 120px;
+	height: 14px;
 	background-color: #ffffff;
+	top: -4px;
+	width:120px;
+	margin-top: -5px;
 }
 .progressBar .bar{
-	height:10px;
-	width:0px;
-	background-color: #335577;
-	position:relative;
-	margin-top:5px;
-	margin-left:5px;
-	margin-right:5px;
-	margin-bottom:5px;
-	top:5px;
+	height: 4px;
+	width: 0px;
+	background-color: #357;
+	position: relative;
+	top: 3px;
+	margin-top: 0;
+	
+}
+.titleTrack{
+	width:260px;
+}
+.statusTxt{
+	width:100px;
+}
+.buttons{
+	-webkit-box-shadow:rgba(0,0,0,0.2) 0 1px 0 0;
+	-moz-box-shadow:rgba(0,0,0,0.2) 0 1px 0 0;
+	box-shadow:rgba(0,0,0,0.2) 0 1px 0 0;
+	border-bottom-color:#333;
+	border:1px solid #61c4ea;
+	background-color:#7cceee;
+	border-radius:5px;
+	-moz-border-radius:5px;
+	-webkit-border-radius:5px;
+	color:#333;
+	text-shadow:#b2e2f5 0 1px 0;
+	padding:2px 6px;
+}
+.copyButton{
+}
+.deleteButton{
+}
+.pasteButton{
+}
+.cancelButton{
+	width:48px;
+}
+.downloadButton{
+}
+.uploadButton{
+}
+.refreshButton{
 }
 /*
 .XmlList{

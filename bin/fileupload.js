@@ -3,7 +3,8 @@
  * @author valerie.elimak - blog.elimak.com
  */
  
-var file = [], p = true, chunks = [];
+/*var file = [], p = true, */
+chunks = [];
 
 function upload() {
 	var chunk = chunks.pop();
@@ -26,10 +27,9 @@ function upload() {
 	xhr.send(chunk.chunk);
 }
 
-function process() {
+function process( blob, validName) {
 
-	var blob = file.pop();
-	self.postMessage('{"result":{"filename":"' + blob.name+ '"}, "type":"started"}');
+	self.postMessage('{"result":{"filename":"' + validName+ '"}, "type":"started"}');
 	const BYTES_PER_CHUNK = 210000;/*Math.round(1024 * 1024 / 5);*/ // around 200k chunk sizes.
 	
 	const SIZE = blob.size;
@@ -46,7 +46,7 @@ function process() {
 		
 		var chunksize = end - start;
 		
-		chunks.push({chunk:chunk, name: blob.name, size: blob.size, chunksize: chunksize});
+		chunks.push({chunk:chunk, name: validName, size: blob.size, chunksize: chunksize});
 
 
 		start = end;
@@ -54,14 +54,8 @@ function process() {
 	}
 	
 	upload();
-	p = ( file.length > 0 ) ? true : false;
-	if (p) process();
 }
 
 self.onmessage = function(e) {
-	file = [];
-	for (var j = 0; j < e.data.length; j++){
-		file.push(e.data[j]);
-	}
-	process();
+	process(e.data.file, e.data.validName );
 }

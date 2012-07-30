@@ -1,7 +1,8 @@
 package filemanager.client.views.uis;
 import filemanager.client.models.Locator;
 import filemanager.client.views.base.LabelButton;
-import filemanager.client.views.base.ProgressBar;
+import filemanager.client.views.uis.buttons.CancelButton;
+import filemanager.client.views.uis.ProgressBar;
 import filemanager.client.views.base.View;
 import filemanager.client.models.FilesModel;
 import haxe.Log;
@@ -26,8 +27,10 @@ class FileUploadStatus extends View
 	public static inline var PROGRESS 	: String = "Progress";
 	public static inline var COMPLETE 	: String = "Complete";
 	
-	public function new( data : FileToUpload , SLPId:String ) 
-	{
+	private var _onCancelUpload : Event->Void;
+	
+	public function new( data : FileToUpload , SLPId:String ) {
+		
 		Locator.registerSLDisplay(SLPId, this, "FileUploadStatus");
 		
 		var viewDom = Lib.document.createElement("div");
@@ -38,11 +41,11 @@ class FileUploadStatus extends View
 		_fileName.appendChild (Lib.document.createTextNode(data.file.name));
 		_status = PENDING;
 		_statusUpload = Lib.document.createElement("div");
-		_statusUpload.className = "noMargin";
+		_statusUpload.className = "noMargin statusTxt";
 		_statusUpload.innerHTML = PENDING;
 		
 		_progressBar = new ProgressBar(SLPId);
-		_cancel = new LabelButton( "Cancel", SLPId);
+		_cancel = new CancelButton( "Cancel", SLPId);
 		
 		viewDom.appendChild(_fileName);
 		viewDom.appendChild(_progressBar.rootElement);
@@ -52,26 +55,38 @@ class FileUploadStatus extends View
 		super(viewDom, SLPId);
 	}
 	
-	public function update(uploadUpdate:FileToUpload)
-	{
+	public function update(uploadUpdate:FileToUpload) {
+		
 		_progressBar.value = uploadUpdate.progressPercent;
 		
 		if ( uploadUpdate.initialized == true && uploadUpdate.completed == false ) {
 			updateStatus(PROGRESS);
+			_cancel.enabled = true;
 		}
 		else if ( uploadUpdate.initialized == false && uploadUpdate.completed == false ) {
 			updateStatus(PENDING);
+			_cancel.enabled = true;
 		}
 		else if ( uploadUpdate.initialized == true && uploadUpdate.completed == true ) {
 			updateStatus(COMPLETE);
+			_cancel.enabled = false;
 		}
 	}
 	
-	private function updateStatus( value :String) 
-	{
+	private function updateStatus( value :String) {
 		if ( value != _status ) {
 			_statusUpload.innerHTML = value;
 			_status = value;
 		}
 	}
+	
+	private function set_onCancelUpload(value:Event -> Void):Event -> Void {
+		_onCancelUpload = value
+		if ( _cancel != undefined ) {
+			_cancel.onclicked = value;
+		}
+		return _onCancelUpload;
+	}
+	
+	public var onCancelUpload(null, set_onCancelUpload):Event -> Void;
 }

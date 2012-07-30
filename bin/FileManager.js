@@ -13921,9 +13921,17 @@ filemanager.client.models.FilesModel.prototype = {
 	}
 	,deleteFile: function() {
 	}
+	,validateFileName: function(filename) {
+		filename = StringTools.replace(filename," ","_");
+		filename = StringTools.replace(filename,"$","_");
+		filename = StringTools.replace(filename,"+","_");
+		haxe.Log.trace("FilesModel - validateFileName() " + filename,{ fileName : "FilesModel.hx", lineNumber : 180, className : "filemanager.client.models.FilesModel", methodName : "validateFileName"});
+		return filename;
+	}
 	,handleUploadProgress: function(msg) {
 		var _g = this;
 		var response = haxe.Json.parse(msg.data);
+		haxe.Log.trace("FilesModel - handleUploadProgress() " + Std.string(response),{ fileName : "FilesModel.hx", lineNumber : 151, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
 		switch(response.type) {
 		case "progress":
 			this._uploadsQueue.get(response.result.filename).progressPercent = response.result.percentuploaded;
@@ -13942,7 +13950,7 @@ filemanager.client.models.FilesModel.prototype = {
 			this.onUploadUpdate(this._uploadsQueue.get(response.result.filename));
 			break;
 		case "error":
-			haxe.Log.trace("FilesModel - handleUploadProgress() - response: error " + Std.string(response.error),{ fileName : "FilesModel.hx", lineNumber : 164, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
+			haxe.Log.trace("FilesModel - handleUploadProgress() - response: error " + Std.string(response.error),{ fileName : "FilesModel.hx", lineNumber : 172, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
 			break;
 		}
 	}
@@ -13951,7 +13959,8 @@ filemanager.client.models.FilesModel.prototype = {
 			var uploadWorker = new Worker("fileupload.js");
 			uploadWorker.onmessage = $bind(this,this.handleUploadProgress);
 			uploadWorker.onerror = $bind(this,this.handleError);
-			uploadWorker.postMessage([this._uploadsQueue.get(response.filepath).file]);
+			var dataMsg = { file : this._uploadsQueue.get(response.filepath).file, validName : this.validateFileName(this._uploadsQueue.get(response.filepath).file.name)};
+			uploadWorker.postMessage(dataMsg);
 		}
 	}
 	,uploadSelectedFiles: function(files) {
@@ -13959,17 +13968,18 @@ filemanager.client.models.FilesModel.prototype = {
 		while(_g < files.length) {
 			var file = files[_g];
 			++_g;
-			var fileToUpload = { file : file, initialized : false, progressPercent : 0, completed : false, started : false};
-			this._uploadsQueue.set(file.name,fileToUpload);
+			var fileToUpload = { file : file, validateFileName : this.validateFileName(file.name), initialized : false, progressPercent : 0, completed : false, started : false};
+			haxe.Log.trace("FilesModel - uploadSelectedFiles() " + this.validateFileName(file.name),{ fileName : "FilesModel.hx", lineNumber : 106, className : "filemanager.client.models.FilesModel", methodName : "uploadSelectedFiles"});
+			this._uploadsQueue.set(this.validateFileName(file.name),fileToUpload);
 		}
 		var $it0 = this._uploadsQueue.keys();
 		while( $it0.hasNext() ) {
 			var key = $it0.next();
 			var filehelper = this._uploadsQueue.get(key);
 			if(!filehelper.initialized) {
-				this._api.backupAsTemporary(filehelper.file.name,$bind(this,this.handleUploadInitialized));
-				this._uploadsQueue.get(filehelper.file.name).initialized = true;
-				this.onUploadUpdate(this._uploadsQueue.get(filehelper.file.name));
+				this._api.backupAsTemporary(filehelper.validateFileName,$bind(this,this.handleUploadInitialized));
+				this._uploadsQueue.get(filehelper.validateFileName).initialized = true;
+				this.onUploadUpdate(this._uploadsQueue.get(filehelper.validateFileName));
 			}
 		}
 	}
@@ -13982,7 +13992,7 @@ filemanager.client.models.FilesModel.prototype = {
 		this._api.getTreeFolder(folderpath,onSuccess);
 	}
 	,handleError: function(e) {
-		haxe.Log.trace("FilesModel - handleError() ERROR: Line " + Std.string(e.lineno) + " in " + Std.string(e.filename) + ": " + Std.string(e.message),{ fileName : "FilesModel.hx", lineNumber : 61, className : "filemanager.client.models.FilesModel", methodName : "handleError"});
+		haxe.Log.trace("FilesModel - handleError() ERROR: Line " + Std.string(e.lineno) + " in " + Std.string(e.filename) + ": " + Std.string(e.message),{ fileName : "FilesModel.hx", lineNumber : 65, className : "filemanager.client.models.FilesModel", methodName : "handleError"});
 	}
 	,onUploadUpdate: null
 	,_uploadsQueue: null
@@ -14210,58 +14220,48 @@ filemanager.client.views.UploadStatus.prototype = $extend(filemanager.client.vie
 	,__class__: filemanager.client.views.UploadStatus
 });
 filemanager.client.views.base.LabelButton = function(label,SLPId) {
-	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"LabelButton");
 	var viewDom = js.Lib.document.createElement("div");
 	viewDom.onclick = $bind(this,this.handleClick);
+	viewDom.onmouseover = $bind(this,this.handleMouseOver);
+	viewDom.onmouseout = $bind(this,this.handleMouseOut);
 	var label1 = js.Lib.document.createTextNode(label);
 	viewDom.appendChild(label1);
 	filemanager.client.views.base.View.call(this,viewDom,SLPId);
-	this.setStyle();
 };
 $hxClasses["filemanager.client.views.base.LabelButton"] = filemanager.client.views.base.LabelButton;
 filemanager.client.views.base.LabelButton.__name__ = ["filemanager","client","views","base","LabelButton"];
 filemanager.client.views.base.LabelButton.__super__ = filemanager.client.views.base.View;
 filemanager.client.views.base.LabelButton.prototype = $extend(filemanager.client.views.base.View.prototype,{
-	setStyle: function() {
-		this.rootElement.style.cursor = cocktail.core.unit.UnitManager.getCSSCursor(cocktail.core.style.Cursor.pointer);
+	set_enabled: function(value) {
+		this._enabled = value;
+		this.rootElement.style.border = this._enabled == true?"1px solid #61c4ea":"1px solid #888888";
+		this.rootElement.style.backgroundColor = this._enabled == true?"#7cceee":"#aaaaaa";
+		if(this._enabled) this.rootElement.style.cursor = cocktail.core.unit.UnitManager.getCSSCursor(cocktail.core.style.Cursor.pointer);
+		return this._enabled = value;
+	}
+	,get_enabled: function() {
+		return this._enabled;
+	}
+	,handleMouseOut: function(e) {
+		if(this._enabled) {
+			this.rootElement.style.border = "1px solid #61c4ea";
+			this.rootElement.style.backgroundColor = "#7cceee";
+		}
+	}
+	,handleMouseOver: function(e) {
+		if(this._enabled) {
+			this.rootElement.style.border = "1px solid #4bb3db";
+			this.rootElement.style.backgroundColor = "#5fbadd";
+		}
 	}
 	,handleClick: function(e) {
 		if(this.onclicked != null) this.onclicked(e);
 	}
+	,enabled: null
+	,_enabled: null
 	,onclicked: null
 	,__class__: filemanager.client.views.base.LabelButton
-});
-filemanager.client.views.base.ProgressBar = function(SLPId) {
-	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"ProgressBar");
-	var viewDom = js.Lib.document.createElement("div");
-	viewDom.className = "progressBar noMargin";
-	this._bar = js.Lib.document.createElement("div");
-	this._bar.className = "bar";
-	viewDom.appendChild(this._bar);
-	filemanager.client.views.base.View.call(this,viewDom,SLPId);
-};
-$hxClasses["filemanager.client.views.base.ProgressBar"] = filemanager.client.views.base.ProgressBar;
-filemanager.client.views.base.ProgressBar.__name__ = ["filemanager","client","views","base","ProgressBar"];
-filemanager.client.views.base.ProgressBar.__super__ = filemanager.client.views.base.View;
-filemanager.client.views.base.ProgressBar.prototype = $extend(filemanager.client.views.base.View.prototype,{
-	value: null
-	,getFullBarWidth: function() {
-		return this.rootElement.clientWidth;
-	}
-	,set_value: function(percent) {
-		if(this._fullBarWidth == null) this._fullBarWidth = this.getFullBarWidth();
-		this._value = percent;
-		this._bar.style.width = this._value * this._fullBarWidth + "px";
-		return this.get_value();
-	}
-	,get_value: function() {
-		return this._value;
-	}
-	,_fullBarWidth: null
-	,_value: null
-	,_bar: null
-	,__class__: filemanager.client.views.base.ProgressBar
-	,__properties__: {set_value:"set_value",get_value:"get_value"}
+	,__properties__: {set_enabled:"set_enabled",get_enabled:"get_enabled"}
 });
 filemanager.client.views.uis = {}
 filemanager.client.views.uis.FileUI = function(data,SLPId) {
@@ -14297,10 +14297,10 @@ filemanager.client.views.uis.FileUploadStatus = function(data,SLPId) {
 	this._fileName.appendChild(js.Lib.document.createTextNode(data.file.name));
 	this._status = "Pending";
 	this._statusUpload = js.Lib.document.createElement("div");
-	this._statusUpload.className = "noMargin";
+	this._statusUpload.className = "noMargin statusTxt";
 	this._statusUpload.innerHTML = "Pending";
-	this._progressBar = new filemanager.client.views.base.ProgressBar(SLPId);
-	this._cancel = new filemanager.client.views.base.LabelButton("Cancel",SLPId);
+	this._progressBar = new filemanager.client.views.uis.ProgressBar(SLPId);
+	this._cancel = new filemanager.client.views.uis.buttons.CancelButton("Cancel",SLPId);
 	viewDom.appendChild(this._fileName);
 	viewDom.appendChild(this._progressBar.rootElement);
 	viewDom.appendChild(this._statusUpload);
@@ -14319,7 +14319,16 @@ filemanager.client.views.uis.FileUploadStatus.prototype = $extend(filemanager.cl
 	}
 	,update: function(uploadUpdate) {
 		this._progressBar.set_value(uploadUpdate.progressPercent);
-		if(uploadUpdate.initialized == true && uploadUpdate.completed == false) this.updateStatus("Progress"); else if(uploadUpdate.initialized == false && uploadUpdate.completed == false) this.updateStatus("Pending"); else if(uploadUpdate.initialized == true && uploadUpdate.completed == true) this.updateStatus("Complete");
+		if(uploadUpdate.initialized == true && uploadUpdate.completed == false) {
+			this.updateStatus("Progress");
+			this._cancel.set_enabled(true);
+		} else if(uploadUpdate.initialized == false && uploadUpdate.completed == false) {
+			this.updateStatus("Pending");
+			this._cancel.set_enabled(true);
+		} else if(uploadUpdate.initialized == true && uploadUpdate.completed == true) {
+			this.updateStatus("Complete");
+			this._cancel.set_enabled(false);
+		}
 	}
 	,_status: null
 	,_cancel: null
@@ -14415,6 +14424,50 @@ filemanager.client.views.uis.FolderUI.prototype = $extend(filemanager.client.vie
 	,_isFull: null
 	,_title: null
 	,__class__: filemanager.client.views.uis.FolderUI
+});
+filemanager.client.views.uis.ProgressBar = function(SLPId) {
+	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"ProgressBar");
+	var viewDom = js.Lib.document.createElement("div");
+	viewDom.className = "progressBar";
+	this._bar = js.Lib.document.createElement("div");
+	this._bar.className = "bar";
+	viewDom.appendChild(this._bar);
+	filemanager.client.views.base.View.call(this,viewDom,SLPId);
+};
+$hxClasses["filemanager.client.views.uis.ProgressBar"] = filemanager.client.views.uis.ProgressBar;
+filemanager.client.views.uis.ProgressBar.__name__ = ["filemanager","client","views","uis","ProgressBar"];
+filemanager.client.views.uis.ProgressBar.__super__ = filemanager.client.views.base.View;
+filemanager.client.views.uis.ProgressBar.prototype = $extend(filemanager.client.views.base.View.prototype,{
+	value: null
+	,getFullBarWidth: function() {
+		return this.rootElement.clientWidth - (this._bar.offsetLeft - this.rootElement.offsetLeft) * 4;
+	}
+	,set_value: function(percent) {
+		if(this._fullBarWidth == null) this._fullBarWidth = this.getFullBarWidth();
+		this._value = percent;
+		this._bar.style.width = this._value * this._fullBarWidth + "px";
+		return this.get_value();
+	}
+	,get_value: function() {
+		return this._value;
+	}
+	,_fullBarWidth: null
+	,_value: null
+	,_bar: null
+	,__class__: filemanager.client.views.uis.ProgressBar
+	,__properties__: {set_value:"set_value",get_value:"get_value"}
+});
+filemanager.client.views.uis.buttons = {}
+filemanager.client.views.uis.buttons.CancelButton = function(label,SLPId) {
+	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"CancelButton");
+	filemanager.client.views.base.LabelButton.call(this,label,SLPId);
+	this.rootElement.className = "buttons cancelButton";
+};
+$hxClasses["filemanager.client.views.uis.buttons.CancelButton"] = filemanager.client.views.uis.buttons.CancelButton;
+filemanager.client.views.uis.buttons.CancelButton.__name__ = ["filemanager","client","views","uis","buttons","CancelButton"];
+filemanager.client.views.uis.buttons.CancelButton.__super__ = filemanager.client.views.base.LabelButton;
+filemanager.client.views.uis.buttons.CancelButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
+	__class__: filemanager.client.views.uis.buttons.CancelButton
 });
 filemanager.cross = {}
 filemanager.cross.FileUpdatedVO = function() {

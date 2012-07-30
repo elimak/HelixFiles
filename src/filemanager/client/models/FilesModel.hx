@@ -14,7 +14,8 @@ import js.Worker;
  */
 
 typedef FileToUpload = {
-	var file			: Dynamic;
+	var file				: Dynamic;
+	var validateFileName	: Dynamic;
 
 	var started			: Bool;
 	var initialized		: Bool;
@@ -26,14 +27,17 @@ typedef UploadProgress = {
 	var result 	: Dynamic<{filename: String,filesize: Int, percentuploaded: Float, chunksize: Float}>;
 	var type	: String;
 }
+
 typedef UploadComplete = {
 	var result 	: Dynamic<{filename: String,filesize: Int}>;
 	var type	: String;
 }
+
 typedef UploadStarted = {
 	var result 	: Dynamic<{filename: String}>;
 	var type	: String;
 }
+
 typedef UploadError = {
 	var error: String;
 }
@@ -42,7 +46,6 @@ class FilesModel
 {
 	private var _api : Api;
 	private var _uploadsQueue 	: Hash<FileToUpload>;
-	
 	public var onUploadUpdate 	: FileToUpload->Void;
 	
 	public function new() {
@@ -96,18 +99,19 @@ class FilesModel
  * @param	files
  */
 	public function uploadSelectedFiles ( files: Array<Dynamic> ) : Void {
-		for ( file in files ) 
-		{
-			var fileToUpload : FileToUpload = { file : file, initialized : false, progressPercent : 0, completed : false, started: false};
-			_uploadsQueue.set(file.name, fileToUpload);
+		
+		for ( file in files ) {
+			var fileToUpload : FileToUpload = { file : file, validateFileName:validateFileName(file.name), initialized : false, progressPercent : 0, completed : false, started: false };
+			Log.trace("FilesModel - uploadSelectedFiles() "+validateFileName(file.name));
+			_uploadsQueue.set(validateFileName(file.name), fileToUpload);
 		}
 		for (key in _uploadsQueue.keys()) 
 		{
 			var filehelper : FileToUpload = cast _uploadsQueue.get(key);
 			if ( !filehelper.initialized ) {
-				_api.backupAsTemporary(filehelper.file.name, handleUploadInitialized);
-				_uploadsQueue.get(filehelper.file.name).initialized = true;
-				onUploadUpdate(_uploadsQueue.get(filehelper.file.name));
+				_api.backupAsTemporary(filehelper.validateFileName, handleUploadInitialized);
+				_uploadsQueue.get(filehelper.validateFileName).initialized = true;
+				onUploadUpdate(_uploadsQueue.get(filehelper.validateFileName));
 			}
 		}
 	}
@@ -122,14 +126,15 @@ class FilesModel
  * The upload starts right after the completion of this step.
  * @param	response
  */
-	private function handleUploadInitialized(response: FileUpdatedVO): Void
-	{
+	private function handleUploadInitialized(response: FileUpdatedVO): Void {
+		
 		if( _uploadsQueue.exists(response.filepath)) {
 			
 			var uploadWorker = new Worker('fileupload.js');
 			uploadWorker.onmessage = handleUploadProgress;
 			uploadWorker.onerror = handleError;
-			uploadWorker.postMessage([_uploadsQueue.get(response.filepath).file]);
+			var dataMsg = { file: _uploadsQueue.get(response.filepath).file, validName:  validateFileName(_uploadsQueue.get(response.filepath).file.name) };
+			uploadWorker.postMessage( dataMsg);
 		}
 	}
 	
@@ -165,14 +170,44 @@ class FilesModel
 		}
 	}	
 	
+	private function validateFileName ( filename: String ) : String {
+		// TODO: to complete
+		filename = StringTools.replace(filename, " ", "");
+		filename = StringTools.replace(filename, "$", "");
+		filename = StringTools.replace(filename, "+", "");
+		return filename;
+	}
+	
 // ------------------------ // 
 // FILE MANAGEMENT
 // ------------------------ //
 
 // PUBLIC
 
-	public function deleteFile (){}
-	public function moveFile (){}
-	public function copyFile (){}
-	public function renameFile (){}
+	// clicking button delete when folder or file is selected -> actually move the files into the garbage
+	// Todo: keep track of the initial path is we need to restaure the file or folder
+	public function deleteFile ( filePath: String ) { }
+	
+	// using drag and drop
+	public function moveFile ( filePath: String, newPath: String ) { }
+	
+	// keep data for pasting later
+	public function copyFile ( filePath: String ) { }
+	
+	// only available when a file was first copied
+	public function pasteFile ( newPath: String ) { }
+	
+	// TODO: we need a dialog panel to implement this
+	public function renameFile ( filePath: String, newName: String) { }
+	
+// ------------------------ // 
+// UPLOAD MANAGEMENT
+// ------------------------ //
+
+	public function onCancelUpload ( trackID: String ) Void {
+		// find the ref in the queue and remove it
+		// find the worker and stop it?
+		// restaure the temp file if there is one
+		// update the uis when the upload was cancelled
+	}
 }
