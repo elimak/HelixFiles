@@ -13867,7 +13867,7 @@ filemanager.client.FileManager.__name__ = ["filemanager","client","FileManager"]
 filemanager.client.FileManager.__super__ = slplayer.ui.DisplayObject;
 filemanager.client.FileManager.prototype = $extend(slplayer.ui.DisplayObject.prototype,{
 	showFiles: function(data) {
-		haxe.Log.trace("FileManager - showFolders() " + data.toString(),{ fileName : "FileManager.hx", lineNumber : 96, className : "filemanager.client.FileManager", methodName : "showFiles"});
+		haxe.Log.trace("FileManager - showFolders() " + data.toString(),{ fileName : "FileManager.hx", lineNumber : 94, className : "filemanager.client.FileManager", methodName : "showFiles"});
 	}
 	,updateFilesList: function(inData) {
 		var filesViews = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"FilesView");
@@ -13901,7 +13901,7 @@ filemanager.client.FileManager.prototype = $extend(slplayer.ui.DisplayObject.pro
 		this._filesModel.onUploadUpdate = ($_=this._uploadStatus,$bind($_,$_.onUpdate));
 	}
 	,showDialogPanel: function(b) {
-		if(this._dialogPanel == null) this._dialogPanel = new filemanager.client.views.uis.SimpleDialogPanel(this.SLPlayerInstanceId,this.rootElement);
+		if(this._dialogPanel == null) this._dialogPanel = new filemanager.client.views.uis.SimpleDialogPanel(this.SLPlayerInstanceId,js.Lib.document.body);
 		if(b) this._dialogPanel.show("My title"); else this._dialogPanel.hide();
 	}
 	,_application: null
@@ -14512,15 +14512,23 @@ filemanager.client.views.uis.SimpleDialogPanel = function(SLPId,parent) {
 	this._parent = parent;
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"SimpleDialogPanel");
 	var root = js.Lib.document.createElement("div");
-	root.className = "simpleDialogPanel";
+	root.className = "simpleDialogPanel smallFont";
+	var background = js.Lib.document.createElement("div");
+	background.className = "overlayBackground";
+	var panel = js.Lib.document.createElement("div");
+	panel.className = "panel";
 	this._title = js.Lib.document.createElement("span");
-	root.appendChild(this._title);
+	panel.appendChild(this._title);
 	this._input = js.Lib.document.createElement("input");
-	root.appendChild(this._input);
+	panel.appendChild(this._input);
 	this._cancel = new filemanager.client.views.uis.buttons.CancelButton("Cancel",SLPId);
-	root.appendChild(this._cancel.rootElement);
+	panel.appendChild(this._cancel.rootElement);
+	this._cancel.set_enabled(true);
 	this._confirm = new filemanager.client.views.uis.buttons.ConfirmButton("Confirm",SLPId);
-	root.appendChild(this._confirm.rootElement);
+	panel.appendChild(this._confirm.rootElement);
+	this._confirm.set_enabled(true);
+	root.appendChild(background);
+	root.appendChild(panel);
 	filemanager.client.views.base.View.call(this,root,SLPId);
 };
 $hxClasses["filemanager.client.views.uis.SimpleDialogPanel"] = filemanager.client.views.uis.SimpleDialogPanel;
@@ -14529,12 +14537,12 @@ filemanager.client.views.uis.SimpleDialogPanel.__super__ = filemanager.client.vi
 filemanager.client.views.uis.SimpleDialogPanel.prototype = $extend(filemanager.client.views.base.View.prototype,{
 	hide: function() {
 		this._parent.removeChild(this.rootElement);
-		haxe.Log.trace("SimpleDialogPanel - hide() ",{ fileName : "SimpleDialogPanel.hx", lineNumber : 57, className : "filemanager.client.views.uis.SimpleDialogPanel", methodName : "hide"});
+		haxe.Log.trace("SimpleDialogPanel - hide() ",{ fileName : "SimpleDialogPanel.hx", lineNumber : 68, className : "filemanager.client.views.uis.SimpleDialogPanel", methodName : "hide"});
 	}
 	,show: function(title) {
 		this._title.innerHTML = title;
 		this._parent.appendChild(this.rootElement);
-		haxe.Log.trace("SimpleDialogPanel - show() " + title,{ fileName : "SimpleDialogPanel.hx", lineNumber : 52, className : "filemanager.client.views.uis.SimpleDialogPanel", methodName : "show"});
+		haxe.Log.trace("SimpleDialogPanel - show() " + title,{ fileName : "SimpleDialogPanel.hx", lineNumber : 63, className : "filemanager.client.views.uis.SimpleDialogPanel", methodName : "show"});
 	}
 	,_parent: null
 	,_confirm: null

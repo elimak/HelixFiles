@@ -27,19 +27,30 @@ class SimpleDialogPanel extends View
 		
 		Locator.registerSLDisplay(SLPId, this, "SimpleDialogPanel");
 		var root = Lib.document.createElement("div");
-		root.className = "simpleDialogPanel";
+		root.className = "simpleDialogPanel smallFont";
+		
+		var background = Lib.document.createElement("div");
+		background.className = "overlayBackground";		
+		
+		var panel = Lib.document.createElement("div");
+		panel.className = "panel";
 
 		_title = Lib.document.createElement("span");
-		root.appendChild (_title);
+		panel.appendChild (_title);
 		
 		_input = Lib.document.createElement("input");
-		root.appendChild (_input);
+		panel.appendChild (_input);
 		
 		_cancel = new CancelButton( "Cancel", SLPId);
-		root.appendChild(_cancel.rootElement);		
+		panel.appendChild(_cancel.rootElement);		
+		_cancel.enabled = true;
 		
 		_confirm = new ConfirmButton( "Confirm", SLPId);
-		root.appendChild(_confirm.rootElement);
+		panel.appendChild(_confirm.rootElement);
+		_confirm.enabled = true;
+		
+		root.appendChild(background);
+		root.appendChild(panel);
 		
 		super(root, SLPId);	
 	}

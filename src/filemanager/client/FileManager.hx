@@ -40,7 +40,7 @@ class FileManager extends DisplayObject
 	{
 		if (_dialogPanel == null) {
 			// Create and store the dialog box
-			_dialogPanel = new SimpleDialogPanel( SLPlayerInstanceId, rootElement);
+			_dialogPanel = new SimpleDialogPanel( SLPlayerInstanceId, Lib.document.body);
 		}
 		if( b ){
 			_dialogPanel.show("My title");
@@ -77,13 +77,11 @@ class FileManager extends DisplayObject
 		folderView.initialize(data);
 	}	
 	
-	private function requestFiles( folderPath: String ) 
-	{
+	private function requestFiles( folderPath: String ) {
 		_filesModel.getFiles(folderPath, updateFilesList);
 	}
 	
-	private function updateFilesList ( inData: Array<FileVO> ) : Void
-	{
+	private function updateFilesList ( inData: Array<FileVO> ) : Void{
 		var filesViews : Array<DisplayObject> = Locator.getSLDisplay( SLPlayerInstanceId, "FilesView");
 		for (display in filesViews){
 			var fileView : FilesView = cast display;
