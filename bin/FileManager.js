@@ -1161,22 +1161,7 @@ cocktail.core.drawing.AbstractDrawingManager = function(width,height) {
 $hxClasses["cocktail.core.drawing.AbstractDrawingManager"] = cocktail.core.drawing.AbstractDrawingManager;
 cocktail.core.drawing.AbstractDrawingManager.__name__ = ["cocktail","core","drawing","AbstractDrawingManager"];
 cocktail.core.drawing.AbstractDrawingManager.prototype = {
-	getHeight: function() {
-		return this._height;
-	}
-	,setHeight: function(value) {
-		return this._height = value;
-	}
-	,getWidth: function() {
-		return this._width;
-	}
-	,setWidth: function(value) {
-		return this._width = value;
-	}
-	,getNativeElement: function() {
-		return this._nativeElement;
-	}
-	,toNativeJointStyle: function(genericJointStyle) {
+	toNativeJointStyle: function(genericJointStyle) {
 		return null;
 	}
 	,toNativeCapStyle: function(genericCapStyle) {
@@ -1196,6 +1181,10 @@ cocktail.core.drawing.AbstractDrawingManager.prototype = {
 	,moveTo: function(x,y) {
 	}
 	,lineTo: function(x,y) {
+	}
+	,fillRect: function(rect,color) {
+	}
+	,copyPixels: function(bitmapData,sourceRect,destPoint) {
 	}
 	,drawImage: function(source,matrix,sourceRect) {
 	}
@@ -1246,19 +1235,15 @@ cocktail.core.drawing.AbstractDrawingManager.prototype = {
 	,endFill: function() {
 	}
 	,beginFill: function(fillStyle,lineStyle) {
-		if(fillStyle == null) fillStyle = cocktail.core.dom.FillStyleValue.none;
-		if(lineStyle == null) lineStyle = cocktail.core.dom.LineStyleValue.none;
+		if(fillStyle == null) fillStyle = cocktail.core.drawing.FillStyleValue.none;
+		if(lineStyle == null) lineStyle = cocktail.core.drawing.LineStyleValue.none;
 		this.setFillStyle(fillStyle);
 		this.setLineStyle(lineStyle);
 	}
-	,height: null
 	,_height: null
-	,width: null
 	,_width: null
 	,nativeElement: null
-	,_nativeElement: null
 	,__class__: cocktail.core.drawing.AbstractDrawingManager
-	,__properties__: {get_nativeElement:"getNativeElement",set_width:"setWidth",get_width:"getWidth",set_height:"setHeight",get_height:"getHeight"}
 }
 cocktail.port = {}
 cocktail.port.server = {}
@@ -1349,31 +1334,27 @@ cocktail.core.background.BackgroundDrawingManager.prototype = $extend(cocktail.p
 	,drawBackgroundGradient: function(gradient,backgroundPositioningBox,backgroundPaintingBox,computedBackgroundSize,computedBackgroundPosition,backgroundRepeat) {
 		var gradientSurface = new cocktail.port.server.DrawingManager(Math.round(computedBackgroundSize.width),Math.round(computedBackgroundSize.height));
 		var fillStyle;
-		var lineStyle = cocktail.core.dom.LineStyleValue.none;
+		var lineStyle = cocktail.core.drawing.LineStyleValue.none;
 		var $e = (gradient);
 		switch( $e[1] ) {
 		case 0:
 			var value = $e[2];
-			var gradientStyle = { gradientType : cocktail.core.dom.GradientTypeValue.linear, gradientStops : this.getGradientStops(value.colorStops), rotation : this.getRotation(value.angle)};
-			fillStyle = cocktail.core.dom.FillStyleValue.gradient(gradientStyle);
+			var gradientStyle = { gradientType : cocktail.core.drawing.GradientTypeValue.linear, gradientStops : this.getGradientStops(value.colorStops), rotation : this.getRotation(value.angle)};
+			fillStyle = cocktail.core.drawing.FillStyleValue.gradient(gradientStyle);
 			break;
 		}
 		gradientSurface.beginFill(fillStyle,lineStyle);
 		gradientSurface.drawRect(0,0,Math.round(computedBackgroundSize.width),Math.round(computedBackgroundSize.height));
 		gradientSurface.endFill();
-		this.drawBackgroundImage(gradientSurface.getNativeElement(),backgroundPositioningBox,backgroundPaintingBox,Math.round(computedBackgroundSize.width),Math.round(computedBackgroundSize.height),computedBackgroundSize.width / computedBackgroundSize.height,computedBackgroundSize,computedBackgroundPosition,backgroundRepeat);
+		this.drawBackgroundImage(gradientSurface.nativeElement,null,backgroundPositioningBox,backgroundPaintingBox,Math.round(computedBackgroundSize.width),Math.round(computedBackgroundSize.height),computedBackgroundSize.width / computedBackgroundSize.height,computedBackgroundSize,computedBackgroundPosition,backgroundRepeat);
 	}
 	,drawBackgroundColor: function(color,backgroundPaintingBox) {
-		var fillStyle = cocktail.core.dom.FillStyleValue.monochrome(color);
-		var lineStyle = cocktail.core.dom.LineStyleValue.none;
-		this.beginFill(fillStyle,lineStyle);
-		this.drawRect(Math.round(backgroundPaintingBox.x),Math.round(backgroundPaintingBox.y),Math.round(backgroundPaintingBox.width),Math.round(backgroundPaintingBox.height));
-		this.endFill();
+		this.fillRect(backgroundPaintingBox,color);
 	}
-	,drawBackgroundImage: function(nativeImage,backgroundPositioningBox,backgroundPaintingBox,intrinsicWidth,intrinsicHeight,intrinsicRatio,computedBackgroundSize,computedBackgroundPosition,backgroundRepeat) {
-		var totalWidth = Math.round(computedBackgroundPosition.x) + Math.round(backgroundPositioningBox.x);
-		var maxWidth = Math.round(backgroundPaintingBox.x + backgroundPaintingBox.width);
-		var imageWidth = Math.round(computedBackgroundSize.width);
+	,drawBackgroundImage: function(nativeImage,resource,backgroundPositioningBox,backgroundPaintingBox,intrinsicWidth,intrinsicHeight,intrinsicRatio,computedBackgroundSize,computedBackgroundPosition,backgroundRepeat) {
+		var totalWidth = computedBackgroundPosition.x + backgroundPositioningBox.x;
+		var maxWidth = backgroundPaintingBox.x + backgroundPaintingBox.width;
+		var imageWidth = computedBackgroundSize.width;
 		switch( (backgroundRepeat.x)[1] ) {
 		case 3:
 			maxWidth = totalWidth + imageWidth;
@@ -1409,115 +1390,132 @@ cocktail.core.background.BackgroundDrawingManager.prototype = $extend(cocktail.p
 			break;
 		}
 		var initialHeight = totalHeight;
-		while(totalHeight < maxHeight) {
+		if(imageWidth / intrinsicWidth == 1 && imageHeight / intrinsicHeight == 1) {
+			var destinationPoint = { x : totalWidth, y : totalHeight};
+			var intWidth = intrinsicWidth;
+			var intHeight = intrinsicHeight;
+			var box = { x : 0.0, y : 0.0, width : intWidth, height : intHeight};
+			while(totalHeight < maxHeight) {
+				this.copyPixels(resource.nativeResource,box,destinationPoint);
+				totalWidth += imageWidth;
+				if(totalWidth >= maxWidth) {
+					totalWidth = initialWidth;
+					totalHeight += imageHeight;
+				}
+				destinationPoint.x = totalWidth;
+				destinationPoint.y = totalHeight;
+			}
+		} else {
 			var matrix = new cocktail.core.geom.Matrix();
-			matrix.translate(totalWidth,totalHeight);
-			matrix.scale(imageWidth / intrinsicWidth,imageHeight / intrinsicHeight);
-			this.drawImage(nativeImage,matrix,backgroundPaintingBox);
-			totalWidth += imageWidth;
-			if(totalWidth >= maxWidth) {
-				totalWidth = initialWidth;
-				totalHeight += imageHeight;
+			while(totalHeight < maxHeight) {
+				matrix.identity();
+				matrix.translate(totalWidth,totalHeight);
+				matrix.scale(imageWidth / intrinsicWidth,imageHeight / intrinsicHeight);
+				this.drawImage(nativeImage,matrix,backgroundPaintingBox);
+				totalWidth += imageWidth;
+				if(totalWidth >= maxWidth) {
+					totalWidth = initialWidth;
+					totalHeight += imageHeight;
+				}
 			}
 		}
 	}
 	,__class__: cocktail.core.background.BackgroundDrawingManager
 });
-cocktail.core.background.BackgroundManager = function(elementRenderer) {
-	this._elementRenderer = elementRenderer;
+cocktail.core.background.BackgroundManager = function() {
 };
 $hxClasses["cocktail.core.background.BackgroundManager"] = cocktail.core.background.BackgroundManager;
 cocktail.core.background.BackgroundManager.__name__ = ["cocktail","core","background","BackgroundManager"];
-cocktail.core.background.BackgroundManager.prototype = {
-	drawBackgroundGradient: function(style,gradientValue,backgroundBox,backgroundPosition,backgroundSize,backgroundOrigin,backgroundClip,backgroundRepeat,backgroundImage) {
-		var computedGradientStyles = cocktail.core.style.computer.BackgroundStylesComputer.computeIndividualBackground(style,backgroundBox,null,null,null,backgroundPosition,backgroundSize,backgroundOrigin,backgroundClip,backgroundRepeat,backgroundImage);
-		var backgroundGradientDrawingManager = new cocktail.core.background.BackgroundDrawingManager(backgroundBox);
-		backgroundGradientDrawingManager.drawBackgroundGradient(gradientValue,computedGradientStyles.backgroundOrigin,computedGradientStyles.backgroundClip,computedGradientStyles.backgroundSize,computedGradientStyles.backgroundPosition,computedGradientStyles.backgroundRepeat);
-		return backgroundGradientDrawingManager.getNativeElement();
-	}
-	,drawBackgroundColor: function(style,backgroundColor,backgroundBox,backgroundPosition,backgroundSize,backgroundOrigin,backgroundClip,backgroundRepeat,backgroundImage) {
-		var computedBackgroundStyles = cocktail.core.style.computer.BackgroundStylesComputer.computeIndividualBackground(style,backgroundBox,null,null,null,backgroundPosition,backgroundSize,backgroundOrigin,backgroundClip,backgroundRepeat,backgroundImage);
-		var backgroundColorDrawingManager = new cocktail.core.background.BackgroundDrawingManager(backgroundBox);
-		backgroundColorDrawingManager.drawBackgroundColor(backgroundColor,computedBackgroundStyles.backgroundClip);
-		return backgroundColorDrawingManager.getNativeElement();
-	}
-	,onBackgroundImageLoadError: function(e) {
-		this._elementRenderer.invalidate(cocktail.core.renderer.InvalidationReason.other);
-	}
-	,onBackgroundImageLoaded: function(e) {
-		this._elementRenderer.invalidate(cocktail.core.renderer.InvalidationReason.other);
-	}
-	,drawBackgroundImage: function(imageDeclaration,style,backgroundBox,backgroundPosition,backgroundSize,backgroundOrigin,backgroundClip,backgroundRepeat,backgroundImage) {
-		var backgroundImageDrawingManager = new cocktail.core.background.BackgroundDrawingManager(backgroundBox);
-		var backgroundImageNativeElement = backgroundImageDrawingManager.getNativeElement();
-		var foundResource = false;
-		var _g1 = 0, _g = imageDeclaration.urls.length;
-		while(_g1 < _g) {
-			var i = _g1++;
-			var resource = cocktail.core.resource.ResourceManager.getResource(imageDeclaration.urls[i]);
-			if(resource.loaded == true) {
-				var computedGradientStyles = cocktail.core.style.computer.BackgroundStylesComputer.computeIndividualBackground(style,backgroundBox,resource.intrinsicWidth,resource.intrinsicHeight,resource.intrinsicRatio,backgroundPosition,backgroundSize,backgroundOrigin,backgroundClip,backgroundRepeat,backgroundImage);
-				foundResource = true;
-				break;
-			} else if(resource.loadedWithError == false) {
-				resource.addEventListener("load",$bind(this,this.onBackgroundImageLoaded));
-				resource.addEventListener("error",$bind(this,this.onBackgroundImageLoadError));
-				foundResource = true;
-				break;
-			}
-		}
-		if(foundResource == false) {
-			var computedBackgroundStyles = cocktail.core.style.computer.BackgroundStylesComputer.computeIndividualBackground(style,backgroundBox,null,null,null,backgroundPosition,backgroundSize,backgroundOrigin,backgroundClip,backgroundRepeat,backgroundImage);
-			var backgroundColor = cocktail.core.unit.UnitManager.getColorDataFromCSSColor(imageDeclaration.fallbackColor);
-			var backgroundColorDrawingManager = new cocktail.core.background.BackgroundDrawingManager(backgroundBox);
-			backgroundColorDrawingManager.drawBackgroundColor(backgroundColor,computedBackgroundStyles.backgroundClip);
-			backgroundImageNativeElement = backgroundColorDrawingManager.getNativeElement();
-		}
-		return backgroundImageNativeElement;
-	}
-	,render: function(backgroundBox,style) {
-		var nativeElements = new Array();
-		if(backgroundBox.width <= 0 || backgroundBox.height <= 0) return nativeElements;
-		var _g1 = 0, _g = style.backgroundImage.length;
-		while(_g1 < _g) {
-			var i = _g1++;
-			var $e = (style.backgroundImage[i]);
+cocktail.core.background.BackgroundManager.render = function(backgroundBox,style,elementRenderer) {
+	var nativeElements = new Array();
+	if(Math.round(backgroundBox.width) <= 0 || Math.round(backgroundBox.height) <= 0) return nativeElements;
+	var length = style.backgroundImage.length;
+	var _g = 0;
+	while(_g < length) {
+		var i = _g++;
+		var $e = (style.backgroundImage[i]);
+		switch( $e[1] ) {
+		case 0:
+			break;
+		case 1:
+			var value = $e[2];
+			var $e = (value);
 			switch( $e[1] ) {
 			case 0:
+				var value1 = $e[2];
+				var imageDeclaration = { urls : [value1], fallbackColor : cocktail.core.unit.CSSColor.transparent};
+				var imageNativeElement = cocktail.core.background.BackgroundManager.drawBackgroundImage(imageDeclaration,style,backgroundBox,style.backgroundPosition[i],style.backgroundSize[i],style.backgroundOrigin[i],style.backgroundClip[i],style.backgroundRepeat[i],style.backgroundImage[i],elementRenderer);
+				nativeElements.push(imageNativeElement);
 				break;
 			case 1:
-				var value = $e[2];
-				var $e = (value);
-				switch( $e[1] ) {
-				case 0:
-					var value1 = $e[2];
-					var imageDeclaration = { urls : [value1], fallbackColor : cocktail.core.unit.CSSColor.transparent};
-					var imageNativeElement = this.drawBackgroundImage(imageDeclaration,style,backgroundBox,style.backgroundPosition[i],style.backgroundSize[i],style.backgroundOrigin[i],style.backgroundClip[i],style.backgroundRepeat[i],style.backgroundImage[i]);
-					nativeElements.push(imageNativeElement);
-					break;
-				case 1:
-					var value1 = $e[2];
-					var imageNativeElement = this.drawBackgroundImage(value1,style,backgroundBox,style.backgroundPosition[i],style.backgroundSize[i],style.backgroundOrigin[i],style.backgroundClip[i],style.backgroundRepeat[i],style.backgroundImage[i]);
-					nativeElements.push(imageNativeElement);
-					break;
-				case 2:
-					var value1 = $e[2];
-					var gradientNativeElement = this.drawBackgroundGradient(style,value1,backgroundBox,style.backgroundPosition[i],style.backgroundSize[i],style.backgroundOrigin[i],style.backgroundClip[i],style.backgroundRepeat[i],style.backgroundImage[i]);
-					nativeElements.push(gradientNativeElement);
-					break;
-				}
+				var value1 = $e[2];
+				var imageNativeElement = cocktail.core.background.BackgroundManager.drawBackgroundImage(value1,style,backgroundBox,style.backgroundPosition[i],style.backgroundSize[i],style.backgroundOrigin[i],style.backgroundClip[i],style.backgroundRepeat[i],style.backgroundImage[i],elementRenderer);
+				nativeElements.push(imageNativeElement);
+				break;
+			case 2:
+				var value1 = $e[2];
+				var gradientNativeElement = cocktail.core.background.BackgroundManager.drawBackgroundGradient(style,value1,backgroundBox,style.backgroundPosition[i],style.backgroundSize[i],style.backgroundOrigin[i],style.backgroundClip[i],style.backgroundRepeat[i],style.backgroundImage[i]);
+				nativeElements.push(gradientNativeElement);
 				break;
 			}
-			if(i == style.backgroundImage.length - 1) {
-				var backgroundColorNativeElement = this.drawBackgroundColor(style,style.computedStyle.backgroundColor,backgroundBox,style.backgroundPosition[i],style.backgroundSize[i],style.backgroundOrigin[i],style.backgroundClip[i],style.backgroundRepeat[i],style.backgroundImage[i]);
+			break;
+		}
+		if(i == length - 1) {
+			if(style.backgroundColor != cocktail.core.unit.CSSColor.transparent) {
+				var backgroundColorNativeElement = cocktail.core.background.BackgroundManager.drawBackgroundColor(style,style.computedStyle.backgroundColor,backgroundBox,style.backgroundPosition[i],style.backgroundSize[i],style.backgroundOrigin[i],style.backgroundClip[i],style.backgroundRepeat[i],style.backgroundImage[i]);
 				nativeElements.reverse();
 				nativeElements.unshift(backgroundColorNativeElement);
 			}
 		}
-		return nativeElements;
 	}
-	,_elementRenderer: null
-	,__class__: cocktail.core.background.BackgroundManager
+	return nativeElements;
+}
+cocktail.core.background.BackgroundManager.drawBackgroundImage = function(imageDeclaration,style,backgroundBox,backgroundPosition,backgroundSize,backgroundOrigin,backgroundClip,backgroundRepeat,backgroundImage,elementRenderer) {
+	var backgroundImageDrawingManager = new cocktail.core.background.BackgroundDrawingManager(backgroundBox);
+	var backgroundImageNativeElement = backgroundImageDrawingManager.nativeElement;
+	var foundResource = false;
+	var _g1 = 0, _g = imageDeclaration.urls.length;
+	while(_g1 < _g) {
+		var i = _g1++;
+		var resource = cocktail.core.resource.ResourceManager.getResource(imageDeclaration.urls[i]);
+		if(resource.loaded == true) {
+			var computedGradientStyles = cocktail.core.style.computer.BackgroundStylesComputer.computeIndividualBackground(style,backgroundBox,resource.intrinsicWidth,resource.intrinsicHeight,resource.intrinsicRatio,backgroundPosition,backgroundSize,backgroundOrigin,backgroundClip,backgroundRepeat,backgroundImage);
+			foundResource = true;
+			break;
+		} else if(resource.loadedWithError == false) {
+			resource.addEventListener("load",function(e) {
+				elementRenderer.invalidate(cocktail.core.renderer.InvalidationReason.backgroundImageLoaded);
+			});
+			resource.addEventListener("error",function(e) {
+				elementRenderer.invalidate(cocktail.core.renderer.InvalidationReason.backgroundImageLoaded);
+			});
+			foundResource = true;
+			break;
+		}
+	}
+	if(foundResource == false) {
+		var computedBackgroundStyles = cocktail.core.style.computer.BackgroundStylesComputer.computeIndividualBackground(style,backgroundBox,null,null,null,backgroundPosition,backgroundSize,backgroundOrigin,backgroundClip,backgroundRepeat,backgroundImage);
+		var backgroundColor = cocktail.core.unit.UnitManager.getColorDataFromCSSColor(imageDeclaration.fallbackColor);
+		var backgroundColorDrawingManager = new cocktail.core.background.BackgroundDrawingManager(backgroundBox);
+		backgroundColorDrawingManager.drawBackgroundColor(backgroundColor,computedBackgroundStyles.backgroundClip);
+		backgroundImageNativeElement = backgroundColorDrawingManager.nativeElement;
+	}
+	return backgroundImageNativeElement;
+}
+cocktail.core.background.BackgroundManager.drawBackgroundColor = function(style,backgroundColor,backgroundBox,backgroundPosition,backgroundSize,backgroundOrigin,backgroundClip,backgroundRepeat,backgroundImage) {
+	var computedBackgroundStyles = cocktail.core.style.computer.BackgroundStylesComputer.computeIndividualBackground(style,backgroundBox,null,null,null,backgroundPosition,backgroundSize,backgroundOrigin,backgroundClip,backgroundRepeat,backgroundImage);
+	var backgroundColorDrawingManager = new cocktail.core.background.BackgroundDrawingManager(backgroundBox);
+	backgroundColorDrawingManager.drawBackgroundColor(backgroundColor,computedBackgroundStyles.backgroundClip);
+	return backgroundColorDrawingManager.nativeElement;
+}
+cocktail.core.background.BackgroundManager.drawBackgroundGradient = function(style,gradientValue,backgroundBox,backgroundPosition,backgroundSize,backgroundOrigin,backgroundClip,backgroundRepeat,backgroundImage) {
+	var computedGradientStyles = cocktail.core.style.computer.BackgroundStylesComputer.computeIndividualBackground(style,backgroundBox,null,null,null,backgroundPosition,backgroundSize,backgroundOrigin,backgroundClip,backgroundRepeat,backgroundImage);
+	var backgroundGradientDrawingManager = new cocktail.core.background.BackgroundDrawingManager(backgroundBox);
+	backgroundGradientDrawingManager.drawBackgroundGradient(gradientValue,computedGradientStyles.backgroundOrigin,computedGradientStyles.backgroundClip,computedGradientStyles.backgroundSize,computedGradientStyles.backgroundPosition,computedGradientStyles.backgroundRepeat);
+	return backgroundGradientDrawingManager.nativeElement;
+}
+cocktail.core.background.BackgroundManager.prototype = {
+	__class__: cocktail.core.background.BackgroundManager
 }
 cocktail.core.event = {}
 cocktail.core.event.EventTarget = function() {
@@ -1904,14 +1902,7 @@ cocktail.core.dom.NodeBase.prototype = $extend(cocktail.core.event.EventCallback
 	}
 	,removeChild: function(oldChild) {
 		oldChild.parentNode = null;
-		var newChildNodes = new Array();
-		var length = this.childNodes.length;
-		var _g = 0;
-		while(_g < length) {
-			var i = _g++;
-			if(this.childNodes[i] != oldChild) newChildNodes.push(this.childNodes[i]);
-		}
-		this.childNodes = newChildNodes;
+		HxOverrides.remove(this.childNodes,oldChild);
 		return oldChild;
 	}
 	,previousSibling: null
@@ -2443,16 +2434,17 @@ cocktail.core.html.HTMLElement.prototype = $extend(cocktail.core.dom.Element.pro
 		if(this.coreStyle.computedStyle.display == cocktail.core.style.Display.none) return false;
 		return true;
 	}
+	,attachCoreStyle: function() {
+		this.elementRenderer.set_coreStyle(this.coreStyle);
+	}
 	,createElementRenderer: function() {
 		switch( (this.coreStyle.computedStyle.display)[1] ) {
 		case 0:
 		case 1:
 			this.elementRenderer = new cocktail.core.renderer.BlockBoxRenderer(this);
-			this.elementRenderer.set_coreStyle(this.coreStyle);
 			break;
 		case 2:
 			this.elementRenderer = new cocktail.core.renderer.InlineBoxRenderer(this);
-			this.elementRenderer.set_coreStyle(this.coreStyle);
 			break;
 		case 3:
 			break;
@@ -2505,7 +2497,10 @@ cocktail.core.html.HTMLElement.prototype = $extend(cocktail.core.dom.Element.pro
 	,attach: function() {
 		if(this.isParentRendered() == true) {
 			this.coreStyle.computeDisplayStyles();
-			if(this.elementRenderer == null && this.isRendered() == true) this.createElementRenderer();
+			if(this.elementRenderer == null && this.isRendered() == true) {
+				this.createElementRenderer();
+				if(this.elementRenderer != null) this.attachCoreStyle();
+			}
 			if(this.elementRenderer != null) {
 				this.attachToParentElementRenderer();
 				var length = this.childNodes.length;
@@ -2656,47 +2651,13 @@ cocktail.core.dom.Comment.prototype = $extend(cocktail.core.dom.CharacterData.pr
 	}
 	,__class__: cocktail.core.dom.Comment
 });
-cocktail.core.dom.FillStyleValue = $hxClasses["cocktail.core.dom.FillStyleValue"] = { __ename__ : ["cocktail","core","dom","FillStyleValue"], __constructs__ : ["none","monochrome","gradient","bitmap"] }
-cocktail.core.dom.FillStyleValue.none = ["none",0];
-cocktail.core.dom.FillStyleValue.none.toString = $estr;
-cocktail.core.dom.FillStyleValue.none.__enum__ = cocktail.core.dom.FillStyleValue;
-cocktail.core.dom.FillStyleValue.monochrome = function(colorStop) { var $x = ["monochrome",1,colorStop]; $x.__enum__ = cocktail.core.dom.FillStyleValue; $x.toString = $estr; return $x; }
-cocktail.core.dom.FillStyleValue.gradient = function(gradientStyle) { var $x = ["gradient",2,gradientStyle]; $x.__enum__ = cocktail.core.dom.FillStyleValue; $x.toString = $estr; return $x; }
-cocktail.core.dom.FillStyleValue.bitmap = function(nativeElement,repeat) { var $x = ["bitmap",3,nativeElement,repeat]; $x.__enum__ = cocktail.core.dom.FillStyleValue; $x.toString = $estr; return $x; }
-cocktail.core.dom.LineStyleValue = $hxClasses["cocktail.core.dom.LineStyleValue"] = { __ename__ : ["cocktail","core","dom","LineStyleValue"], __constructs__ : ["none","monochrome","gradient","bitmap"] }
-cocktail.core.dom.LineStyleValue.none = ["none",0];
-cocktail.core.dom.LineStyleValue.none.toString = $estr;
-cocktail.core.dom.LineStyleValue.none.__enum__ = cocktail.core.dom.LineStyleValue;
-cocktail.core.dom.LineStyleValue.monochrome = function(color,lineStyle) { var $x = ["monochrome",1,color,lineStyle]; $x.__enum__ = cocktail.core.dom.LineStyleValue; $x.toString = $estr; return $x; }
-cocktail.core.dom.LineStyleValue.gradient = function(gradientStyle,lineStyle) { var $x = ["gradient",2,gradientStyle,lineStyle]; $x.__enum__ = cocktail.core.dom.LineStyleValue; $x.toString = $estr; return $x; }
-cocktail.core.dom.LineStyleValue.bitmap = function(nativeElement,lineStyle,repeat) { var $x = ["bitmap",3,nativeElement,lineStyle,repeat]; $x.__enum__ = cocktail.core.dom.LineStyleValue; $x.toString = $estr; return $x; }
-cocktail.core.dom.GradientTypeValue = $hxClasses["cocktail.core.dom.GradientTypeValue"] = { __ename__ : ["cocktail","core","dom","GradientTypeValue"], __constructs__ : ["linear","radial"] }
-cocktail.core.dom.GradientTypeValue.linear = ["linear",0];
-cocktail.core.dom.GradientTypeValue.linear.toString = $estr;
-cocktail.core.dom.GradientTypeValue.linear.__enum__ = cocktail.core.dom.GradientTypeValue;
-cocktail.core.dom.GradientTypeValue.radial = ["radial",1];
-cocktail.core.dom.GradientTypeValue.radial.toString = $estr;
-cocktail.core.dom.GradientTypeValue.radial.__enum__ = cocktail.core.dom.GradientTypeValue;
-cocktail.core.dom.CapsStyleValue = $hxClasses["cocktail.core.dom.CapsStyleValue"] = { __ename__ : ["cocktail","core","dom","CapsStyleValue"], __constructs__ : ["none","square","round"] }
-cocktail.core.dom.CapsStyleValue.none = ["none",0];
-cocktail.core.dom.CapsStyleValue.none.toString = $estr;
-cocktail.core.dom.CapsStyleValue.none.__enum__ = cocktail.core.dom.CapsStyleValue;
-cocktail.core.dom.CapsStyleValue.square = ["square",1];
-cocktail.core.dom.CapsStyleValue.square.toString = $estr;
-cocktail.core.dom.CapsStyleValue.square.__enum__ = cocktail.core.dom.CapsStyleValue;
-cocktail.core.dom.CapsStyleValue.round = ["round",2];
-cocktail.core.dom.CapsStyleValue.round.toString = $estr;
-cocktail.core.dom.CapsStyleValue.round.__enum__ = cocktail.core.dom.CapsStyleValue;
-cocktail.core.dom.JointStyleValue = $hxClasses["cocktail.core.dom.JointStyleValue"] = { __ename__ : ["cocktail","core","dom","JointStyleValue"], __constructs__ : ["miter","round","bevel"] }
-cocktail.core.dom.JointStyleValue.miter = ["miter",0];
-cocktail.core.dom.JointStyleValue.miter.toString = $estr;
-cocktail.core.dom.JointStyleValue.miter.__enum__ = cocktail.core.dom.JointStyleValue;
-cocktail.core.dom.JointStyleValue.round = ["round",1];
-cocktail.core.dom.JointStyleValue.round.toString = $estr;
-cocktail.core.dom.JointStyleValue.round.__enum__ = cocktail.core.dom.JointStyleValue;
-cocktail.core.dom.JointStyleValue.bevel = ["bevel",2];
-cocktail.core.dom.JointStyleValue.bevel.toString = $estr;
-cocktail.core.dom.JointStyleValue.bevel.__enum__ = cocktail.core.dom.JointStyleValue;
+cocktail.core.dom.DOMConstants = function() {
+};
+$hxClasses["cocktail.core.dom.DOMConstants"] = cocktail.core.dom.DOMConstants;
+cocktail.core.dom.DOMConstants.__name__ = ["cocktail","core","dom","DOMConstants"];
+cocktail.core.dom.DOMConstants.prototype = {
+	__class__: cocktail.core.dom.DOMConstants
+}
 cocktail.core.dom.DOMException = function() {
 };
 $hxClasses["cocktail.core.dom.DOMException"] = cocktail.core.dom.DOMException;
@@ -2853,13 +2814,59 @@ cocktail.core.dom.Text.prototype = $extend(cocktail.core.dom.CharacterData.proto
 	get_nodeType: function() {
 		return 3;
 	}
-	,createElementRenderer: function() {
-		this.elementRenderer = new cocktail.core.renderer.TextRenderer(this);
+	,get_nodeName: function() {
+		return "#text";
+	}
+	,attachCoreStyle: function() {
 		var parent = this.parentNode;
 		this.elementRenderer.set_coreStyle(parent.coreStyle);
 	}
+	,createElementRenderer: function() {
+		this.elementRenderer = new cocktail.core.renderer.TextRenderer(this);
+	}
 	,__class__: cocktail.core.dom.Text
 });
+cocktail.core.drawing.FillStyleValue = $hxClasses["cocktail.core.drawing.FillStyleValue"] = { __ename__ : ["cocktail","core","drawing","FillStyleValue"], __constructs__ : ["none","monochrome","gradient","bitmap"] }
+cocktail.core.drawing.FillStyleValue.none = ["none",0];
+cocktail.core.drawing.FillStyleValue.none.toString = $estr;
+cocktail.core.drawing.FillStyleValue.none.__enum__ = cocktail.core.drawing.FillStyleValue;
+cocktail.core.drawing.FillStyleValue.monochrome = function(colorStop) { var $x = ["monochrome",1,colorStop]; $x.__enum__ = cocktail.core.drawing.FillStyleValue; $x.toString = $estr; return $x; }
+cocktail.core.drawing.FillStyleValue.gradient = function(gradientStyle) { var $x = ["gradient",2,gradientStyle]; $x.__enum__ = cocktail.core.drawing.FillStyleValue; $x.toString = $estr; return $x; }
+cocktail.core.drawing.FillStyleValue.bitmap = function(nativeElement,repeat) { var $x = ["bitmap",3,nativeElement,repeat]; $x.__enum__ = cocktail.core.drawing.FillStyleValue; $x.toString = $estr; return $x; }
+cocktail.core.drawing.LineStyleValue = $hxClasses["cocktail.core.drawing.LineStyleValue"] = { __ename__ : ["cocktail","core","drawing","LineStyleValue"], __constructs__ : ["none","monochrome","gradient","bitmap"] }
+cocktail.core.drawing.LineStyleValue.none = ["none",0];
+cocktail.core.drawing.LineStyleValue.none.toString = $estr;
+cocktail.core.drawing.LineStyleValue.none.__enum__ = cocktail.core.drawing.LineStyleValue;
+cocktail.core.drawing.LineStyleValue.monochrome = function(color,lineStyle) { var $x = ["monochrome",1,color,lineStyle]; $x.__enum__ = cocktail.core.drawing.LineStyleValue; $x.toString = $estr; return $x; }
+cocktail.core.drawing.LineStyleValue.gradient = function(gradientStyle,lineStyle) { var $x = ["gradient",2,gradientStyle,lineStyle]; $x.__enum__ = cocktail.core.drawing.LineStyleValue; $x.toString = $estr; return $x; }
+cocktail.core.drawing.LineStyleValue.bitmap = function(nativeElement,lineStyle,repeat) { var $x = ["bitmap",3,nativeElement,lineStyle,repeat]; $x.__enum__ = cocktail.core.drawing.LineStyleValue; $x.toString = $estr; return $x; }
+cocktail.core.drawing.GradientTypeValue = $hxClasses["cocktail.core.drawing.GradientTypeValue"] = { __ename__ : ["cocktail","core","drawing","GradientTypeValue"], __constructs__ : ["linear","radial"] }
+cocktail.core.drawing.GradientTypeValue.linear = ["linear",0];
+cocktail.core.drawing.GradientTypeValue.linear.toString = $estr;
+cocktail.core.drawing.GradientTypeValue.linear.__enum__ = cocktail.core.drawing.GradientTypeValue;
+cocktail.core.drawing.GradientTypeValue.radial = ["radial",1];
+cocktail.core.drawing.GradientTypeValue.radial.toString = $estr;
+cocktail.core.drawing.GradientTypeValue.radial.__enum__ = cocktail.core.drawing.GradientTypeValue;
+cocktail.core.drawing.CapsStyleValue = $hxClasses["cocktail.core.drawing.CapsStyleValue"] = { __ename__ : ["cocktail","core","drawing","CapsStyleValue"], __constructs__ : ["none","square","round"] }
+cocktail.core.drawing.CapsStyleValue.none = ["none",0];
+cocktail.core.drawing.CapsStyleValue.none.toString = $estr;
+cocktail.core.drawing.CapsStyleValue.none.__enum__ = cocktail.core.drawing.CapsStyleValue;
+cocktail.core.drawing.CapsStyleValue.square = ["square",1];
+cocktail.core.drawing.CapsStyleValue.square.toString = $estr;
+cocktail.core.drawing.CapsStyleValue.square.__enum__ = cocktail.core.drawing.CapsStyleValue;
+cocktail.core.drawing.CapsStyleValue.round = ["round",2];
+cocktail.core.drawing.CapsStyleValue.round.toString = $estr;
+cocktail.core.drawing.CapsStyleValue.round.__enum__ = cocktail.core.drawing.CapsStyleValue;
+cocktail.core.drawing.JointStyleValue = $hxClasses["cocktail.core.drawing.JointStyleValue"] = { __ename__ : ["cocktail","core","drawing","JointStyleValue"], __constructs__ : ["miter","round","bevel"] }
+cocktail.core.drawing.JointStyleValue.miter = ["miter",0];
+cocktail.core.drawing.JointStyleValue.miter.toString = $estr;
+cocktail.core.drawing.JointStyleValue.miter.__enum__ = cocktail.core.drawing.JointStyleValue;
+cocktail.core.drawing.JointStyleValue.round = ["round",1];
+cocktail.core.drawing.JointStyleValue.round.toString = $estr;
+cocktail.core.drawing.JointStyleValue.round.__enum__ = cocktail.core.drawing.JointStyleValue;
+cocktail.core.drawing.JointStyleValue.bevel = ["bevel",2];
+cocktail.core.drawing.JointStyleValue.bevel.toString = $estr;
+cocktail.core.drawing.JointStyleValue.bevel.__enum__ = cocktail.core.drawing.JointStyleValue;
 cocktail.core.event.Event = function() {
 };
 $hxClasses["cocktail.core.event.Event"] = cocktail.core.event.Event;
@@ -3163,193 +3170,58 @@ cocktail.core.focus.FocusManager.prototype = {
 	,__class__: cocktail.core.focus.FocusManager
 }
 cocktail.core.font = {}
-cocktail.core.font.AbstractFontLoader = function() {
-	this._successCallbackArray = new Array();
-	this._errorCallbackArray = new Array();
+cocktail.core.font.AbstractFontManagerImpl = function() {
+	this._computedFontMetrics = new Hash();
 };
-$hxClasses["cocktail.core.font.AbstractFontLoader"] = cocktail.core.font.AbstractFontLoader;
-cocktail.core.font.AbstractFontLoader.__name__ = ["cocktail","core","font","AbstractFontLoader"];
-cocktail.core.font.AbstractFontLoader.prototype = {
-	cleanup: function() {
-		while(this._successCallbackArray.length > 0) this._successCallbackArray.pop();
-		while(this._errorCallbackArray.length > 0) this._errorCallbackArray.pop();
-	}
-	,_errorCallback: function(errorStr) {
-		var idx;
-		var _g1 = 0, _g = this._errorCallbackArray.length;
-		while(_g1 < _g) {
-			var idx1 = _g1++;
-			this._errorCallbackArray[idx1](this.fontData,errorStr);
-		}
-		this.cleanup();
-	}
-	,_successCallback: function() {
-		var idx;
-		var _g1 = 0, _g = this._successCallbackArray.length;
-		while(_g1 < _g) {
-			var idx1 = _g1++;
-			this._successCallbackArray[idx1](this.fontData);
-		}
-		this.cleanup();
-	}
-	,addCallback: function(successCallback,errorCallback) {
-		if(successCallback != null) this._successCallbackArray.push(successCallback);
-		if(errorCallback != null) this._errorCallbackArray.push(errorCallback);
-	}
-	,load: function(url,name) {
-		var extension = HxOverrides.substr(url,url.lastIndexOf("."),url.length);
-		this.fontData = { url : url, name : name, type : cocktail.core.font.FontType.unknown};
-		if(extension == ".ttf") this.fontData.type = cocktail.core.font.FontType.ttf; else if(extension == ".eot") this.fontData.type = cocktail.core.font.FontType.eot; else if(extension == ".otf") this.fontData.type = cocktail.core.font.FontType.otf; else if(extension == ".swf") this.fontData.type = cocktail.core.font.FontType.swf; else this.fontData.type = cocktail.core.font.FontType.unknown;
-	}
-	,_errorCallbackArray: null
-	,_successCallbackArray: null
-	,fontData: null
-	,__class__: cocktail.core.font.AbstractFontLoader
-}
-cocktail.core.font.AbstractFontManager = function() {
-	if(cocktail.core.font.AbstractFontManager._fontLoaderArray == null) cocktail.core.font.AbstractFontManager._fontLoaderArray = new Array();
-	if(cocktail.core.font.AbstractFontManager._loadedFonts == null) cocktail.core.font.AbstractFontManager._loadedFonts = new Array();
-	if(cocktail.core.font.AbstractFontManager._computedFontMetrics == null) cocktail.core.font.AbstractFontManager._computedFontMetrics = new Hash();
-};
-$hxClasses["cocktail.core.font.AbstractFontManager"] = cocktail.core.font.AbstractFontManager;
-cocktail.core.font.AbstractFontManager.__name__ = ["cocktail","core","font","AbstractFontManager"];
-cocktail.core.font.AbstractFontManager._loadedFonts = null;
-cocktail.core.font.AbstractFontManager._fontLoaderArray = null;
-cocktail.core.font.AbstractFontManager._computedFontMetrics = null;
-cocktail.core.font.AbstractFontManager.prototype = {
-	_removeFontLoader: function(fontData) {
-		var fontLoader;
-		var idx;
-		var _g1 = 0, _g = cocktail.core.font.AbstractFontManager._fontLoaderArray.length;
-		while(_g1 < _g) {
-			var idx1 = _g1++;
-			if(cocktail.core.font.AbstractFontManager._fontLoaderArray[idx1].fontData.url == fontData.url && cocktail.core.font.AbstractFontManager._fontLoaderArray[idx1].fontData.name == fontData.name) {
-				HxOverrides.remove(cocktail.core.font.AbstractFontManager._fontLoaderArray,cocktail.core.font.AbstractFontManager._fontLoaderArray[idx1]);
-				return true;
-			}
-		}
-		return false;
-	}
-	,_onFontLoadingError: function(fontData,errorStr) {
-		haxe.Log.trace("font loading has failed",{ fileName : "AbstractFontManager.hx", lineNumber : 275, className : "cocktail.core.font.AbstractFontManager", methodName : "_onFontLoadingError"});
-		if(this._removeFontLoader(fontData) == false) haxe.Log.trace("could not remove font loader from the list after the font loading has failed",{ fileName : "AbstractFontManager.hx", lineNumber : 281, className : "cocktail.core.font.AbstractFontManager", methodName : "_onFontLoadingError"});
-	}
-	,_onFontLoadingSuccess: function(fontData) {
-		cocktail.core.font.AbstractFontManager._loadedFonts.push(fontData);
-		if(this._removeFontLoader(fontData) == false) haxe.Log.trace("could not remove font loader from the list after the font was successfully loaded",{ fileName : "AbstractFontManager.hx", lineNumber : 266, className : "cocktail.core.font.AbstractFontManager", methodName : "_onFontLoadingSuccess"});
-	}
-	,loadFont: function(url,name,successCallback,errorCallback) {
-		var fontLoader;
-		var idx;
-		var _g1 = 0, _g = cocktail.core.font.AbstractFontManager._fontLoaderArray.length;
-		while(_g1 < _g) {
-			var idx1 = _g1++;
-			if(cocktail.core.font.AbstractFontManager._fontLoaderArray[idx1].fontData.url == url && cocktail.core.font.AbstractFontManager._fontLoaderArray[idx1].fontData.name == name) {
-				cocktail.core.font.AbstractFontManager._fontLoaderArray[idx1].addCallback(successCallback,errorCallback);
-				return;
-			}
-		}
-		fontLoader = new cocktail.port.server.FontLoader();
-		fontLoader.addCallback($bind(this,this._onFontLoadingSuccess),$bind(this,this._onFontLoadingError));
-		fontLoader.addCallback(successCallback,errorCallback);
-		fontLoader.load(url,name);
-		cocktail.core.font.AbstractFontManager._fontLoaderArray.push(fontLoader);
-	}
-	,capitalizeText: function(text) {
-		var capitalizedText = "";
-		var _g1 = 0, _g = text.length;
-		while(_g1 < _g) {
-			var i = _g1++;
-			if(i == 0) capitalizedText += text.charAt(i).toUpperCase(); else capitalizedText += text.charAt(i);
-		}
-		return capitalizedText;
-	}
-	,applyTextTransform: function(text,textTransform) {
-		switch( (textTransform)[1] ) {
-		case 1:
-			text = text.toUpperCase();
-			break;
-		case 2:
-			text = text.toLowerCase();
-			break;
-		case 0:
-			text = this.capitalizeText(text);
-			break;
-		case 3:
-			break;
-		}
-		return text;
-	}
-	,doGetFontMetrics: function(fontFamily,fontSize) {
-		throw "Virtual method should be implemented in sub class";
+$hxClasses["cocktail.core.font.AbstractFontManagerImpl"] = cocktail.core.font.AbstractFontManagerImpl;
+cocktail.core.font.AbstractFontManagerImpl.__name__ = ["cocktail","core","font","AbstractFontManagerImpl"];
+cocktail.core.font.AbstractFontManagerImpl.prototype = {
+	doGetFontMetrics: function(fontFamily,fontSize) {
 		return null;
 	}
 	,createNativeTextElement: function(text,computedStyle) {
-		throw "Virtual method should be implemented in sub class";
 		return null;
 	}
 	,getFontMetrics: function(fontFamily,fontSize) {
 		var fontMetrics;
-		if(cocktail.core.font.AbstractFontManager._computedFontMetrics.exists(fontFamily) == true) {
-			var fontSizeHash = cocktail.core.font.AbstractFontManager._computedFontMetrics.get(fontFamily);
+		if(this._computedFontMetrics.exists(fontFamily) == true) {
+			var fontSizeHash = this._computedFontMetrics.get(fontFamily);
 			if(fontSizeHash.exists(Std.string(fontSize)) == true) fontMetrics = fontSizeHash.get(Std.string(fontSize)); else {
 				fontMetrics = this.doGetFontMetrics(fontFamily,fontSize);
 				fontSizeHash.set(Std.string(fontSize),fontMetrics);
-				cocktail.core.font.AbstractFontManager._computedFontMetrics.set(fontFamily,fontSizeHash);
+				this._computedFontMetrics.set(fontFamily,fontSizeHash);
 			}
 		} else {
 			fontMetrics = this.doGetFontMetrics(fontFamily,fontSize);
 			var fontSizeHash = new Hash();
 			fontSizeHash.set(Std.string(fontSize),fontMetrics);
-			cocktail.core.font.AbstractFontManager._computedFontMetrics.set(fontFamily,fontSizeHash);
+			this._computedFontMetrics.set(fontFamily,fontSizeHash);
 		}
 		return fontMetrics;
 	}
-	,hasFont: function(fontName) {
-		var fontDataArray;
-		var idx;
-		fontDataArray = this.getEmbeddedFonts();
-		var _g1 = 0, _g = fontDataArray.length;
-		while(_g1 < _g) {
-			var idx1 = _g1++;
-			if(fontDataArray[idx1].name == fontName) return true;
-		}
-		fontDataArray = this.getSystemFonts();
-		var _g1 = 0, _g = fontDataArray.length;
-		while(_g1 < _g) {
-			var idx1 = _g1++;
-			if(fontDataArray[idx1].name == fontName) return true;
-		}
-		return false;
-	}
-	,getSystemFonts: function() {
-		throw "Virtual method should be implemented in sub class";
-		return null;
-	}
-	,getEmbeddedFonts: function() {
-		return cocktail.core.font.AbstractFontManager._loadedFonts;
-	}
-	,__class__: cocktail.core.font.AbstractFontManager
+	,_computedFontMetrics: null
+	,__class__: cocktail.core.font.AbstractFontManagerImpl
 }
-cocktail.core.font.FontType = $hxClasses["cocktail.core.font.FontType"] = { __ename__ : ["cocktail","core","font","FontType"], __constructs__ : ["ttf","otf","eot","swf","system","unknown"] }
-cocktail.core.font.FontType.ttf = ["ttf",0];
-cocktail.core.font.FontType.ttf.toString = $estr;
-cocktail.core.font.FontType.ttf.__enum__ = cocktail.core.font.FontType;
-cocktail.core.font.FontType.otf = ["otf",1];
-cocktail.core.font.FontType.otf.toString = $estr;
-cocktail.core.font.FontType.otf.__enum__ = cocktail.core.font.FontType;
-cocktail.core.font.FontType.eot = ["eot",2];
-cocktail.core.font.FontType.eot.toString = $estr;
-cocktail.core.font.FontType.eot.__enum__ = cocktail.core.font.FontType;
-cocktail.core.font.FontType.swf = ["swf",3];
-cocktail.core.font.FontType.swf.toString = $estr;
-cocktail.core.font.FontType.swf.__enum__ = cocktail.core.font.FontType;
-cocktail.core.font.FontType.system = ["system",4];
-cocktail.core.font.FontType.system.toString = $estr;
-cocktail.core.font.FontType.system.__enum__ = cocktail.core.font.FontType;
-cocktail.core.font.FontType.unknown = ["unknown",5];
-cocktail.core.font.FontType.unknown.toString = $estr;
-cocktail.core.font.FontType.unknown.__enum__ = cocktail.core.font.FontType;
+cocktail.core.font.FontManager = function() {
+	this._fontManagerImpl = new cocktail.port.server.FontManagerImpl();
+};
+$hxClasses["cocktail.core.font.FontManager"] = cocktail.core.font.FontManager;
+cocktail.core.font.FontManager.__name__ = ["cocktail","core","font","FontManager"];
+cocktail.core.font.FontManager._instance = null;
+cocktail.core.font.FontManager.getInstance = function() {
+	if(cocktail.core.font.FontManager._instance == null) cocktail.core.font.FontManager._instance = new cocktail.core.font.FontManager();
+	return cocktail.core.font.FontManager._instance;
+}
+cocktail.core.font.FontManager.prototype = {
+	createNativeTextElement: function(text,computedStyle) {
+		return this._fontManagerImpl.createNativeTextElement(text,computedStyle);
+	}
+	,getFontMetrics: function(fontFamily,fontSize) {
+		return this._fontManagerImpl.getFontMetrics(fontFamily,fontSize);
+	}
+	,_fontManagerImpl: null
+	,__class__: cocktail.core.font.FontManager
+}
 cocktail.core.geom = {}
 cocktail.core.geom.CubicBezier = function(x1,y1,x2,y2) {
 	this._x1 = x1;
@@ -3474,7 +3346,7 @@ cocktail.core.html.EmbeddedElement.prototype = $extend(cocktail.core.html.HTMLEl
 	}
 	,get_width: function() {
 		var width = cocktail.core.html.HTMLElement.prototype.getAttribute.call(this,"width");
-		if(width == "") return 0; else return Std.parseInt(width);
+		if(width == null) return 0; else return Std.parseInt(width);
 	}
 	,set_width: function(value) {
 		cocktail.core.html.HTMLElement.prototype.setAttribute.call(this,"width",Std.string(value));
@@ -3563,7 +3435,6 @@ cocktail.core.html.HTMLBodyElement.__super__ = cocktail.core.html.HTMLElement;
 cocktail.core.html.HTMLBodyElement.prototype = $extend(cocktail.core.html.HTMLElement.prototype,{
 	createElementRenderer: function() {
 		this.elementRenderer = new cocktail.core.renderer.BodyBoxRenderer(this);
-		this.elementRenderer.set_coreStyle(this.coreStyle);
 	}
 	,__class__: cocktail.core.html.HTMLBodyElement
 });
@@ -3617,9 +3488,12 @@ cocktail.core.html.HTMLDocument.prototype = $extend(cocktail.core.dom.Document.p
 	,scheduleLayoutAndRender: function() {
 		var onLayoutScheduleDelegate = $bind(this,this.onLayoutSchedule);
 	}
-	,startLayout: function() {
-		this.documentElement.elementRenderer.layout(false);
+	,startLayout: function(forceLayout) {
+		this.documentElement.elementRenderer.layout(forceLayout);
 		this.documentElement.elementRenderer.setGlobalOrigins(0,0,0,0);
+	}
+	,startPendingAnimation: function() {
+		return this.documentElement.elementRenderer.startPendingAnimation();
 	}
 	,startRendering: function() {
 	}
@@ -3628,37 +3502,31 @@ cocktail.core.html.HTMLDocument.prototype = $extend(cocktail.core.dom.Document.p
 		this._invalidationScheduled = false;
 	}
 	,layoutAndRender: function() {
-		if(this._documentNeedsLayout == true) this.startLayout();
-		this._documentNeedsLayout = false;
-		if(this._documentNeedsRendering == true) this.startRendering();
-		this._documentNeedsRendering = false;
-	}
-	,doInvalidate: function(immediate) {
-		if(immediate == null) immediate = false;
-		if(immediate == false) {
-			this._invalidationScheduled = true;
-			this.scheduleLayoutAndRender();
-		} else {
-			if(this._documentNeedsLayout == true) this.startLayout();
+		if(this._documentNeedsLayout == true) {
+			this.startLayout(false);
 			this._documentNeedsLayout = false;
+			var atLeastOneAnimationStarted = this.startPendingAnimation();
+			if(atLeastOneAnimationStarted == true) this.startLayout(true);
+		}
+		if(this._documentNeedsRendering == true) {
+			this.startRendering();
+			this._documentNeedsRendering = false;
 		}
 	}
-	,invalidate: function(immediate) {
-		if(immediate == null) immediate = false;
-		if(this._invalidationScheduled == false || immediate == true) this.doInvalidate(immediate);
+	,doInvalidate: function() {
+		this._invalidationScheduled = true;
+		this.scheduleLayoutAndRender();
 	}
-	,invalidateLayoutAndRendering: function() {
-		this._documentNeedsLayout = true;
-		this._documentNeedsRendering = true;
-		this.invalidate(false);
+	,invalidate: function() {
+		if(this._invalidationScheduled == false) this.doInvalidate();
 	}
 	,invalidateRendering: function() {
 		this._documentNeedsRendering = true;
-		this.invalidate(false);
+		this.invalidate();
 	}
-	,invalidateLayout: function(immediate) {
+	,invalidateLayout: function() {
 		this._documentNeedsLayout = true;
-		this.invalidate(immediate);
+		this.invalidate();
 	}
 	,set_fullscreenElement: function(value) {
 		if(value == null) {
@@ -3673,7 +3541,7 @@ cocktail.core.html.HTMLDocument.prototype = $extend(cocktail.core.dom.Document.p
 		return value;
 	}
 	,get_fullscreenEnabled: function() {
-		return true;
+		return cocktail.Lib.get_window().platform.nativeWindow.fullScreenEnabled();
 	}
 	,exitFullscreen: function() {
 		if(this.fullscreenElement == null) return;
@@ -3784,6 +3652,9 @@ cocktail.core.html.HTMLDocument.prototype = $extend(cocktail.core.dom.Document.p
 		case "OBJECT":
 			element = new cocktail.core.html.HTMLObjectElement();
 			break;
+		case "PARAM":
+			element = new cocktail.core.html.HTMLParamElement();
+			break;
 		default:
 			element = new cocktail.core.html.HTMLElement(tagName);
 		}
@@ -3835,7 +3706,6 @@ cocktail.core.html.HTMLHtmlElement.prototype = $extend(cocktail.core.html.HTMLEl
 	}
 	,createElementRenderer: function() {
 		this.elementRenderer = new cocktail.core.renderer.InitialBlockRenderer(this);
-		this.elementRenderer.set_coreStyle(this.coreStyle);
 	}
 	,isParentRendered: function() {
 		return true;
@@ -3902,7 +3772,6 @@ cocktail.core.html.HTMLImageElement.prototype = $extend(cocktail.core.html.Embed
 	}
 	,createElementRenderer: function() {
 		this.elementRenderer = new cocktail.core.renderer.ImageRenderer(this);
-		this.elementRenderer.set_coreStyle(this.coreStyle);
 	}
 	,setAttribute: function(name,value) {
 		if(name == "src") this.set_src(value); else cocktail.core.html.EmbeddedElement.prototype.setAttribute.call(this,name,value);
@@ -3948,7 +3817,6 @@ cocktail.core.html.HTMLInputElement.prototype = $extend(cocktail.core.html.Embed
 	}
 	,createElementRenderer: function() {
 		this.elementRenderer = new cocktail.core.renderer.TextInputRenderer(this);
-		this.elementRenderer.set_coreStyle(this.coreStyle);
 		var textInputElementRenderer = this.elementRenderer;
 		var value = this.getAttribute("value");
 		if(value != null) textInputElementRenderer.set_value(value);
@@ -3962,15 +3830,15 @@ cocktail.core.html.HTMLInputElement.prototype = $extend(cocktail.core.html.Embed
 });
 cocktail.core.html.HTMLMediaElement = function(tagName) {
 	cocktail.core.html.EmbeddedElement.call(this,tagName);
-	this._networkState = 0;
-	this._ended = false;
-	this._duration = 0;
-	this._paused = true;
-	this._seeking = false;
-	this._readyState = 0;
+	this.networkState = 0;
+	this.ended = false;
+	this.duration = 0;
+	this.paused = true;
+	this.seeking = false;
+	this.readyState = 0;
 	this._autoplaying = true;
-	this._muted = false;
-	this._volume = 1.0;
+	this.set_muted(false);
+	this.set_volume(1.0);
 	this._loadedDataWasDispatched = false;
 	this._defaultPlaybackStartPosition = 0;
 	this._officialPlaybackPosition = 0;
@@ -3982,23 +3850,8 @@ $hxClasses["cocktail.core.html.HTMLMediaElement"] = cocktail.core.html.HTMLMedia
 cocktail.core.html.HTMLMediaElement.__name__ = ["cocktail","core","html","HTMLMediaElement"];
 cocktail.core.html.HTMLMediaElement.__super__ = cocktail.core.html.EmbeddedElement;
 cocktail.core.html.HTMLMediaElement.prototype = $extend(cocktail.core.html.EmbeddedElement.prototype,{
-	get_seeking: function() {
-		return this._seeking;
-	}
-	,get_readyState: function() {
-		return this._readyState;
-	}
-	,get_ended: function() {
-		return this._ended;
-	}
-	,get_paused: function() {
-		return this._paused;
-	}
-	,get_duration: function() {
-		return this._duration;
-	}
-	,set_currentTime: function(value) {
-		switch(this._readyState) {
+	set_currentTime: function(value) {
+		switch(this.readyState) {
 		case 0:
 			this._defaultPlaybackStartPosition = value;
 			break;
@@ -4012,35 +3865,23 @@ cocktail.core.html.HTMLMediaElement.prototype = $extend(cocktail.core.html.Embed
 		if(this._defaultPlaybackStartPosition != 0) return this._defaultPlaybackStartPosition;
 		return this._officialPlaybackPosition;
 	}
-	,get_networkState: function() {
-		return this._networkState;
-	}
-	,get_currentSrc: function() {
-		return this._currentSrc;
-	}
 	,get_buffered: function() {
 		var ranges = new Array();
-		ranges.push({ start : 0.0, end : this._duration * (this._nativeMedia.get_bytesLoaded() / this._nativeMedia.get_bytesTotal())});
+		ranges.push({ start : 0.0, end : this.duration * (this._nativeMedia.get_bytesLoaded() / this._nativeMedia.get_bytesTotal())});
 		var timeRanges = new cocktail.core.html.TimeRanges(ranges);
 		return timeRanges;
 	}
-	,get_volume: function() {
-		return this._volume;
-	}
 	,set_volume: function(value) {
-		if(this._muted == false) this._nativeMedia.set_volume(value);
-		this._volume = value;
+		if(this.muted == false) this._nativeMedia.set_volume(value);
+		this.volume = value;
 		this.fireEvent("volumechange",false,false);
-		return this._volume;
+		return value;
 	}
 	,set_muted: function(value) {
-		if(value == false) this._nativeMedia.set_volume(this._volume); else this._nativeMedia.set_volume(0);
-		this._muted = value;
+		if(value == false) this._nativeMedia.set_volume(this.volume); else this._nativeMedia.set_volume(0);
+		this.muted = value;
 		this.fireEvent("volumechange",false,false);
-		return this._muted;
-	}
-	,get_muted: function() {
-		return this._muted;
+		return value;
 	}
 	,set_loop: function(value) {
 		cocktail.core.html.EmbeddedElement.prototype.setAttribute.call(this,"loop",Std.string(value));
@@ -4068,21 +3909,29 @@ cocktail.core.html.HTMLMediaElement.prototype = $extend(cocktail.core.html.Embed
 		this.fireEvent("progress",false,false);
 		if(this._nativeMedia.get_bytesLoaded() >= this._nativeMedia.get_bytesTotal()) {
 			this.setReadyState(4);
-			this._networkState = 1;
+			this.networkState = 1;
 			this.fireEvent("suspend",false,false);
 			return;
 		}
-		if(this._readyState == 1) this.setReadyState(3);
+		if(this.readyState == 1) this.setReadyState(3);
 	}
 	,onTimeUpdateTick: function() {
-		if(this._paused == true) return;
+		if(this.paused == true) return;
 		this._currentPlaybackPosition = this._nativeMedia.get_currentTime();
 		this._officialPlaybackPosition = this._currentPlaybackPosition;
-		if(this._duration - this._currentPlaybackPosition < 0.2) {
-			this._ended = true;
-			this._currentPlaybackPosition = this._duration;
+		if(this.duration - this._currentPlaybackPosition < 0.2) {
+			if(this.get_loop() == true) {
+				this.seek(0);
+				return;
+			}
+			this.ended = true;
+			this._currentPlaybackPosition = this.duration;
 			this._officialPlaybackPosition = this._currentPlaybackPosition;
 			this.fireEvent("timeupdate",false,false);
+			if(this.paused == false) {
+				this.paused = true;
+				this.fireEvent("pause",false,false);
+			}
 			this.fireEvent("ended",false,false);
 			return;
 		}
@@ -4111,7 +3960,7 @@ cocktail.core.html.HTMLMediaElement.prototype = $extend(cocktail.core.html.Embed
 		this._currentPlaybackPosition = 0;
 		this._initialPlaybackPosition = 0;
 		this._officialPlaybackPosition = 0;
-		this._duration = this._nativeMedia.get_duration();
+		this.duration = this._nativeMedia.get_duration();
 		this.fireEvent("durationchange",false,false);
 		this.setReadyState(1);
 		var jumped = false;
@@ -4122,37 +3971,37 @@ cocktail.core.html.HTMLMediaElement.prototype = $extend(cocktail.core.html.Embed
 		this._defaultPlaybackStartPosition = 0;
 	}
 	,isPotentiallyPlaying: function() {
-		if(this._paused == true) return false;
-		if(this._ended == true) return false;
+		if(this.paused == true) return false;
+		if(this.ended == true) return false;
 		return true;
 	}
 	,setReadyState: function(newReadyState) {
-		if(this._readyState == 0 && newReadyState == 1) this.fireEvent("loadedmetadata",false,false);
-		if(this._readyState == 1 && (newReadyState == 2 || newReadyState == 4 || newReadyState == 3)) {
+		if(this.readyState == 0 && newReadyState == 1) this.fireEvent("loadedmetadata",false,false);
+		if(this.readyState == 1 && (newReadyState == 2 || newReadyState == 4 || newReadyState == 3)) {
 			if(this._loadedDataWasDispatched == false) {
 				this.fireEvent("loadeddata",false,false);
 				this._loadedDataWasDispatched = true;
 			}
 			if(newReadyState == 4 || newReadyState == 3) {
-				if(this._readyState >= 3 && newReadyState <= 2) {
+				if(this.readyState >= 3 && newReadyState <= 2) {
 					if(this.isPotentiallyPlaying() == true) {
 						this.fireEvent("timeupdate",false,false);
 						this.fireEvent("waiting",false,false);
 					}
 				}
-				if(this._readyState <= 2 && newReadyState == 3) {
+				if(this.readyState <= 2 && newReadyState == 3) {
 					this.fireEvent("canplay",false,false);
-					if(this._paused == false) this.fireEvent("playing",false,false);
+					if(this.paused == false) this.fireEvent("playing",false,false);
 				}
 				if(newReadyState == 4) {
-					if(this._readyState == 2) {
+					if(this.readyState == 2) {
 						this.fireEvent("canplay",false,false);
-						if(this._paused == false) this.fireEvent("playing",false,false);
+						if(this.paused == false) this.fireEvent("playing",false,false);
 					}
 					if(this._autoplaying == true) {
-						if(this._paused == true) {
+						if(this.paused == true) {
 							if(this.get_autoplay() == true) {
-								this._paused = false;
+								this.paused = false;
 								this.fireEvent("play",false,false);
 								this.play();
 								this.fireEvent("playing",false,false);
@@ -4163,14 +4012,14 @@ cocktail.core.html.HTMLMediaElement.prototype = $extend(cocktail.core.html.Embed
 				}
 			}
 		}
-		this._readyState = newReadyState;
+		this.readyState = newReadyState;
 	}
 	,seek: function(newPlaybackPosition) {
-		if(this._readyState == 0) return;
-		if(this._seeking == true) {
+		if(this.readyState == 0) return;
+		if(this.seeking == true) {
 		}
-		this._seeking = true;
-		if(newPlaybackPosition > this._duration) newPlaybackPosition = this._duration;
+		this.seeking = true;
+		if(newPlaybackPosition > this.duration) newPlaybackPosition = this.duration;
 		if(newPlaybackPosition < this._earliestPossiblePosition) newPlaybackPosition = 0;
 		this.fireEvent("seeking",false,false);
 		this._currentPlaybackPosition = newPlaybackPosition;
@@ -4183,7 +4032,7 @@ cocktail.core.html.HTMLMediaElement.prototype = $extend(cocktail.core.html.Embed
 		this._nativeMedia.set_src(url);
 	}
 	,selectResource: function() {
-		this._networkState = 3;
+		this.networkState = 3;
 		var mode;
 		var candidate;
 		if(this.get_src() != null) mode = 0; else if(this.hasChildSourceElement() == true) {
@@ -4197,19 +4046,19 @@ cocktail.core.html.HTMLMediaElement.prototype = $extend(cocktail.core.html.Embed
 				}
 			}
 		} else {
-			this._networkState = 0;
+			this.networkState = 0;
 			return;
 		}
-		this._networkState = 2;
+		this.networkState = 2;
 		this.fireEvent("loadstart",false,false);
 		if(mode == 0) {
 			if(this.get_src() == "") {
-				this._networkState = 3;
+				this.networkState = 3;
 				this.fireEvent("error",false,false);
 				return;
 			}
-			this._currentSrc = this.get_src();
-			this.fetchResource(this._currentSrc);
+			this.currentSrc = this.get_src();
+			this.fetchResource(this.currentSrc);
 		} else if(mode == 1) {
 			var _g1 = 0, _g = this.childNodes.length;
 			while(_g1 < _g) {
@@ -4218,42 +4067,42 @@ cocktail.core.html.HTMLMediaElement.prototype = $extend(cocktail.core.html.Embed
 					var sourceChild = this.childNodes[i];
 					if(sourceChild.get_type() != null) {
 						if(this.canPlayType(sourceChild.get_type()) == "probably") {
-							this._currentSrc = sourceChild.get_src();
-							this.fetchResource(this._currentSrc);
+							this.currentSrc = sourceChild.get_src();
+							this.fetchResource(this.currentSrc);
 							return;
 						}
 					} else if(sourceChild.get_src() != null) {
 						if(this.canPlayType(sourceChild.get_src()) == "probably") {
-							this._currentSrc = sourceChild.get_src();
-							this.fetchResource(this._currentSrc);
+							this.currentSrc = sourceChild.get_src();
+							this.fetchResource(this.currentSrc);
 							return;
 						}
 					}
 				}
 			}
-			this._networkState = 0;
+			this.networkState = 0;
 		}
 	}
 	,loadResource: function() {
-		switch(this._networkState) {
+		switch(this.networkState) {
 		case 2:case 1:
 			this.fireEvent("abort",false,false);
 			break;
 		}
-		if(this._networkState != 0) {
+		if(this.networkState != 0) {
 			this.fireEvent("emptied",false,false);
 			this._nativeMedia.set_src(null);
-			this._networkState = 0;
-			this._readyState = 0;
-			this._paused = true;
-			this._seeking = false;
+			this.networkState = 0;
+			this.readyState = 0;
+			this.paused = true;
+			this.seeking = false;
 			this._currentPlaybackPosition = 0;
 			if(this._officialPlaybackPosition > 0) {
 				this._officialPlaybackPosition = 0;
 				this.fireEvent("timeupdate",false,false);
 			} else this._officialPlaybackPosition = 0;
 			this._initialPlaybackPosition = 0;
-			this._duration = Math.NaN;
+			this.duration = Math.NaN;
 		}
 		this._loadedDataWasDispatched = false;
 		this.selectResource();
@@ -4262,10 +4111,10 @@ cocktail.core.html.HTMLMediaElement.prototype = $extend(cocktail.core.html.Embed
 		return this._nativeMedia.canPlayType(type);
 	}
 	,pause: function() {
-		if(this._networkState == 0) this.selectResource();
+		if(this.networkState == 0) this.selectResource();
 		this._autoplaying = false;
-		if(this._paused == false) {
-			this._paused = true;
+		if(this.paused == false) {
+			this.paused = true;
 			this.fireEvent("timeupdate",false,false);
 			this.fireEvent("pause",false,false);
 			this._officialPlaybackPosition = this._currentPlaybackPosition;
@@ -4273,12 +4122,15 @@ cocktail.core.html.HTMLMediaElement.prototype = $extend(cocktail.core.html.Embed
 		this._nativeMedia.pause();
 	}
 	,play: function() {
-		if(this._networkState == 0) this.selectResource();
-		if(this._ended == true) this.seek(0);
-		if(this._paused == true) {
-			this._paused = false;
+		if(this.networkState == 0) this.selectResource();
+		if(this.ended == true) {
+			this.ended = false;
+			this.seek(0);
+		}
+		if(this.paused == true) {
+			this.paused = false;
 			this.fireEvent("play",false,false);
-			switch(this._readyState) {
+			switch(this.readyState) {
 			case 0:case 1:case 2:
 				this.fireEvent("waiting",false,false);
 				break;
@@ -4291,16 +4143,12 @@ cocktail.core.html.HTMLMediaElement.prototype = $extend(cocktail.core.html.Embed
 		this._nativeMedia.play();
 		this.onTimeUpdateTick();
 	}
-	,detachFromParentElementRenderer: function() {
-		cocktail.core.html.EmbeddedElement.prototype.detachFromParentElementRenderer.call(this);
-		if(this._networkState != 0) this.pause();
-	}
 	,setAttribute: function(name,value) {
 		if(name == "src") this.set_src(value); else cocktail.core.html.EmbeddedElement.prototype.setAttribute.call(this,name,value);
 	}
 	,appendChild: function(newChild) {
 		cocktail.core.html.EmbeddedElement.prototype.appendChild.call(this,newChild);
-		if(this.get_src() == null && this._networkState == 0) {
+		if(this.get_src() == null && this.networkState == 0) {
 			if(newChild.get_nodeName() == "SOURCE") this.selectResource();
 		}
 		return newChild;
@@ -4320,34 +4168,28 @@ cocktail.core.html.HTMLMediaElement.prototype = $extend(cocktail.core.html.Embed
 	,_initialPlaybackPosition: null
 	,_nativeMedia: null
 	,volume: null
-	,_volume: null
 	,muted: null
-	,_muted: null
 	,ended: null
-	,_ended: null
 	,paused: null
-	,_paused: null
 	,buffered: null
 	,duration: null
-	,_duration: null
 	,currentSrc: null
-	,_currentSrc: null
 	,currentTime: null
 	,seeking: null
-	,_seeking: null
 	,readyState: null
-	,_readyState: null
 	,networkState: null
-	,_networkState: null
 	,loop: null
 	,autoplay: null
 	,src: null
 	,__class__: cocktail.core.html.HTMLMediaElement
-	,__properties__: $extend(cocktail.core.html.EmbeddedElement.prototype.__properties__,{set_src:"set_src",get_src:"get_src",set_autoplay:"set_autoplay",get_autoplay:"get_autoplay",set_loop:"set_loop",get_loop:"get_loop",get_networkState:"get_networkState",get_readyState:"get_readyState",get_seeking:"get_seeking",set_currentTime:"set_currentTime",get_currentTime:"get_currentTime",get_currentSrc:"get_currentSrc",get_duration:"get_duration",get_buffered:"get_buffered",get_paused:"get_paused",get_ended:"get_ended",set_muted:"set_muted",get_muted:"get_muted",set_volume:"set_volume",get_volume:"get_volume"})
+	,__properties__: $extend(cocktail.core.html.EmbeddedElement.prototype.__properties__,{set_src:"set_src",get_src:"get_src",set_autoplay:"set_autoplay",get_autoplay:"get_autoplay",set_loop:"set_loop",get_loop:"get_loop",set_currentTime:"set_currentTime",get_currentTime:"get_currentTime",get_buffered:"get_buffered",set_muted:"set_muted",set_volume:"set_volume"})
 });
 cocktail.core.html.HTMLObjectElement = function() {
 	this._imageLoader = new cocktail.core.resource.ImageLoader();
 	cocktail.core.html.EmbeddedElement.call(this,"OBJECT");
+	this.intrinsicHeight = 150;
+	this.intrinsicWidth = 300;
+	this.intrinsicRatio = this.get_intrinsicWidth() / this.get_intrinsicHeight();
 };
 $hxClasses["cocktail.core.html.HTMLObjectElement"] = cocktail.core.html.HTMLObjectElement;
 cocktail.core.html.HTMLObjectElement.__name__ = ["cocktail","core","html","HTMLObjectElement"];
@@ -4367,17 +4209,13 @@ cocktail.core.html.HTMLObjectElement.prototype = $extend(cocktail.core.html.Embe
 		this.dispatchEvent(errorEvent);
 	}
 	,onLoadComplete: function(image) {
-		this.intrinsicHeight = this._imageLoader.getIntrinsicHeight();
-		this.intrinsicWidth = this._imageLoader.getIntrinsicWidth();
-		this.intrinsicRatio = this.get_intrinsicHeight() / this.get_intrinsicWidth();
 		this.invalidate(cocktail.core.renderer.InvalidationReason.other);
 		var loadEvent = new cocktail.core.event.UIEvent();
 		loadEvent.initUIEvent("load",false,false,null,0.0);
 		this.dispatchEvent(loadEvent);
 	}
 	,createElementRenderer: function() {
-		this.elementRenderer = new cocktail.core.renderer.ImageRenderer(this);
-		this.elementRenderer.set_coreStyle(this.coreStyle);
+		this.elementRenderer = new cocktail.core.renderer.ObjectRenderer(this);
 	}
 	,setAttribute: function(name,value) {
 		if(name == "data") this.set_data(value); else cocktail.core.html.EmbeddedElement.prototype.setAttribute.call(this,name,value);
@@ -4389,6 +4227,37 @@ cocktail.core.html.HTMLObjectElement.prototype = $extend(cocktail.core.html.Embe
 	,data: null
 	,__class__: cocktail.core.html.HTMLObjectElement
 	,__properties__: $extend(cocktail.core.html.EmbeddedElement.prototype.__properties__,{set_data:"set_data",get_data:"get_data"})
+});
+cocktail.core.html.HTMLParamElement = function() {
+	cocktail.core.html.HTMLElement.call(this,"PARAM");
+};
+$hxClasses["cocktail.core.html.HTMLParamElement"] = cocktail.core.html.HTMLParamElement;
+cocktail.core.html.HTMLParamElement.__name__ = ["cocktail","core","html","HTMLParamElement"];
+cocktail.core.html.HTMLParamElement.__super__ = cocktail.core.html.HTMLElement;
+cocktail.core.html.HTMLParamElement.prototype = $extend(cocktail.core.html.HTMLElement.prototype,{
+	set_value: function(value) {
+		this.setAttribute("value",value);
+		return value;
+	}
+	,get_value: function() {
+		return this.getAttribute("value");
+	}
+	,set_name: function(value) {
+		this.setAttribute("name",value);
+		return value;
+	}
+	,get_name: function() {
+		return this.getAttribute("name");
+	}
+	,isVoidElement: function() {
+		return true;
+	}
+	,createElementRenderer: function() {
+	}
+	,value: null
+	,name: null
+	,__class__: cocktail.core.html.HTMLParamElement
+	,__properties__: $extend(cocktail.core.html.HTMLElement.prototype.__properties__,{set_name:"set_name",get_name:"get_name",set_value:"set_value",get_value:"get_value"})
 });
 cocktail.core.html.HTMLSourceElement = function() {
 	cocktail.core.html.HTMLElement.call(this,"SOURCE");
@@ -4468,16 +4337,15 @@ cocktail.core.html.HTMLVideoElement.prototype = $extend(cocktail.core.html.HTMLM
 	}
 	,shouldRenderPosterFrame: function() {
 		if(this.get_poster() == null) return false;
-		switch(this._readyState) {
+		switch(this.readyState) {
 		case 0:case 1:
 			return true;
 		}
-		if(this._paused == true && this._currentPlaybackPosition == 0.0) return true;
+		if(this.paused == true && this._currentPlaybackPosition == 0.0) return true;
 		return false;
 	}
 	,createElementRenderer: function() {
 		this.elementRenderer = new cocktail.core.renderer.VideoRenderer(this);
-		this.elementRenderer.set_coreStyle(this.coreStyle);
 	}
 	,setAttribute: function(name,value) {
 		if(name == "poster") this.set_poster(value); else cocktail.core.html.HTMLMediaElement.prototype.setAttribute.call(this,name,value);
@@ -4634,7 +4502,6 @@ cocktail.core.html.ScrollBar.prototype = $extend(cocktail.core.html.HTMLElement.
 	}
 	,createElementRenderer: function() {
 		this.elementRenderer = new cocktail.core.renderer.ScrollBarRenderer(this);
-		this.elementRenderer.set_coreStyle(this.coreStyle);
 	}
 	,initHorizontalScrollBar: function() {
 		this.style.set_width("100%");
@@ -4706,11 +4573,473 @@ cocktail.core.html.TimeRanges.prototype = {
 	,__class__: cocktail.core.html.TimeRanges
 	,__properties__: {get_length:"get_length"}
 }
+cocktail.core.layer = {}
+cocktail.core.layer.LayerRenderer = function(rootElementRenderer) {
+	cocktail.core.dom.NodeBase.call(this);
+	this.rootElementRenderer = rootElementRenderer;
+	this._zeroAndAutoZIndexChildRenderers = new Array();
+	this._positiveZIndexChildRenderers = new Array();
+	this._negativeZIndexChildRenderers = new Array();
+};
+$hxClasses["cocktail.core.layer.LayerRenderer"] = cocktail.core.layer.LayerRenderer;
+cocktail.core.layer.LayerRenderer.__name__ = ["cocktail","core","layer","LayerRenderer"];
+cocktail.core.layer.LayerRenderer.__super__ = cocktail.core.dom.NodeBase;
+cocktail.core.layer.LayerRenderer.prototype = $extend(cocktail.core.dom.NodeBase.prototype,{
+	getChildRenderers: function() {
+		var childRenderers = new Array();
+		var _g1 = 0, _g = this._negativeZIndexChildRenderers.length;
+		while(_g1 < _g) {
+			var i = _g1++;
+			var childRenderer = this._negativeZIndexChildRenderers[i];
+			childRenderers.push(childRenderer);
+		}
+		var _g1 = 0, _g = this._zeroAndAutoZIndexChildRenderers.length;
+		while(_g1 < _g) {
+			var i = _g1++;
+			var childRenderer = this._zeroAndAutoZIndexChildRenderers[i];
+			childRenderers.push(childRenderer);
+		}
+		var _g1 = 0, _g = this._positiveZIndexChildRenderers.length;
+		while(_g1 < _g) {
+			var i = _g1++;
+			var childRenderer = this._positiveZIndexChildRenderers[i];
+			childRenderers.push(childRenderer);
+		}
+		return childRenderers;
+	}
+	,isWithinBounds: function(point,bounds) {
+		return point.x >= bounds.x && point.x <= bounds.x + bounds.width && point.y >= bounds.y && point.y <= bounds.y + bounds.height;
+	}
+	,getElementRenderersAtPointInChildRenderers: function(point,childRenderers,scrollX,scrollY) {
+		var elementRenderersAtPointInChildRenderers = new Array();
+		var length = childRenderers.length;
+		var _g = 0;
+		while(_g < length) {
+			var i = _g++;
+			var elementRenderersAtPointInChildRenderer = [];
+			if(childRenderers[i].establishesNewStackingContext() == true) {
+				if(childRenderers[i].isScrollBar() == true) elementRenderersAtPointInChildRenderer = childRenderers[i].layerRenderer.getElementRenderersAtPoint(point,scrollX,scrollY); else if(childRenderers[i].get_coreStyle().position == cocktail.core.style.Position.fixed) elementRenderersAtPointInChildRenderer = childRenderers[i].layerRenderer.getElementRenderersAtPoint(point,scrollX,scrollY); else elementRenderersAtPointInChildRenderer = childRenderers[i].layerRenderer.getElementRenderersAtPoint(point,scrollX + this.rootElementRenderer.get_scrollLeft(),scrollY + this.rootElementRenderer.get_scrollTop());
+			}
+			var childLength = elementRenderersAtPointInChildRenderer.length;
+			var _g1 = 0;
+			while(_g1 < childLength) {
+				var j = _g1++;
+				elementRenderersAtPointInChildRenderers.push(elementRenderersAtPointInChildRenderer[j]);
+			}
+		}
+		return elementRenderersAtPointInChildRenderers;
+	}
+	,getElementRenderersAtPointInLayer: function(renderer,point,scrollX,scrollY) {
+		var elementRenderersAtPointInLayer = new Array();
+		var scrolledPoint = { x : point.x + scrollX, y : point.y + scrollY};
+		if(this.isWithinBounds(scrolledPoint,renderer.get_globalBounds()) == true) elementRenderersAtPointInLayer.push(renderer);
+		scrollX += renderer.get_scrollLeft();
+		scrollY += renderer.get_scrollTop();
+		var length = renderer.childNodes.length;
+		var _g = 0;
+		while(_g < length) {
+			var i = _g++;
+			var child = renderer.childNodes[i];
+			if(child.layerRenderer == this) {
+				if(child.hasChildNodes() == true) {
+					var childElementRenderersAtPointInLayer = this.getElementRenderersAtPointInLayer(child,point,scrollX,scrollY);
+					var childLength = childElementRenderersAtPointInLayer.length;
+					var _g1 = 0;
+					while(_g1 < childLength) {
+						var j = _g1++;
+						elementRenderersAtPointInLayer.push(childElementRenderersAtPointInLayer[j]);
+					}
+				} else {
+					var scrolledPoint1 = { x : point.x + scrollX, y : point.y + scrollY};
+					if(this.isWithinBounds(scrolledPoint1,child.get_globalBounds()) == true) elementRenderersAtPointInLayer.push(child);
+				}
+			}
+		}
+		return elementRenderersAtPointInLayer;
+	}
+	,getElementRenderersAtPoint: function(point,scrollX,scrollY) {
+		var elementRenderersAtPoint = this.getElementRenderersAtPointInLayer(this.rootElementRenderer,point,scrollX,scrollY);
+		if(this.rootElementRenderer.hasChildNodes() == true) {
+			var childRenderers = this.getChildRenderers();
+			var elementRenderersAtPointInChildRenderers = this.getElementRenderersAtPointInChildRenderers(point,childRenderers,scrollX,scrollY);
+			var length = elementRenderersAtPointInChildRenderers.length;
+			var _g = 0;
+			while(_g < length) {
+				var i = _g++;
+				elementRenderersAtPoint.push(elementRenderersAtPointInChildRenderers[i]);
+			}
+		}
+		return elementRenderersAtPoint;
+	}
+	,getTopMostElementRendererAtPoint: function(point,scrollX,scrollY) {
+		var elementRenderersAtPoint = this.getElementRenderersAtPoint(point,scrollX,scrollY);
+		var topMostElementRenderer = elementRenderersAtPoint[elementRenderersAtPoint.length - 1];
+		return topMostElementRenderer;
+	}
+	,insertNegativeZIndexChildRenderer: function(rootElementRenderer,rootElementRendererZIndex) {
+		var newNegativeZIndexChildRenderers = new Array();
+		var isInserted = false;
+		var length = this._negativeZIndexChildRenderers.length;
+		var _g = 0;
+		while(_g < length) {
+			var i = _g++;
+			var currentRendererZIndex = 0;
+			var $e = (this._negativeZIndexChildRenderers[i].getComputedStyle().zIndex);
+			switch( $e[1] ) {
+			case 1:
+				var value = $e[2];
+				currentRendererZIndex = value;
+				break;
+			default:
+			}
+			if(currentRendererZIndex > rootElementRendererZIndex && isInserted == false) {
+				newNegativeZIndexChildRenderers.push(rootElementRenderer);
+				isInserted = true;
+			}
+			newNegativeZIndexChildRenderers.push(this._negativeZIndexChildRenderers[i]);
+		}
+		if(isInserted == false) newNegativeZIndexChildRenderers.push(rootElementRenderer);
+		this._negativeZIndexChildRenderers = newNegativeZIndexChildRenderers;
+	}
+	,insertPositiveZIndexChildRenderer: function(rootElementRenderer,rootElementRendererZIndex) {
+		var newPositiveZIndexChildRenderers = new Array();
+		var isInserted = false;
+		var length = this._positiveZIndexChildRenderers.length;
+		var _g = 0;
+		while(_g < length) {
+			var i = _g++;
+			var currentRendererZIndex = 0;
+			var $e = (this._positiveZIndexChildRenderers[i].getComputedStyle().zIndex);
+			switch( $e[1] ) {
+			case 1:
+				var value = $e[2];
+				currentRendererZIndex = value;
+				break;
+			default:
+			}
+			if(rootElementRendererZIndex < currentRendererZIndex && isInserted == false) {
+				newPositiveZIndexChildRenderers.push(rootElementRenderer);
+				isInserted = true;
+			}
+			newPositiveZIndexChildRenderers.push(this._positiveZIndexChildRenderers[i]);
+		}
+		if(isInserted == false) newPositiveZIndexChildRenderers.push(rootElementRenderer);
+		this._positiveZIndexChildRenderers = newPositiveZIndexChildRenderers;
+	}
+	,removeAutoZIndexChildElementRenderer: function(elementRenderer) {
+		HxOverrides.remove(this._zeroAndAutoZIndexChildRenderers,elementRenderer);
+	}
+	,insertAutoZIndexChildElementRenderer: function(elementRenderer) {
+		this._zeroAndAutoZIndexChildRenderers.push(elementRenderer);
+	}
+	,renderChildElementRenderers: function(rootElementRenderers,graphicContext,forceRendering) {
+		var length = rootElementRenderers.length;
+		var _g = 0;
+		while(_g < length) {
+			var i = _g++;
+			var parentElementRenderer = rootElementRenderers[i].parentNode;
+			rootElementRenderers[i].render(graphicContext,forceRendering);
+		}
+	}
+	,renderNegativeChildElementRenderers: function(graphicContext,forceRendering) {
+		this.renderChildElementRenderers(this._negativeZIndexChildRenderers,graphicContext,forceRendering);
+	}
+	,renderZeroAndAutoChildElementRenderers: function(graphicContext,forceRendering) {
+		this.renderChildElementRenderers(this._zeroAndAutoZIndexChildRenderers,graphicContext,forceRendering);
+	}
+	,renderPositiveChildElementRenderers: function(graphicContext,forceRendering) {
+		this.renderChildElementRenderers(this._positiveZIndexChildRenderers,graphicContext,forceRendering);
+	}
+	,removeChild: function(oldChild) {
+		var childLayer = oldChild;
+		var removed = false;
+		removed = HxOverrides.remove(this._zeroAndAutoZIndexChildRenderers,childLayer.rootElementRenderer);
+		if(removed == false) {
+			removed = HxOverrides.remove(this._positiveZIndexChildRenderers,childLayer.rootElementRenderer);
+			if(removed == false) HxOverrides.remove(this._negativeZIndexChildRenderers,childLayer.rootElementRenderer);
+		}
+		cocktail.core.dom.NodeBase.prototype.removeChild.call(this,oldChild);
+		return oldChild;
+	}
+	,appendChild: function(newChild) {
+		cocktail.core.dom.NodeBase.prototype.appendChild.call(this,newChild);
+		var childLayer = newChild;
+		var $e = (childLayer.rootElementRenderer.getComputedStyle().zIndex);
+		switch( $e[1] ) {
+		case 0:
+			this._zeroAndAutoZIndexChildRenderers.push(childLayer.rootElementRenderer);
+			break;
+		case 1:
+			var value = $e[2];
+			if(value == 0) this._zeroAndAutoZIndexChildRenderers.push(childLayer.rootElementRenderer); else if(value > 0) this.insertPositiveZIndexChildRenderer(childLayer.rootElementRenderer,value); else if(value < 0) this.insertNegativeZIndexChildRenderer(childLayer.rootElementRenderer,value);
+			break;
+		}
+		return newChild;
+	}
+	,_negativeZIndexChildRenderers: null
+	,_positiveZIndexChildRenderers: null
+	,_zeroAndAutoZIndexChildRenderers: null
+	,rootElementRenderer: null
+	,__class__: cocktail.core.layer.LayerRenderer
+});
+cocktail.core.linebox = {}
+cocktail.core.linebox.LineBox = function(elementRenderer) {
+	cocktail.core.dom.NodeBase.call(this);
+	this.set_bounds({ x : 0.0, y : 0.0, width : 0.0, height : 0.0});
+	this.elementRenderer = elementRenderer;
+	this.marginLeft = 0;
+	this.marginRight = 0;
+	this.paddingLeft = 0;
+	this.paddingRight = 0;
+	this.set_leadedAscent(0);
+	this.set_leadedDescent(0);
+};
+$hxClasses["cocktail.core.linebox.LineBox"] = cocktail.core.linebox.LineBox;
+cocktail.core.linebox.LineBox.__name__ = ["cocktail","core","linebox","LineBox"];
+cocktail.core.linebox.LineBox.__super__ = cocktail.core.dom.NodeBase;
+cocktail.core.linebox.LineBox.prototype = $extend(cocktail.core.dom.NodeBase.prototype,{
+	set_leadedDescent: function(value) {
+		this.leadedDescent = value;
+		return value;
+	}
+	,get_leadedDescent: function() {
+		return this.leadedDescent;
+	}
+	,set_leadedAscent: function(value) {
+		this.leadedAscent = value;
+		return value;
+	}
+	,get_leadedAscent: function() {
+		return this.leadedAscent;
+	}
+	,set_bounds: function(value) {
+		return this.bounds = value;
+	}
+	,get_bounds: function() {
+		return this.bounds;
+	}
+	,get_layerRenderer: function() {
+		return this.elementRenderer.layerRenderer;
+	}
+	,getBaselineOffset: function(parentBaselineOffset,parentXHeight) {
+		var baselineOffset = parentBaselineOffset + this.elementRenderer.get_coreStyle().computedStyle.verticalAlign;
+		switch( (this.elementRenderer.get_coreStyle().verticalAlign)[1] ) {
+		case 5:
+			baselineOffset -= this.get_bounds().height / 2 - parentXHeight / 2;
+			break;
+		case 3:
+			break;
+		default:
+		}
+		return baselineOffset;
+	}
+	,establishesNewFormattingContext: function() {
+		return this.elementRenderer.establishesNewFormattingContext();
+	}
+	,isAbsolutelyPositioned: function() {
+		var computedStyle = this.elementRenderer.getComputedStyle();
+		return computedStyle.position == cocktail.core.style.Position.fixed || computedStyle.position == cocktail.core.style.Position.absolute;
+	}
+	,isStaticPosition: function() {
+		return false;
+	}
+	,isSpace: function() {
+		return false;
+	}
+	,isText: function() {
+		return false;
+	}
+	,render: function(graphicContext,forceRendering) {
+		var backgrounds = cocktail.core.background.BackgroundManager.render(this.get_bounds(),this.elementRenderer.get_coreStyle(),this.elementRenderer);
+	}
+	,paddingRight: null
+	,paddingLeft: null
+	,marginRight: null
+	,marginLeft: null
+	,leadedDescent: null
+	,leadedAscent: null
+	,bounds: null
+	,layerRenderer: null
+	,elementRenderer: null
+	,__class__: cocktail.core.linebox.LineBox
+	,__properties__: $extend(cocktail.core.dom.NodeBase.prototype.__properties__,{get_layerRenderer:"get_layerRenderer",set_bounds:"set_bounds",get_bounds:"get_bounds",set_leadedAscent:"set_leadedAscent",get_leadedAscent:"get_leadedAscent",set_leadedDescent:"set_leadedDescent",get_leadedDescent:"get_leadedDescent"})
+});
+cocktail.core.linebox.EmbeddedLineBox = function(elementRenderer) {
+	cocktail.core.linebox.LineBox.call(this,elementRenderer);
+};
+$hxClasses["cocktail.core.linebox.EmbeddedLineBox"] = cocktail.core.linebox.EmbeddedLineBox;
+cocktail.core.linebox.EmbeddedLineBox.__name__ = ["cocktail","core","linebox","EmbeddedLineBox"];
+cocktail.core.linebox.EmbeddedLineBox.__super__ = cocktail.core.linebox.LineBox;
+cocktail.core.linebox.EmbeddedLineBox.prototype = $extend(cocktail.core.linebox.LineBox.prototype,{
+	get_bounds: function() {
+		return this.elementRenderer.get_bounds();
+	}
+	,get_leadedDescent: function() {
+		return 0.0;
+	}
+	,get_leadedAscent: function() {
+		var computedStyle = this.elementRenderer.get_coreStyle().computedStyle;
+		return this.get_bounds().height + computedStyle.getMarginTop() + computedStyle.getMarginBottom();
+	}
+	,render: function(graphicContext,forceRendering) {
+		this.elementRenderer.render(graphicContext,forceRendering);
+	}
+	,__class__: cocktail.core.linebox.EmbeddedLineBox
+});
+cocktail.core.linebox.RootLineBox = function(elementRenderer) {
+	cocktail.core.linebox.LineBox.call(this,elementRenderer);
+};
+$hxClasses["cocktail.core.linebox.RootLineBox"] = cocktail.core.linebox.RootLineBox;
+cocktail.core.linebox.RootLineBox.__name__ = ["cocktail","core","linebox","RootLineBox"];
+cocktail.core.linebox.RootLineBox.__super__ = cocktail.core.linebox.LineBox;
+cocktail.core.linebox.RootLineBox.prototype = $extend(cocktail.core.linebox.LineBox.prototype,{
+	getChildrenBounds: function(childrenBounds) {
+		var bounds;
+		var left = 50000;
+		var top = 50000;
+		var right = -50000;
+		var bottom = -50000;
+		var length = childrenBounds.length;
+		var _g = 0;
+		while(_g < length) {
+			var i = _g++;
+			var childBounds = childrenBounds[i];
+			if(childBounds.x < left) left = childBounds.x;
+			if(childBounds.y < top) top = childBounds.y;
+			if(childBounds.x + childBounds.width > right) right = childBounds.x + childBounds.width;
+			if(childBounds.y + childBounds.height > bottom) bottom = childBounds.y + childBounds.height;
+		}
+		bounds = { x : left, y : top, width : right - left, height : bottom - top};
+		if(bounds.width < 0) bounds.width = 0;
+		if(bounds.height < 0) bounds.height = 0;
+		return bounds;
+	}
+	,getLineBoxesBounds: function(lineBox) {
+		var lineBoxesBounds = new Array();
+		var length = lineBox.childNodes.length;
+		var _g = 0;
+		while(_g < length) {
+			var i = _g++;
+			var child = lineBox.childNodes[i];
+			if(child.isAbsolutelyPositioned() == false) {
+				lineBoxesBounds.push(child.get_bounds());
+				if(child.hasChildNodes() == true) {
+					var childrenBounds = this.getLineBoxesBounds(child);
+					var childLength = childrenBounds.length;
+					var _g1 = 0;
+					while(_g1 < childLength) {
+						var j = _g1++;
+						lineBoxesBounds.push(childrenBounds[j]);
+					}
+				}
+			}
+		}
+		return lineBoxesBounds;
+	}
+	,get_bounds: function() {
+		return this.getChildrenBounds(this.getLineBoxesBounds(this));
+	}
+	,__class__: cocktail.core.linebox.RootLineBox
+});
+cocktail.core.linebox.TextLineBox = function(elementRenderer,text,fontMetrics,fontManager) {
+	cocktail.core.linebox.LineBox.call(this,elementRenderer);
+	this._fontMetrics = fontMetrics;
+	this.initNativeTextElement(text,fontManager,elementRenderer.get_coreStyle().computedStyle);
+	this.set_leadedAscent(this.getLeadedAscent());
+	this.set_leadedDescent(this.getLeadedDescent());
+	this.get_bounds().width = this.getTextWidth();
+	this.get_bounds().height = this.getTextHeight();
+};
+$hxClasses["cocktail.core.linebox.TextLineBox"] = cocktail.core.linebox.TextLineBox;
+cocktail.core.linebox.TextLineBox.__name__ = ["cocktail","core","linebox","TextLineBox"];
+cocktail.core.linebox.TextLineBox.__super__ = cocktail.core.linebox.LineBox;
+cocktail.core.linebox.TextLineBox.prototype = $extend(cocktail.core.linebox.LineBox.prototype,{
+	getTextHeight: function() {
+		return this.get_leadedAscent() + this.get_leadedDescent();
+	}
+	,getTextWidth: function() {
+		if(this.isSpace() == true) {
+			var computedStyle = this.elementRenderer.get_coreStyle().computedStyle;
+			return this._fontMetrics.spaceWidth + computedStyle.getLetterSpacing() + computedStyle.getWordSpacing();
+		} else return 0.0;
+	}
+	,getLeadedDescent: function() {
+		var ascent = this._fontMetrics.ascent;
+		var descent = this._fontMetrics.descent;
+		var leading = this.elementRenderer.get_coreStyle().computedStyle.getLineHeight() - (ascent + descent);
+		var leadedAscent = ascent + leading / 2;
+		var leadedDescent = descent + leading / 2;
+		return leadedDescent;
+	}
+	,getLeadedAscent: function() {
+		var ascent = this._fontMetrics.ascent;
+		var descent = this._fontMetrics.descent;
+		var leading = this.elementRenderer.get_coreStyle().computedStyle.getLineHeight() - (ascent + descent);
+		var leadedAscent = ascent + leading / 2;
+		var leadedDescent = descent + leading / 2;
+		return leadedAscent;
+	}
+	,establishesNewFormattingContext: function() {
+		return false;
+	}
+	,isAbsolutelyPositioned: function() {
+		return false;
+	}
+	,isText: function() {
+		return true;
+	}
+	,getBaselineOffset: function(parentBaselineOffset,parentXHeight) {
+		return parentBaselineOffset;
+	}
+	,render: function(graphicContext,forceRendering) {
+	}
+	,initNativeTextElement: function(text,fontManager,computedStyle) {
+		this._nativeElement = fontManager.createNativeTextElement(text,computedStyle);
+	}
+	,_nativeElement: null
+	,_fontMetrics: null
+	,__class__: cocktail.core.linebox.TextLineBox
+});
+cocktail.core.linebox.SpaceLineBox = function(elementRenderer,fontMetrics,fontManager) {
+	cocktail.core.linebox.TextLineBox.call(this,elementRenderer,"",fontMetrics,null);
+};
+$hxClasses["cocktail.core.linebox.SpaceLineBox"] = cocktail.core.linebox.SpaceLineBox;
+cocktail.core.linebox.SpaceLineBox.__name__ = ["cocktail","core","linebox","SpaceLineBox"];
+cocktail.core.linebox.SpaceLineBox.__super__ = cocktail.core.linebox.TextLineBox;
+cocktail.core.linebox.SpaceLineBox.prototype = $extend(cocktail.core.linebox.TextLineBox.prototype,{
+	getTextWidth: function() {
+		return this._fontMetrics.spaceWidth;
+	}
+	,isSpace: function() {
+		return true;
+	}
+	,render: function(graphicContext,forceRendering) {
+	}
+	,initNativeTextElement: function(text,fontManager,computedStyle) {
+	}
+	,__class__: cocktail.core.linebox.SpaceLineBox
+});
+cocktail.core.linebox.StaticPositionLineBox = function(elementRenderer) {
+	cocktail.core.linebox.LineBox.call(this,elementRenderer);
+};
+$hxClasses["cocktail.core.linebox.StaticPositionLineBox"] = cocktail.core.linebox.StaticPositionLineBox;
+cocktail.core.linebox.StaticPositionLineBox.__name__ = ["cocktail","core","linebox","StaticPositionLineBox"];
+cocktail.core.linebox.StaticPositionLineBox.__super__ = cocktail.core.linebox.LineBox;
+cocktail.core.linebox.StaticPositionLineBox.prototype = $extend(cocktail.core.linebox.LineBox.prototype,{
+	get_bounds: function() {
+		return this.elementRenderer.get_bounds();
+	}
+	,isStaticPosition: function() {
+		return true;
+	}
+	,__class__: cocktail.core.linebox.StaticPositionLineBox
+});
 cocktail.core.renderer = {}
 cocktail.core.renderer.ElementRenderer = function(node) {
 	cocktail.core.dom.NodeBase.call(this);
 	this.node = node;
 	this._hasOwnLayer = false;
+	this._wasAutoZIndexPositioned = false;
 	this.set_bounds({ x : 0.0, y : 0.0, width : 0.0, height : 0.0});
 	this.positionedOrigin = { x : 0.0, y : 0.0};
 	this.globalPositionnedAncestorOrigin = { x : 0.0, y : 0.0};
@@ -4786,11 +5115,11 @@ cocktail.core.renderer.ElementRenderer.prototype = $extend(cocktail.core.dom.Nod
 		return { x : globalX, y : globalY, width : this.get_bounds().width, height : this.get_bounds().height};
 	}
 	,invalidateText: function() {
-		var _g1 = 0, _g = this.childNodes.length;
-		while(_g1 < _g) {
-			var i = _g1++;
-			var child = this.childNodes[i];
-			child.invalidateText();
+		var length = this.childNodes.length;
+		var _g = 0;
+		while(_g < length) {
+			var i = _g++;
+			this.childNodes[i].invalidateText();
 		}
 	}
 	,invalidatedPositionedChildStyle: function(styleName,invalidationReason) {
@@ -4810,11 +5139,25 @@ cocktail.core.renderer.ElementRenderer.prototype = $extend(cocktail.core.dom.Nod
 		default:
 			this._needsLayout = true;
 			this._childrenNeedRendering = true;
+			this.invalidateContainingBlock(invalidationReason);
 			this.invalidateDocumentLayoutAndRendering();
 		}
 	}
 	,invalidatedStyle: function(styleName,invalidationReason) {
 		switch(styleName) {
+		case "left":case "right":case "top":case "bottom":
+			this._needsRendering = true;
+			if(this.isPositioned() == true && this.isRelativePositioned() == false) {
+				this._needsLayout = true;
+				this.invalidateContainingBlock(invalidationReason);
+			} else this.invalidateDocumentRendering();
+			break;
+		case "color":case "font-family":case "font-size":case "font-variant":case "font-style":case "font-weight":case "letter-spacing":case "text-tranform":case "white-space":
+			this.invalidateText();
+			this._needsLayout = true;
+			this._needsRendering = true;
+			this.invalidateContainingBlock(invalidationReason);
+			break;
 		case "background-color":case "background-clip":case "background-image":case "background-position":case "background-origin":case "background-repeat":case "background-size":
 			this._needsRendering = true;
 			this.invalidateDocumentRendering();
@@ -4822,20 +5165,23 @@ cocktail.core.renderer.ElementRenderer.prototype = $extend(cocktail.core.dom.Nod
 		default:
 			this._needsLayout = true;
 			this._needsRendering = true;
+			this._childrenNeedRendering = true;
+			this.invalidateDocumentRendering();
 			this.invalidateContainingBlock(invalidationReason);
 		}
 	}
 	,invalidateDocumentLayoutAndRendering: function() {
 		var htmlDocument = this.node.ownerDocument;
-		htmlDocument.invalidateLayoutAndRendering();
+		htmlDocument.invalidateLayout();
+		htmlDocument.invalidateRendering();
 	}
 	,invalidateDocumentRendering: function() {
 		var htmlDocument = this.node.ownerDocument;
 		htmlDocument.invalidateRendering();
 	}
-	,invalidateDocumentLayout: function(immediate) {
+	,invalidateDocumentLayout: function() {
 		var htmlDocument = this.node.ownerDocument;
-		htmlDocument.invalidateLayout(immediate);
+		htmlDocument.invalidateLayout();
 	}
 	,invalidateContainingBlock: function(invalidationReason) {
 		if(this.parentNode == null) return;
@@ -4873,9 +5219,9 @@ cocktail.core.renderer.ElementRenderer.prototype = $extend(cocktail.core.dom.Nod
 			this.invalidatedPositionedChildStyle(styleName,invalidationReason);
 			break;
 		case 3:
-			this.invalidateDocumentLayout(true);
+			this.layout(true);
 			break;
-		case 4:
+		case 5:
 			this._needsLayout = true;
 			this._childrenNeedLayout = true;
 			this._childrenNeedRendering = true;
@@ -4883,13 +5229,18 @@ cocktail.core.renderer.ElementRenderer.prototype = $extend(cocktail.core.dom.Nod
 			this._positionedChildrenNeedLayout = true;
 			this.invalidateDocumentLayoutAndRendering();
 			break;
-		default:
+		case 4:
+			this._needsRendering = true;
+			this.invalidateDocumentRendering();
+			break;
+		case 6:
 			this._needsLayout = true;
 			this._childrenNeedLayout = true;
 			this._childrenNeedRendering = true;
 			this._needsRendering = true;
 			this._positionedChildrenNeedLayout = true;
 			this.invalidateContainingBlock(invalidationReason);
+			break;
 		}
 	}
 	,getChildrenBounds: function(childrenBounds) {
@@ -4933,12 +5284,15 @@ cocktail.core.renderer.ElementRenderer.prototype = $extend(cocktail.core.dom.Nod
 	}
 	,createLayer: function(parentLayer) {
 		if(this.establishesNewStackingContext() == true) {
-			this.layerRenderer = new cocktail.core.renderer.LayerRenderer(this);
+			this.layerRenderer = new cocktail.core.layer.LayerRenderer(this);
 			parentLayer.appendChild(this.layerRenderer);
 			this._hasOwnLayer = true;
 		} else {
 			this.layerRenderer = parentLayer;
-			if(this.isAutoZIndexPositioned() == true) this.layerRenderer.insertAutoZIndexChildElementRenderer(this);
+			if(this.isAutoZIndexPositioned() == true) {
+				this.layerRenderer.insertAutoZIndexChildElementRenderer(this);
+				this._wasAutoZIndexPositioned = true;
+			}
 		}
 	}
 	,isAutoZIndexPositioned: function() {
@@ -5008,8 +5362,9 @@ cocktail.core.renderer.ElementRenderer.prototype = $extend(cocktail.core.dom.Nod
 			var parent = this.parentNode;
 			parent.layerRenderer.removeChild(this.layerRenderer);
 			this._hasOwnLayer = false;
-		} else if(this.isAutoZIndexPositioned() == true) {
+		} else if(this._wasAutoZIndexPositioned == true) {
 			if(this.layerRenderer != null) this.layerRenderer.removeAutoZIndexChildElementRenderer(this);
+			this._wasAutoZIndexPositioned = false;
 		}
 		this.layerRenderer = null;
 	}
@@ -5070,6 +5425,21 @@ cocktail.core.renderer.ElementRenderer.prototype = $extend(cocktail.core.dom.Nod
 	}
 	,render: function(parentGraphicContext,forceRendering) {
 	}
+	,doStartPendingAnimation: function(elementRenderer) {
+		var atLeastOneAnimationStarted = false;
+		var animationStarted = elementRenderer.get_coreStyle().startPendingAnimations();
+		if(animationStarted == true) atLeastOneAnimationStarted = true;
+		var _g1 = 0, _g = this.childNodes.length;
+		while(_g1 < _g) {
+			var i = _g1++;
+			var animationStarted1 = this.childNodes[i].startPendingAnimation();
+			if(animationStarted1 == true) atLeastOneAnimationStarted = true;
+		}
+		return atLeastOneAnimationStarted;
+	}
+	,startPendingAnimation: function() {
+		return this.doStartPendingAnimation(this);
+	}
 	,removeChild: function(oldChild) {
 		var elementRendererChild = oldChild;
 		elementRendererChild.detach();
@@ -5098,6 +5468,7 @@ cocktail.core.renderer.ElementRenderer.prototype = $extend(cocktail.core.dom.Nod
 	,scrollTop: null
 	,scrollLeft: null
 	,computedStyle: null
+	,_wasAutoZIndexPositioned: null
 	,_hasOwnLayer: null
 	,lineBoxes: null
 	,layerRenderer: null
@@ -5133,41 +5504,15 @@ cocktail.core.renderer.BoxRenderer.prototype = $extend(cocktail.core.renderer.El
 		return this.get_globalBounds();
 	}
 	,isClear: function() {
-		var ret = false;
-		switch( (this.getComputedStyle().clear)[1] ) {
-		case 1:
-		case 2:
-		case 3:
-			ret = true;
-			break;
-		case 0:
-			ret = false;
-			break;
-		}
-		return ret;
+		return this.getComputedStyle().clear != cocktail.core.style.Clear.none;
 	}
 	,isAutoZIndexPositioned: function() {
 		if(this.isPositioned() == false) return false;
-		var $e = (this.getComputedStyle().zIndex);
-		switch( $e[1] ) {
-		case 0:
-			return true;
-		case 1:
-			var value = $e[2];
-			return false;
-		}
+		return this.getComputedStyle().zIndex == cocktail.core.style.ZIndex.cssAuto;
 	}
 	,establishesNewStackingContext: function() {
 		if(this.isPositioned() == true) {
 			if(this.isAutoZIndexPositioned() == true) return false; else return true;
-			var $e = (this.getComputedStyle().zIndex);
-			switch( $e[1] ) {
-			case 0:
-				return false;
-			case 1:
-				var value = $e[2];
-				return true;
-			}
 		}
 		return false;
 	}
@@ -5187,31 +5532,10 @@ cocktail.core.renderer.BoxRenderer.prototype = $extend(cocktail.core.renderer.El
 		return this.getComputedStyle().position == cocktail.core.style.Position.relative;
 	}
 	,isPositioned: function() {
-		var ret = false;
-		switch( (this.getComputedStyle().position)[1] ) {
-		case 1:
-		case 2:
-		case 3:
-			ret = true;
-			break;
-		case 0:
-			ret = false;
-			break;
-		}
-		return ret;
+		return this.getComputedStyle().position != cocktail.core.style.Position.cssStatic;
 	}
 	,isFloat: function() {
-		var ret = false;
-		switch( (this.getComputedStyle().cssFloat)[1] ) {
-		case 0:
-		case 1:
-			ret = true;
-			break;
-		case 2:
-			ret = false;
-			break;
-		}
-		return ret;
+		return this.getComputedStyle().cssFloat != cocktail.core.style.CSSFloat.none;
 	}
 	,layoutSelf: function() {
 		var containingBlockData = this._containingBlock.getContainerBlockData();
@@ -5254,9 +5578,8 @@ cocktail.core.renderer.BoxRenderer.prototype = $extend(cocktail.core.renderer.El
 	}
 	,renderBackground: function(graphicContext) {
 		this._coreStyle.computeBackgroundStyles();
-		var backgroundManager = new cocktail.core.background.BackgroundManager(this);
 		var backgroundBounds = this.getBackgroundBounds();
-		var backgrounds = backgroundManager.render(backgroundBounds,this._coreStyle);
+		var backgrounds = cocktail.core.background.BackgroundManager.render(backgroundBounds,this._coreStyle,this);
 	}
 	,clear: function(graphicsContext) {
 	}
@@ -5354,7 +5677,7 @@ cocktail.core.renderer.FlowBoxRenderer.prototype = $extend(cocktail.core.rendere
 		var _g = 0;
 		while(_g < length) {
 			var i = _g++;
-			this.childNodes[i].layout(this._childrenNeedLayout == true);
+			this.childNodes[i].layout(this._childrenNeedLayout);
 		}
 		this.format();
 		if(this._positionedChildrenNeedLayout == true || forceLayout == true) {
@@ -5783,14 +6106,8 @@ cocktail.core.renderer.BlockBoxRenderer.prototype = $extend(cocktail.core.render
 		return ret;
 	}
 	,renderScrollBars: function(graphicContext,forceRendering) {
-		if(this._horizontalScrollBar != null) {
-			this._horizontalScrollBar.elementRenderer.render(graphicContext,forceRendering);
-			this.updateScroll();
-		}
-		if(this._verticalScrollBar != null) {
-			this._verticalScrollBar.elementRenderer.render(graphicContext,forceRendering);
-			this.updateScroll();
-		}
+		if(this._horizontalScrollBar != null) this._horizontalScrollBar.elementRenderer.render(graphicContext,forceRendering);
+		if(this._verticalScrollBar != null) this._verticalScrollBar.elementRenderer.render(graphicContext,forceRendering);
 	}
 	,renderBlockContainerChildren: function(graphicContext,forceRendering) {
 		var childrenBlockContainer = this.getBlockContainerChildren(this,this.layerRenderer);
@@ -5974,144 +6291,6 @@ cocktail.core.renderer.EmbeddedBoxRenderer.prototype = $extend(cocktail.core.ren
 	}
 	,__class__: cocktail.core.renderer.EmbeddedBoxRenderer
 });
-cocktail.core.renderer.LineBox = function(elementRenderer) {
-	cocktail.core.dom.NodeBase.call(this);
-	this._bounds = { x : 0.0, y : 0.0, width : 0.0, height : 0.0};
-	this._elementRenderer = elementRenderer;
-	this._marginLeft = 0;
-	this._marginRight = 0;
-	this._paddingLeft = 0;
-	this._paddingRight = 0;
-	this._leadedAscent = 0;
-	this._leadedDescent = 0;
-	this._backgroundManager = new cocktail.core.background.BackgroundManager(this._elementRenderer);
-};
-$hxClasses["cocktail.core.renderer.LineBox"] = cocktail.core.renderer.LineBox;
-cocktail.core.renderer.LineBox.__name__ = ["cocktail","core","renderer","LineBox"];
-cocktail.core.renderer.LineBox.__super__ = cocktail.core.dom.NodeBase;
-cocktail.core.renderer.LineBox.prototype = $extend(cocktail.core.dom.NodeBase.prototype,{
-	set_leadedDescent: function(value) {
-		return this._leadedDescent = value;
-	}
-	,get_leadedDescent: function() {
-		return this._leadedDescent;
-	}
-	,set_leadedAscent: function(value) {
-		return this._leadedAscent = value;
-	}
-	,get_leadedAscent: function() {
-		return this._leadedAscent;
-	}
-	,set_bounds: function(value) {
-		return this._bounds = value;
-	}
-	,get_bounds: function() {
-		return this._bounds;
-	}
-	,get_nativeElement: function() {
-		return this._nativeElement;
-	}
-	,set_marginRight: function(value) {
-		return this._marginRight = value;
-	}
-	,set_marginLeft: function(value) {
-		return this._marginLeft = value;
-	}
-	,get_marginLeft: function() {
-		return this._marginLeft;
-	}
-	,get_marginRight: function() {
-		return this._marginRight;
-	}
-	,set_paddingLeft: function(value) {
-		return this._paddingLeft = value;
-	}
-	,get_paddingLeft: function() {
-		return this._paddingLeft;
-	}
-	,set_paddingRight: function(value) {
-		return this._paddingRight = value;
-	}
-	,get_paddingRight: function() {
-		return this._paddingRight;
-	}
-	,get_layerRenderer: function() {
-		return this._elementRenderer.layerRenderer;
-	}
-	,get_elementRenderer: function() {
-		return this._elementRenderer;
-	}
-	,getBaselineOffset: function(parentBaselineOffset,parentXHeight) {
-		var baselineOffset = parentBaselineOffset + this._elementRenderer.get_coreStyle().computedStyle.verticalAlign;
-		switch( (this._elementRenderer.get_coreStyle().verticalAlign)[1] ) {
-		case 5:
-			baselineOffset -= this.get_bounds().height / 2 - parentXHeight / 2;
-			break;
-		case 3:
-			break;
-		default:
-		}
-		return baselineOffset;
-	}
-	,establishesNewFormattingContext: function() {
-		return this._elementRenderer.establishesNewFormattingContext();
-	}
-	,isAbsolutelyPositioned: function() {
-		return this._elementRenderer.get_coreStyle().computedStyle.position == cocktail.core.style.Position.fixed || this._elementRenderer.get_coreStyle().computedStyle.position == cocktail.core.style.Position.absolute;
-	}
-	,isSpace: function() {
-		return false;
-	}
-	,isText: function() {
-		return false;
-	}
-	,render: function(graphicContext,forceRendering) {
-		var backgrounds = this._backgroundManager.render(this._bounds,this._elementRenderer.get_coreStyle());
-	}
-	,_backgroundManager: null
-	,paddingRight: null
-	,_paddingRight: null
-	,paddingLeft: null
-	,_paddingLeft: null
-	,marginRight: null
-	,_marginRight: null
-	,marginLeft: null
-	,_marginLeft: null
-	,leadedDescent: null
-	,_leadedDescent: null
-	,leadedAscent: null
-	,_leadedAscent: null
-	,nativeElement: null
-	,_nativeElement: null
-	,bounds: null
-	,_bounds: null
-	,layerRenderer: null
-	,elementRenderer: null
-	,_elementRenderer: null
-	,__class__: cocktail.core.renderer.LineBox
-	,__properties__: $extend(cocktail.core.dom.NodeBase.prototype.__properties__,{get_elementRenderer:"get_elementRenderer",get_layerRenderer:"get_layerRenderer",set_bounds:"set_bounds",get_bounds:"get_bounds",get_nativeElement:"get_nativeElement",set_leadedAscent:"set_leadedAscent",get_leadedAscent:"get_leadedAscent",set_leadedDescent:"set_leadedDescent",get_leadedDescent:"get_leadedDescent",set_marginLeft:"set_marginLeft",get_marginLeft:"get_marginLeft",set_marginRight:"set_marginRight",get_marginRight:"get_marginRight",set_paddingLeft:"set_paddingLeft",get_paddingLeft:"get_paddingLeft",set_paddingRight:"set_paddingRight",get_paddingRight:"get_paddingRight"})
-});
-cocktail.core.renderer.EmbeddedLineBox = function(elementRenderer) {
-	cocktail.core.renderer.LineBox.call(this,elementRenderer);
-};
-$hxClasses["cocktail.core.renderer.EmbeddedLineBox"] = cocktail.core.renderer.EmbeddedLineBox;
-cocktail.core.renderer.EmbeddedLineBox.__name__ = ["cocktail","core","renderer","EmbeddedLineBox"];
-cocktail.core.renderer.EmbeddedLineBox.__super__ = cocktail.core.renderer.LineBox;
-cocktail.core.renderer.EmbeddedLineBox.prototype = $extend(cocktail.core.renderer.LineBox.prototype,{
-	get_bounds: function() {
-		return this._elementRenderer.get_bounds();
-	}
-	,get_leadedDescent: function() {
-		return 0.0;
-	}
-	,get_leadedAscent: function() {
-		return this.get_bounds().height + this._elementRenderer.get_coreStyle().computedStyle.getMarginTop() + this._elementRenderer.get_coreStyle().computedStyle.getMarginBottom();
-	}
-	,render: function(graphicContext,forceRendering) {
-		this._elementRenderer.render(graphicContext,forceRendering);
-	}
-	,__class__: cocktail.core.renderer.EmbeddedLineBox
-});
 cocktail.core.renderer.ImageRenderer = function(node) {
 	cocktail.core.renderer.EmbeddedBoxRenderer.call(this,node);
 };
@@ -6188,21 +6367,9 @@ cocktail.core.renderer.InitialBlockRenderer.prototype = $extend(cocktail.core.re
 		this.layerRenderer = null;
 	}
 	,attachLayer: function() {
-		this.layerRenderer = new cocktail.core.renderer.LayerRenderer(this);
+		this.layerRenderer = new cocktail.core.layer.LayerRenderer(this);
 	}
 	,__class__: cocktail.core.renderer.InitialBlockRenderer
-});
-cocktail.core.renderer.InlineBlockLineBox = function(elementRenderer) {
-	cocktail.core.renderer.EmbeddedLineBox.call(this,elementRenderer);
-};
-$hxClasses["cocktail.core.renderer.InlineBlockLineBox"] = cocktail.core.renderer.InlineBlockLineBox;
-cocktail.core.renderer.InlineBlockLineBox.__name__ = ["cocktail","core","renderer","InlineBlockLineBox"];
-cocktail.core.renderer.InlineBlockLineBox.__super__ = cocktail.core.renderer.EmbeddedLineBox;
-cocktail.core.renderer.InlineBlockLineBox.prototype = $extend(cocktail.core.renderer.EmbeddedLineBox.prototype,{
-	get_leadedAscent: function() {
-		return this.get_bounds().height + this._elementRenderer.get_coreStyle().computedStyle.getMarginTop() + this._elementRenderer.get_coreStyle().computedStyle.getMarginBottom();
-	}
-	,__class__: cocktail.core.renderer.InlineBlockLineBox
 });
 cocktail.core.renderer.InlineBoxRenderer = function(node) {
 	cocktail.core.renderer.FlowBoxRenderer.call(this,node);
@@ -6248,218 +6415,60 @@ cocktail.core.renderer.InlineBoxRenderer.prototype = $extend(cocktail.core.rende
 	}
 	,__class__: cocktail.core.renderer.InlineBoxRenderer
 });
-cocktail.core.renderer.LayerRenderer = function(rootElementRenderer) {
-	cocktail.core.dom.NodeBase.call(this);
-	this._rootElementRenderer = rootElementRenderer;
-	this._zeroAndAutoZIndexChildRenderers = new Array();
-	this._positiveZIndexChildRenderers = new Array();
-	this._negativeZIndexChildRenderers = new Array();
+cocktail.core.renderer.ObjectRenderer = function(node) {
+	cocktail.core.renderer.EmbeddedBoxRenderer.call(this,node);
 };
-$hxClasses["cocktail.core.renderer.LayerRenderer"] = cocktail.core.renderer.LayerRenderer;
-cocktail.core.renderer.LayerRenderer.__name__ = ["cocktail","core","renderer","LayerRenderer"];
-cocktail.core.renderer.LayerRenderer.__super__ = cocktail.core.dom.NodeBase;
-cocktail.core.renderer.LayerRenderer.prototype = $extend(cocktail.core.dom.NodeBase.prototype,{
-	get_rootElementRenderer: function() {
-		return this._rootElementRenderer;
-	}
-	,getChildRenderers: function() {
-		var childRenderers = new Array();
-		var _g1 = 0, _g = this._negativeZIndexChildRenderers.length;
-		while(_g1 < _g) {
-			var i = _g1++;
-			var childRenderer = this._negativeZIndexChildRenderers[i];
-			childRenderers.push(childRenderer);
-		}
-		var _g1 = 0, _g = this._zeroAndAutoZIndexChildRenderers.length;
-		while(_g1 < _g) {
-			var i = _g1++;
-			var childRenderer = this._zeroAndAutoZIndexChildRenderers[i];
-			childRenderers.push(childRenderer);
-		}
-		var _g1 = 0, _g = this._positiveZIndexChildRenderers.length;
-		while(_g1 < _g) {
-			var i = _g1++;
-			var childRenderer = this._positiveZIndexChildRenderers[i];
-			childRenderers.push(childRenderer);
-		}
-		return childRenderers;
-	}
-	,isWithinBounds: function(point,bounds) {
-		return point.x >= bounds.x && point.x <= bounds.x + bounds.width && point.y >= bounds.y && point.y <= bounds.y + bounds.height;
-	}
-	,getElementRenderersAtPointInChildRenderers: function(point,childRenderers,scrollX,scrollY) {
-		var elementRenderersAtPointInChildRenderers = new Array();
-		var length = childRenderers.length;
-		var _g = 0;
-		while(_g < length) {
-			var i = _g++;
-			var elementRenderersAtPointInChildRenderer = [];
-			if(childRenderers[i].establishesNewStackingContext() == true) {
-				if(childRenderers[i].isScrollBar() == true) elementRenderersAtPointInChildRenderer = childRenderers[i].layerRenderer.getElementRenderersAtPoint(point,scrollX,scrollY); else if(childRenderers[i].get_coreStyle().position == cocktail.core.style.Position.fixed) elementRenderersAtPointInChildRenderer = childRenderers[i].layerRenderer.getElementRenderersAtPoint(point,scrollX,scrollY); else elementRenderersAtPointInChildRenderer = childRenderers[i].layerRenderer.getElementRenderersAtPoint(point,scrollX + this._rootElementRenderer.get_scrollLeft(),scrollY + this._rootElementRenderer.get_scrollTop());
+$hxClasses["cocktail.core.renderer.ObjectRenderer"] = cocktail.core.renderer.ObjectRenderer;
+cocktail.core.renderer.ObjectRenderer.__name__ = ["cocktail","core","renderer","ObjectRenderer"];
+cocktail.core.renderer.ObjectRenderer.__super__ = cocktail.core.renderer.EmbeddedBoxRenderer;
+cocktail.core.renderer.ObjectRenderer.prototype = $extend(cocktail.core.renderer.EmbeddedBoxRenderer.prototype,{
+	getAssetBounds: function(availableWidth,availableHeight,assetWidth,assetHeight) {
+		var width;
+		var height;
+		if(availableWidth > availableHeight) {
+			var ratio = assetHeight / availableHeight;
+			if(assetWidth / ratio < availableWidth) {
+				width = assetWidth / ratio;
+				height = availableHeight;
+			} else {
+				ratio = assetWidth / availableWidth;
+				width = availableWidth;
+				height = assetHeight / ratio;
 			}
-			var childLength = elementRenderersAtPointInChildRenderer.length;
-			var _g1 = 0;
-			while(_g1 < childLength) {
-				var j = _g1++;
-				elementRenderersAtPointInChildRenderers.push(elementRenderersAtPointInChildRenderer[j]);
+		} else {
+			var ratio = assetWidth / availableWidth;
+			if(assetHeight / ratio < availableHeight) {
+				height = assetHeight / ratio;
+				width = availableWidth;
+			} else {
+				ratio = assetHeight / availableHeight;
+				width = assetWidth / ratio;
+				height = availableHeight;
 			}
 		}
-		return elementRenderersAtPointInChildRenderers;
+		var xOffset = (availableWidth - width) / 2;
+		var yOffset = (availableHeight - height) / 2;
+		return { width : width, height : height, x : xOffset, y : yOffset};
 	}
-	,getElementRenderersAtPointInLayer: function(renderer,point,scrollX,scrollY) {
-		var elementRenderersAtPointInLayer = new Array();
-		var scrolledPoint = { x : point.x + scrollX, y : point.y + scrollY};
-		if(this.isWithinBounds(scrolledPoint,renderer.get_globalBounds()) == true) elementRenderersAtPointInLayer.push(renderer);
-		scrollX += renderer.get_scrollLeft();
-		scrollY += renderer.get_scrollTop();
-		var length = renderer.childNodes.length;
-		var _g = 0;
-		while(_g < length) {
-			var i = _g++;
-			var child = renderer.childNodes[i];
-			if(child.layerRenderer == this) {
-				if(child.hasChildNodes() == true) {
-					var childElementRenderersAtPointInLayer = this.getElementRenderersAtPointInLayer(child,point,scrollX,scrollY);
-					var childLength = childElementRenderersAtPointInLayer.length;
-					var _g1 = 0;
-					while(_g1 < childLength) {
-						var j = _g1++;
-						elementRenderersAtPointInLayer.push(childElementRenderersAtPointInLayer[j]);
+	,getScaleMode: function() {
+		var scaleMode = "showall";
+		var _g1 = 0, _g = this.node.childNodes.length;
+		while(_g1 < _g) {
+			var i = _g1++;
+			var child = this.node.childNodes[i];
+			if(child.tagName == "PARAM") {
+				if(child.getAttribute("name") != null) {
+					if(child.getAttribute("name") == "scale") {
+						if(child.getAttribute("value") != null) scaleMode = child.getAttribute("value");
 					}
-				} else {
-					var scrolledPoint1 = { x : point.x + scrollX, y : point.y + scrollY};
-					if(this.isWithinBounds(scrolledPoint1,child.get_globalBounds()) == true) elementRenderersAtPointInLayer.push(child);
 				}
 			}
 		}
-		return elementRenderersAtPointInLayer;
+		return scaleMode;
 	}
-	,getElementRenderersAtPoint: function(point,scrollX,scrollY) {
-		var elementRenderersAtPoint = this.getElementRenderersAtPointInLayer(this._rootElementRenderer,point,scrollX,scrollY);
-		if(this._rootElementRenderer.hasChildNodes() == true) {
-			var childRenderers = this.getChildRenderers();
-			var elementRenderersAtPointInChildRenderers = this.getElementRenderersAtPointInChildRenderers(point,childRenderers,scrollX,scrollY);
-			var length = elementRenderersAtPointInChildRenderers.length;
-			var _g = 0;
-			while(_g < length) {
-				var i = _g++;
-				elementRenderersAtPoint.push(elementRenderersAtPointInChildRenderers[i]);
-			}
-		}
-		return elementRenderersAtPoint;
+	,renderEmbeddedAsset: function(graphicContext) {
 	}
-	,getTopMostElementRendererAtPoint: function(point,scrollX,scrollY) {
-		var elementRenderersAtPoint = this.getElementRenderersAtPoint(point,scrollX,scrollY);
-		var topMostElementRenderer = elementRenderersAtPoint[elementRenderersAtPoint.length - 1];
-		return topMostElementRenderer;
-	}
-	,insertNegativeZIndexChildRenderer: function(rootElementRenderer,rootElementRendererZIndex) {
-		var newNegativeZIndexChildRenderers = new Array();
-		var isInserted = false;
-		var length = this._negativeZIndexChildRenderers.length;
-		var _g = 0;
-		while(_g < length) {
-			var i = _g++;
-			var currentRendererZIndex = 0;
-			var $e = (this._negativeZIndexChildRenderers[i].getComputedStyle().zIndex);
-			switch( $e[1] ) {
-			case 1:
-				var value = $e[2];
-				currentRendererZIndex = value;
-				break;
-			default:
-			}
-			if(currentRendererZIndex > rootElementRendererZIndex && isInserted == false) {
-				newNegativeZIndexChildRenderers.push(rootElementRenderer);
-				isInserted = true;
-			}
-			newNegativeZIndexChildRenderers.push(this._negativeZIndexChildRenderers[i]);
-		}
-		if(isInserted == false) newNegativeZIndexChildRenderers.push(rootElementRenderer);
-		this._negativeZIndexChildRenderers = newNegativeZIndexChildRenderers;
-	}
-	,insertPositiveZIndexChildRenderer: function(rootElementRenderer,rootElementRendererZIndex) {
-		var newPositiveZIndexChildRenderers = new Array();
-		var isInserted = false;
-		var length = this._positiveZIndexChildRenderers.length;
-		var _g = 0;
-		while(_g < length) {
-			var i = _g++;
-			var currentRendererZIndex = 0;
-			var $e = (this._positiveZIndexChildRenderers[i].getComputedStyle().zIndex);
-			switch( $e[1] ) {
-			case 1:
-				var value = $e[2];
-				currentRendererZIndex = value;
-				break;
-			default:
-			}
-			if(rootElementRendererZIndex < currentRendererZIndex && isInserted == false) {
-				newPositiveZIndexChildRenderers.push(rootElementRenderer);
-				isInserted = true;
-			}
-			newPositiveZIndexChildRenderers.push(this._positiveZIndexChildRenderers[i]);
-		}
-		if(isInserted == false) newPositiveZIndexChildRenderers.push(rootElementRenderer);
-		this._positiveZIndexChildRenderers = newPositiveZIndexChildRenderers;
-	}
-	,removeAutoZIndexChildElementRenderer: function(elementRenderer) {
-		HxOverrides.remove(this._zeroAndAutoZIndexChildRenderers,elementRenderer);
-	}
-	,insertAutoZIndexChildElementRenderer: function(elementRenderer) {
-		this._zeroAndAutoZIndexChildRenderers.push(elementRenderer);
-	}
-	,renderChildElementRenderers: function(rootElementRenderers,graphicContext,forceRendering) {
-		var length = rootElementRenderers.length;
-		var _g = 0;
-		while(_g < length) {
-			var i = _g++;
-			var parentElementRenderer = rootElementRenderers[i].parentNode;
-			rootElementRenderers[i].render(graphicContext,forceRendering);
-		}
-	}
-	,renderNegativeChildElementRenderers: function(graphicContext,forceRendering) {
-		this.renderChildElementRenderers(this._negativeZIndexChildRenderers,graphicContext,forceRendering);
-	}
-	,renderZeroAndAutoChildElementRenderers: function(graphicContext,forceRendering) {
-		this.renderChildElementRenderers(this._zeroAndAutoZIndexChildRenderers,graphicContext,forceRendering);
-	}
-	,renderPositiveChildElementRenderers: function(graphicContext,forceRendering) {
-		this.renderChildElementRenderers(this._positiveZIndexChildRenderers,graphicContext,forceRendering);
-	}
-	,removeChild: function(oldChild) {
-		var childLayer = oldChild;
-		var removed = false;
-		removed = HxOverrides.remove(this._zeroAndAutoZIndexChildRenderers,childLayer.get_rootElementRenderer());
-		if(removed == false) {
-			removed = HxOverrides.remove(this._positiveZIndexChildRenderers,childLayer.get_rootElementRenderer());
-			if(removed == false) HxOverrides.remove(this._negativeZIndexChildRenderers,childLayer.get_rootElementRenderer());
-		}
-		cocktail.core.dom.NodeBase.prototype.removeChild.call(this,oldChild);
-		return oldChild;
-	}
-	,appendChild: function(newChild) {
-		cocktail.core.dom.NodeBase.prototype.appendChild.call(this,newChild);
-		var childLayer = newChild;
-		var $e = (childLayer.get_rootElementRenderer().getComputedStyle().zIndex);
-		switch( $e[1] ) {
-		case 0:
-			this._zeroAndAutoZIndexChildRenderers.push(childLayer.get_rootElementRenderer());
-			break;
-		case 1:
-			var value = $e[2];
-			if(value == 0) this._zeroAndAutoZIndexChildRenderers.push(childLayer.get_rootElementRenderer()); else if(value > 0) this.insertPositiveZIndexChildRenderer(childLayer.get_rootElementRenderer(),value); else if(value < 0) this.insertNegativeZIndexChildRenderer(childLayer.get_rootElementRenderer(),value);
-			break;
-		}
-		return newChild;
-	}
-	,_negativeZIndexChildRenderers: null
-	,_positiveZIndexChildRenderers: null
-	,_zeroAndAutoZIndexChildRenderers: null
-	,rootElementRenderer: null
-	,_rootElementRenderer: null
-	,__class__: cocktail.core.renderer.LayerRenderer
-	,__properties__: $extend(cocktail.core.dom.NodeBase.prototype.__properties__,{get_rootElementRenderer:"get_rootElementRenderer"})
+	,__class__: cocktail.core.renderer.ObjectRenderer
 });
 cocktail.core.renderer.TextToken = $hxClasses["cocktail.core.renderer.TextToken"] = { __ename__ : ["cocktail","core","renderer","TextToken"], __constructs__ : ["word","space","tab","lineFeed"] }
 cocktail.core.renderer.TextToken.word = function(value) { var $x = ["word",0,value]; $x.__enum__ = cocktail.core.renderer.TextToken; $x.toString = $estr; return $x; }
@@ -6472,74 +6481,22 @@ cocktail.core.renderer.TextToken.tab.__enum__ = cocktail.core.renderer.TextToken
 cocktail.core.renderer.TextToken.lineFeed = ["lineFeed",3];
 cocktail.core.renderer.TextToken.lineFeed.toString = $estr;
 cocktail.core.renderer.TextToken.lineFeed.__enum__ = cocktail.core.renderer.TextToken;
-cocktail.core.renderer.InvalidationReason = $hxClasses["cocktail.core.renderer.InvalidationReason"] = { __ename__ : ["cocktail","core","renderer","InvalidationReason"], __constructs__ : ["styleChanged","childStyleChanged","positionedChildStyleChanged","needsImmediateLayout","windowResize","other"] }
+cocktail.core.renderer.InvalidationReason = $hxClasses["cocktail.core.renderer.InvalidationReason"] = { __ename__ : ["cocktail","core","renderer","InvalidationReason"], __constructs__ : ["styleChanged","childStyleChanged","positionedChildStyleChanged","needsImmediateLayout","backgroundImageLoaded","windowResize","other"] }
 cocktail.core.renderer.InvalidationReason.styleChanged = function(styleName) { var $x = ["styleChanged",0,styleName]; $x.__enum__ = cocktail.core.renderer.InvalidationReason; $x.toString = $estr; return $x; }
 cocktail.core.renderer.InvalidationReason.childStyleChanged = function(styleName) { var $x = ["childStyleChanged",1,styleName]; $x.__enum__ = cocktail.core.renderer.InvalidationReason; $x.toString = $estr; return $x; }
 cocktail.core.renderer.InvalidationReason.positionedChildStyleChanged = function(styleName) { var $x = ["positionedChildStyleChanged",2,styleName]; $x.__enum__ = cocktail.core.renderer.InvalidationReason; $x.toString = $estr; return $x; }
 cocktail.core.renderer.InvalidationReason.needsImmediateLayout = ["needsImmediateLayout",3];
 cocktail.core.renderer.InvalidationReason.needsImmediateLayout.toString = $estr;
 cocktail.core.renderer.InvalidationReason.needsImmediateLayout.__enum__ = cocktail.core.renderer.InvalidationReason;
-cocktail.core.renderer.InvalidationReason.windowResize = ["windowResize",4];
+cocktail.core.renderer.InvalidationReason.backgroundImageLoaded = ["backgroundImageLoaded",4];
+cocktail.core.renderer.InvalidationReason.backgroundImageLoaded.toString = $estr;
+cocktail.core.renderer.InvalidationReason.backgroundImageLoaded.__enum__ = cocktail.core.renderer.InvalidationReason;
+cocktail.core.renderer.InvalidationReason.windowResize = ["windowResize",5];
 cocktail.core.renderer.InvalidationReason.windowResize.toString = $estr;
 cocktail.core.renderer.InvalidationReason.windowResize.__enum__ = cocktail.core.renderer.InvalidationReason;
-cocktail.core.renderer.InvalidationReason.other = ["other",5];
+cocktail.core.renderer.InvalidationReason.other = ["other",6];
 cocktail.core.renderer.InvalidationReason.other.toString = $estr;
 cocktail.core.renderer.InvalidationReason.other.__enum__ = cocktail.core.renderer.InvalidationReason;
-cocktail.core.renderer.RootLineBox = function(elementRenderer) {
-	cocktail.core.renderer.LineBox.call(this,elementRenderer);
-};
-$hxClasses["cocktail.core.renderer.RootLineBox"] = cocktail.core.renderer.RootLineBox;
-cocktail.core.renderer.RootLineBox.__name__ = ["cocktail","core","renderer","RootLineBox"];
-cocktail.core.renderer.RootLineBox.__super__ = cocktail.core.renderer.LineBox;
-cocktail.core.renderer.RootLineBox.prototype = $extend(cocktail.core.renderer.LineBox.prototype,{
-	getChildrenBounds: function(childrenBounds) {
-		var bounds;
-		var left = 50000;
-		var top = 50000;
-		var right = -50000;
-		var bottom = -50000;
-		var length = childrenBounds.length;
-		var _g = 0;
-		while(_g < length) {
-			var i = _g++;
-			var childBounds = childrenBounds[i];
-			if(childBounds.x < left) left = childBounds.x;
-			if(childBounds.y < top) top = childBounds.y;
-			if(childBounds.x + childBounds.width > right) right = childBounds.x + childBounds.width;
-			if(childBounds.y + childBounds.height > bottom) bottom = childBounds.y + childBounds.height;
-		}
-		bounds = { x : left, y : top, width : right - left, height : bottom - top};
-		if(bounds.width < 0) bounds.width = 0;
-		if(bounds.height < 0) bounds.height = 0;
-		return bounds;
-	}
-	,getLineBoxesBounds: function(lineBox) {
-		var lineBoxesBounds = new Array();
-		var length = lineBox.childNodes.length;
-		var _g = 0;
-		while(_g < length) {
-			var i = _g++;
-			var child = lineBox.childNodes[i];
-			if(child.isAbsolutelyPositioned() == false) {
-				lineBoxesBounds.push(child.get_bounds());
-				if(child.hasChildNodes() == true) {
-					var childrenBounds = this.getLineBoxesBounds(child);
-					var childLength = childrenBounds.length;
-					var _g1 = 0;
-					while(_g1 < childLength) {
-						var j = _g1++;
-						lineBoxesBounds.push(childrenBounds[j]);
-					}
-				}
-			}
-		}
-		return lineBoxesBounds;
-	}
-	,get_bounds: function() {
-		return this.getChildrenBounds(this.getLineBoxesBounds(this));
-	}
-	,__class__: cocktail.core.renderer.RootLineBox
-});
 cocktail.core.renderer.ScrollBarRenderer = function(node) {
 	cocktail.core.renderer.BlockBoxRenderer.call(this,node);
 };
@@ -6613,125 +6570,13 @@ cocktail.core.renderer.TextInputRenderer.prototype = $extend(cocktail.core.rende
 	,__class__: cocktail.core.renderer.TextInputRenderer
 	,__properties__: $extend(cocktail.core.renderer.EmbeddedBoxRenderer.prototype.__properties__,{set_value:"set_value",get_value:"get_value"})
 });
-cocktail.core.renderer.TextLineBox = function(elementRenderer,text) {
-	cocktail.core.renderer.LineBox.call(this,elementRenderer);
-	this._text = text;
-	this._nativeElement = new cocktail.port.server.FontManager().createNativeTextElement(text,elementRenderer.get_coreStyle().computedStyle);
-	this._bounds.height = this.getTextHeight();
-};
-$hxClasses["cocktail.core.renderer.TextLineBox"] = cocktail.core.renderer.TextLineBox;
-cocktail.core.renderer.TextLineBox.__name__ = ["cocktail","core","renderer","TextLineBox"];
-cocktail.core.renderer.TextLineBox.__super__ = cocktail.core.renderer.LineBox;
-cocktail.core.renderer.TextLineBox.prototype = $extend(cocktail.core.renderer.LineBox.prototype,{
-	getTextHeight: function() {
-		return this.get_leadedAscent() + this.get_leadedDescent();
-	}
-	,getTextWidth: function() {
-		if(this.isSpace() == true) return this._elementRenderer.get_coreStyle().get_fontMetricsData().spaceWidth + this._elementRenderer.get_coreStyle().computedStyle.getLetterSpacing() + this._elementRenderer.get_coreStyle().computedStyle.getWordSpacing(); else return 0.0;
-	}
-	,get_leadedDescent: function() {
-		var ascent = this._elementRenderer.get_coreStyle().get_fontMetricsData().ascent;
-		var descent = this._elementRenderer.get_coreStyle().get_fontMetricsData().descent;
-		var leading = this._elementRenderer.get_coreStyle().computedStyle.getLineHeight() - (ascent + descent);
-		var leadedAscent = ascent + leading / 2;
-		var leadedDescent = descent + leading / 2;
-		return leadedDescent;
-	}
-	,get_leadedAscent: function() {
-		var ascent = this._elementRenderer.get_coreStyle().get_fontMetricsData().ascent;
-		var descent = this._elementRenderer.get_coreStyle().get_fontMetricsData().descent;
-		var leading = this._elementRenderer.get_coreStyle().computedStyle.getLineHeight() - (ascent + descent);
-		var leadedAscent = ascent + leading / 2;
-		var leadedDescent = descent + leading / 2;
-		return leadedAscent;
-	}
-	,establishesNewFormattingContext: function() {
-		return false;
-	}
-	,isAbsolutelyPositioned: function() {
-		return false;
-	}
-	,isText: function() {
-		return true;
-	}
-	,isSpace: function() {
-		return this._text == " ";
-	}
-	,getBaselineOffset: function(parentBaselineOffset,parentXHeight) {
-		return parentBaselineOffset;
-	}
-	,render: function(graphicContext,forceRendering) {
-	}
-	,_text: null
-	,__class__: cocktail.core.renderer.TextLineBox
-});
 cocktail.core.renderer.TextRenderer = function(node) {
 	cocktail.core.renderer.ElementRenderer.call(this,node);
 	this._text = node;
+	this._textNeedsRendering = true;
 };
 $hxClasses["cocktail.core.renderer.TextRenderer"] = cocktail.core.renderer.TextRenderer;
 cocktail.core.renderer.TextRenderer.__name__ = ["cocktail","core","renderer","TextRenderer"];
-cocktail.core.renderer.TextRenderer.doGetTextTokens = function(text,whiteSpace) {
-	text = cocktail.core.renderer.TextRenderer.applyWhiteSpace(text,whiteSpace);
-	var textTokens = new Array();
-	var textToken = null;
-	var lastCharacterIsSpace = false;
-	var i = 0;
-	while(i < text.length) {
-		if(text.charAt(i) == "\\") {
-			if(i < text.length - 1) {
-				if(text.charAt(i + 1) == "n") {
-					if(textToken != null) {
-						textTokens.push(cocktail.core.renderer.TextToken.word(textToken));
-						textToken = null;
-					}
-					textTokens.push(cocktail.core.renderer.TextToken.lineFeed);
-					i++;
-				} else if(text.charAt(i + 1) == "t") {
-					if(textToken != null) {
-						textTokens.push(cocktail.core.renderer.TextToken.word(textToken));
-						textToken = null;
-					}
-					textTokens.push(cocktail.core.renderer.TextToken.tab);
-					i++;
-				}
-			}
-		} else if(StringTools.isSpace(text,i) == true) {
-			if(textToken != null) {
-				textTokens.push(cocktail.core.renderer.TextToken.word(textToken));
-				textToken = null;
-			}
-			textTokens.push(cocktail.core.renderer.TextToken.space);
-			lastCharacterIsSpace = true;
-		} else {
-			lastCharacterIsSpace = false;
-			if(textToken == null) textToken = "";
-			textToken += text.charAt(i);
-		}
-		i++;
-	}
-	if(textToken != null) textTokens.push(cocktail.core.renderer.TextToken.word(textToken));
-	return textTokens;
-}
-cocktail.core.renderer.TextRenderer.applyWhiteSpace = function(text,whiteSpace) {
-	switch( (whiteSpace)[1] ) {
-	case 0:
-	case 2:
-		var er1 = new EReg("[ \t]+","");
-		var er2 = new EReg("\r+","g");
-		var er3 = new EReg("\n+","g");
-		var er4 = new EReg("\\s+","g");
-		text = er4.replace(er3.replace(er2.replace(er1.replace(text," ")," ")," ")," ");
-		break;
-	case 4:
-		var er1 = new EReg(" *$^ *","m");
-		var er2 = new EReg("[ \t]+","");
-		text = er2.replace(er1.replace(text,"\n")," ");
-		break;
-	default:
-	}
-	return text;
-}
 cocktail.core.renderer.TextRenderer.__super__ = cocktail.core.renderer.ElementRenderer;
 cocktail.core.renderer.TextRenderer.prototype = $extend(cocktail.core.renderer.ElementRenderer.prototype,{
 	get_bounds: function() {
@@ -6756,42 +6601,138 @@ cocktail.core.renderer.TextRenderer.prototype = $extend(cocktail.core.renderer.E
 	,isFloat: function() {
 		return false;
 	}
-	,createTextLineBoxFromTextToken: function(textToken) {
+	,createTextLineBoxFromTextToken: function(textToken,fontMetrics,fontManager) {
 		var text;
+		var textLineBox;
 		var $e = (textToken);
 		switch( $e[1] ) {
 		case 0:
 			var value = $e[2];
 			text = value;
+			textLineBox = new cocktail.core.linebox.TextLineBox(this,text,fontMetrics,fontManager);
 			break;
 		case 1:
-			text = " ";
+			textLineBox = new cocktail.core.linebox.SpaceLineBox(this,fontMetrics,fontManager);
 			break;
 		case 2:
-			text = "";
+			textLineBox = new cocktail.core.linebox.TextLineBox(this,"",fontMetrics,fontManager);
 			break;
 		case 3:
-			text = "";
+			textLineBox = new cocktail.core.linebox.TextLineBox(this,"",fontMetrics,fontManager);
 			break;
 		}
-		var textLineBox = new cocktail.core.renderer.TextLineBox(this,text);
 		return textLineBox;
 	}
 	,createTextLines: function() {
-		this._textTokens = cocktail.core.renderer.TextRenderer.doGetTextTokens(this._text.get_nodeValue(),this.getComputedStyle().whiteSpace);
+		var processedText = this._text.get_nodeValue();
+		processedText = this.applyWhiteSpace(processedText,this.getComputedStyle().whiteSpace);
+		processedText = this.applyTextTransform(processedText,this.getComputedStyle().textTransform);
+		this._textTokens = this.doGetTextTokens(processedText);
 		this.lineBoxes = [];
+		var fontMetrics = this._coreStyle.get_fontMetricsData();
+		var fontManager = cocktail.core.font.FontManager.getInstance();
 		var length = this._textTokens.length;
 		var _g = 0;
 		while(_g < length) {
 			var i = _g++;
-			this.lineBoxes.push(this.createTextLineBoxFromTextToken(this._textTokens[i]));
+			this.lineBoxes.push(this.createTextLineBoxFromTextToken(this._textTokens[i],fontMetrics,fontManager));
 		}
 	}
+	,capitalizeText: function(text) {
+		var capitalizedText = "";
+		var _g1 = 0, _g = text.length;
+		while(_g1 < _g) {
+			var i = _g1++;
+			if(i == 0) capitalizedText += text.charAt(i).toUpperCase(); else capitalizedText += text.charAt(i);
+		}
+		return capitalizedText;
+	}
+	,applyTextTransform: function(text,textTransform) {
+		switch( (textTransform)[1] ) {
+		case 1:
+			text = text.toUpperCase();
+			break;
+		case 2:
+			text = text.toLowerCase();
+			break;
+		case 0:
+			text = this.capitalizeText(text);
+			break;
+		case 3:
+			break;
+		}
+		return text;
+	}
+	,applyWhiteSpace: function(text,whiteSpace) {
+		switch( (whiteSpace)[1] ) {
+		case 0:
+		case 2:
+			var er1 = new EReg("[ \t]+","");
+			var er2 = new EReg("\r+","g");
+			var er3 = new EReg("\n+","g");
+			var er4 = new EReg("\\s+","g");
+			text = er4.replace(er3.replace(er2.replace(er1.replace(text," ")," ")," ")," ");
+			break;
+		case 4:
+			var er1 = new EReg(" *$^ *","m");
+			var er2 = new EReg("[ \t]+","");
+			text = er2.replace(er1.replace(text,"\n")," ");
+			break;
+		default:
+		}
+		return text;
+	}
+	,doGetTextTokens: function(text) {
+		var textTokens = new Array();
+		var textToken = null;
+		var lastCharacterIsSpace = false;
+		var i = 0;
+		while(i < text.length) {
+			if(text.charAt(i) == "\\") {
+				if(i < text.length - 1) {
+					if(text.charAt(i + 1) == "n") {
+						if(textToken != null) {
+							textTokens.push(cocktail.core.renderer.TextToken.word(textToken));
+							textToken = null;
+						}
+						textTokens.push(cocktail.core.renderer.TextToken.lineFeed);
+						i++;
+					} else if(text.charAt(i + 1) == "t") {
+						if(textToken != null) {
+							textTokens.push(cocktail.core.renderer.TextToken.word(textToken));
+							textToken = null;
+						}
+						textTokens.push(cocktail.core.renderer.TextToken.tab);
+						i++;
+					}
+				}
+			} else if(StringTools.isSpace(text,i) == true) {
+				if(textToken != null) {
+					textTokens.push(cocktail.core.renderer.TextToken.word(textToken));
+					textToken = null;
+				}
+				textTokens.push(cocktail.core.renderer.TextToken.space);
+				lastCharacterIsSpace = true;
+			} else {
+				lastCharacterIsSpace = false;
+				if(textToken == null) textToken = "";
+				textToken += text.charAt(i);
+			}
+			i++;
+		}
+		if(textToken != null) textTokens.push(cocktail.core.renderer.TextToken.word(textToken));
+		return textTokens;
+	}
 	,invalidateText: function() {
+		this._textNeedsRendering = true;
 	}
 	,layout: function(forceLayout) {
-		this.createTextLines();
+		if(this._textNeedsRendering == true) {
+			this.createTextLines();
+			this._textNeedsRendering = false;
+		}
 	}
+	,_textNeedsRendering: null
 	,_text: null
 	,_textTokens: null
 	,__class__: cocktail.core.renderer.TextRenderer
@@ -6803,24 +6744,41 @@ $hxClasses["cocktail.core.renderer.VideoRenderer"] = cocktail.core.renderer.Vide
 cocktail.core.renderer.VideoRenderer.__name__ = ["cocktail","core","renderer","VideoRenderer"];
 cocktail.core.renderer.VideoRenderer.__super__ = cocktail.core.renderer.EmbeddedBoxRenderer;
 cocktail.core.renderer.VideoRenderer.prototype = $extend(cocktail.core.renderer.EmbeddedBoxRenderer.prototype,{
-	renderPosterFrame: function(htmlVideoElement,graphicContext) {
-		var resource = cocktail.core.resource.ResourceManager.getResource(this.node.getAttribute("poster"));
-		if(resource.loaded == false || resource.loadedWithError == true) return;
-	}
-	,renderVideo: function(htmlVideoElement,graphicContext) {
+	getAssetBounds: function(availableWidth,availableHeight,assetWidth,assetHeight) {
 		var width;
 		var height;
-		if(this._coreStyle.computedStyle.getWidth() < this._coreStyle.computedStyle.getHeight()) {
-			var ratio = htmlVideoElement.get_videoHeight() / this._coreStyle.computedStyle.getHeight();
-			width = htmlVideoElement.get_videoWidth() / ratio;
-			height = this._coreStyle.computedStyle.getHeight();
+		if(availableWidth > availableHeight) {
+			var ratio = assetHeight / availableHeight;
+			if(assetWidth / ratio < availableWidth) {
+				width = assetWidth / ratio;
+				height = availableHeight;
+			} else {
+				ratio = assetWidth / availableWidth;
+				width = availableWidth;
+				height = assetHeight / ratio;
+			}
 		} else {
-			var ratio = htmlVideoElement.get_videoWidth() / this._coreStyle.computedStyle.getWidth();
-			height = htmlVideoElement.get_videoHeight() / ratio;
-			width = this._coreStyle.computedStyle.getWidth();
+			var ratio = assetWidth / availableWidth;
+			if(assetHeight / ratio < availableHeight) {
+				height = assetHeight / ratio;
+				width = availableWidth;
+			} else {
+				ratio = assetHeight / availableHeight;
+				width = assetWidth / ratio;
+				height = availableHeight;
+			}
 		}
-		var xOffset = (this._coreStyle.computedStyle.getWidth() - width) / 2;
-		var yOffset = (this._coreStyle.computedStyle.getHeight() - height) / 2;
+		var xOffset = (availableWidth - width) / 2;
+		var yOffset = (availableHeight - height) / 2;
+		return { width : width, height : height, x : xOffset, y : yOffset};
+	}
+	,renderPosterFrame: function(htmlVideoElement,graphicContext) {
+		var resource = cocktail.core.resource.ResourceManager.getResource(this.node.getAttribute("poster"));
+		if(resource.loaded == false || resource.loadedWithError == true) return;
+		var posterBounds = this.getAssetBounds(this._coreStyle.computedStyle.getWidth(),this._coreStyle.computedStyle.getHeight(),resource.intrinsicWidth,resource.intrinsicHeight);
+	}
+	,renderVideo: function(htmlVideoElement,graphicContext) {
+		var videoBounds = this.getAssetBounds(this._coreStyle.computedStyle.getWidth(),this._coreStyle.computedStyle.getHeight(),htmlVideoElement.get_videoWidth(),htmlVideoElement.get_videoHeight());
 	}
 	,renderEmbeddedAsset: function(graphicContext) {
 		var htmlVideoElement = this.node;
@@ -7175,28 +7133,10 @@ cocktail.core.style.ComputedStyle.prototype = {
 		return this.marginLeft = value;
 	}
 	,set_height: function(value) {
-		this.height = this.constrainHeight(this._coreStyle,value);
-		return value;
+		return this.height = value;
 	}
 	,set_width: function(value) {
-		this.width = this.constrainWidth(this._coreStyle,value);
-		return value;
-	}
-	,constrainHeight: function(style,computedHeight) {
-		var computedStyle = style.computedStyle;
-		if(style.maxHeight != cocktail.core.style.ConstrainedDimension.none) {
-			if(computedHeight > computedStyle.getMaxHeight()) computedHeight = computedStyle.getMaxHeight();
-		}
-		if(computedHeight < computedStyle.getMinHeight()) computedHeight = computedStyle.getMinHeight();
-		return computedHeight;
-	}
-	,constrainWidth: function(style,computedWidth) {
-		var computedStyle = style.computedStyle;
-		if(style.maxWidth != cocktail.core.style.ConstrainedDimension.none) {
-			if(computedWidth > computedStyle.getMaxWidth()) computedWidth = computedStyle.getMaxWidth();
-		}
-		if(computedWidth < computedStyle.getMinWidth()) computedWidth = computedStyle.getMinWidth();
-		return computedWidth;
+		return this.width = value;
 	}
 	,getTransitionablePropertyValue: function(propertyName,propertyValue) {
 		var transition = cocktail.core.style.transition.TransitionManager.getInstance().getTransition(propertyName,this);
@@ -7320,6 +7260,8 @@ cocktail.core.style.ComputedStyle.prototype = {
 }
 cocktail.core.style.CoreStyle = function(htmlElement) {
 	this.htmlElement = htmlElement;
+	this._fontManager = cocktail.core.font.FontManager.getInstance();
+	this._pendingAnimations = new Array();
 	this.initDefaultStyleValues(htmlElement.tagName);
 };
 $hxClasses["cocktail.core.style.CoreStyle"] = cocktail.core.style.CoreStyle;
@@ -7451,12 +7393,12 @@ cocktail.core.style.CoreStyle.prototype = {
 	}
 	,setTransform: function(value) {
 		this.transform = value;
-		this.invalidate(cocktail.core.renderer.InvalidationReason.other);
+		this.invalidatePositioningScheme();
 		return value;
 	}
 	,setTransformOrigin: function(value) {
 		this.transformOrigin = value;
-		this.invalidate(cocktail.core.renderer.InvalidationReason.other);
+		this.invalidate(cocktail.core.renderer.InvalidationReason.styleChanged("transform-origin"));
 		return value;
 	}
 	,setVisibility: function(value) {
@@ -7468,7 +7410,7 @@ cocktail.core.style.CoreStyle.prototype = {
 	,setOpacity: function(value) {
 		this.opacity = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("opacity");
-		this.startTransitionIfNeeded("opacity",invalidationReason);
+		this.registerPendingAnimation("opacity",invalidationReason,this.computedStyle.getOpacity());
 		this.invalidate(invalidationReason);
 		return value;
 	}
@@ -7487,14 +7429,12 @@ cocktail.core.style.CoreStyle.prototype = {
 	,setTextIndent: function(value) {
 		this.textIndent = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("text-indent");
-		this.startTransitionIfNeeded("text-indent",invalidationReason);
 		this.invalidate(invalidationReason);
 		return value;
 	}
 	,setVerticalAlign: function(value) {
 		this.verticalAlign = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("vertical-align");
-		this.startTransitionIfNeeded("vertical-align",invalidationReason);
 		this.invalidate(invalidationReason);
 		return value;
 	}
@@ -7506,21 +7446,18 @@ cocktail.core.style.CoreStyle.prototype = {
 	,setLineHeight: function(value) {
 		this.lineHeight = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("line-height");
-		this.startTransitionIfNeeded("line-height",invalidationReason);
 		this.invalidate(invalidationReason);
 		return value;
 	}
 	,setWordSpacing: function(value) {
 		this.wordSpacing = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("word-spacing");
-		this.startTransitionIfNeeded("word-spacing",invalidationReason);
 		this.invalidate(invalidationReason);
 		return value;
 	}
 	,setLetterSpacing: function(value) {
 		this.letterSpacing = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("letter-spacing");
-		this.startTransitionIfNeeded("letter-spacing",invalidationReason);
 		this.invalidate(invalidationReason);
 		return value;
 	}
@@ -7557,7 +7494,6 @@ cocktail.core.style.CoreStyle.prototype = {
 	,setFontSize: function(value) {
 		this.fontSize = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("font-size");
-		this.startTransitionIfNeeded("font-size",invalidationReason);
 		this.invalidate(invalidationReason);
 		return value;
 	}
@@ -7580,63 +7516,59 @@ cocktail.core.style.CoreStyle.prototype = {
 	,setRight: function(value) {
 		this.right = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("right");
-		this.startTransitionIfNeeded("right",invalidationReason);
+		this.registerPendingAnimation("right",invalidationReason,this.computedStyle.getRight());
 		this.invalidate(invalidationReason);
 		return value;
 	}
 	,setBottom: function(value) {
 		this.bottom = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("bottom");
-		this.startTransitionIfNeeded("bottom",invalidationReason);
+		this.registerPendingAnimation("bottom",invalidationReason,this.computedStyle.getBottom());
 		this.invalidate(invalidationReason);
 		return value;
 	}
 	,setLeft: function(value) {
 		this.left = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("left");
-		this.startTransitionIfNeeded("left",invalidationReason);
+		this.registerPendingAnimation("left",invalidationReason,this.computedStyle.getLeft());
 		this.invalidate(invalidationReason);
 		return value;
 	}
 	,setTop: function(value) {
 		this.top = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("top");
-		this.startTransitionIfNeeded("top",invalidationReason);
+		this.registerPendingAnimation("top",invalidationReason,this.computedStyle.getTop());
 		this.invalidate(invalidationReason);
 		return value;
 	}
 	,setMaxWidth: function(value) {
 		this.maxWidth = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("max-width");
-		this.startTransitionIfNeeded("max-width",invalidationReason);
 		this.invalidate(invalidationReason);
 		return value;
 	}
 	,setMinWidth: function(value) {
 		this.minWidth = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("min-width");
-		this.startTransitionIfNeeded("min-width",invalidationReason);
 		this.invalidate(invalidationReason);
 		return value;
 	}
 	,setMaxHeight: function(value) {
 		this.maxHeight = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("max-height");
-		this.startTransitionIfNeeded("max-height",invalidationReason);
 		this.invalidate(invalidationReason);
 		return value;
 	}
 	,setMinHeight: function(value) {
 		this.minHeight = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("min-height");
-		this.startTransitionIfNeeded("min-height",invalidationReason);
 		this.invalidate(invalidationReason);
 		return value;
 	}
 	,setHeight: function(value) {
 		this.height = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("height");
-		this.startTransitionIfNeeded("height",invalidationReason);
+		this.registerPendingAnimation("height",invalidationReason,this.computedStyle.getHeight());
 		this.invalidate(invalidationReason);
 		return value;
 	}
@@ -7654,70 +7586,60 @@ cocktail.core.style.CoreStyle.prototype = {
 	,setPaddingBottom: function(value) {
 		this.paddingBottom = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("padding-bottom");
-		this.startTransitionIfNeeded("padding-bottom",invalidationReason);
 		this.invalidate(invalidationReason);
 		return value;
 	}
 	,setPaddingTop: function(value) {
 		this.paddingTop = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("padding-top");
-		this.startTransitionIfNeeded("padding-top",invalidationReason);
 		this.invalidate(invalidationReason);
 		return value;
 	}
 	,setPaddingRight: function(value) {
 		this.paddingRight = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("padding-right");
-		this.startTransitionIfNeeded("padding-right",invalidationReason);
 		this.invalidate(invalidationReason);
 		return value;
 	}
 	,setPaddingLeft: function(value) {
 		this.paddingLeft = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("padding-left");
-		this.startTransitionIfNeeded("padding-left",invalidationReason);
 		this.invalidate(invalidationReason);
 		return value;
 	}
 	,setMarginBottom: function(value) {
 		this.marginBottom = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("margin-bottom");
-		this.startTransitionIfNeeded("margin-bottom",invalidationReason);
 		this.invalidate(invalidationReason);
 		return value;
 	}
 	,setMarginTop: function(value) {
 		this.marginTop = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("margin-top");
-		this.startTransitionIfNeeded("margin-top",invalidationReason);
 		this.invalidate(invalidationReason);
 		return value;
 	}
 	,setMarginRight: function(value) {
 		this.marginRight = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("margin-right");
-		this.startTransitionIfNeeded("margin-right",invalidationReason);
 		this.invalidate(invalidationReason);
 		return value;
 	}
 	,setMarginLeft: function(value) {
 		this.marginLeft = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("margin-left");
-		this.startTransitionIfNeeded("margin-left",invalidationReason);
 		this.invalidate(invalidationReason);
 		return value;
 	}
 	,setWidth: function(value) {
 		this.width = value;
 		var invalidationReason = cocktail.core.renderer.InvalidationReason.styleChanged("width");
-		this.startTransitionIfNeeded("width",invalidationReason);
+		this.registerPendingAnimation("width",invalidationReason,this.computedStyle.getWidth());
 		this.invalidate(invalidationReason);
 		return value;
 	}
 	,get_fontMetricsData: function() {
-		var fontManager = new cocktail.port.server.FontManager();
-		this.fontMetrics = fontManager.getFontMetrics(cocktail.core.unit.UnitManager.getCSSFontFamily(this.computedStyle.fontFamily),this.computedStyle.getFontSize());
-		return this.fontMetrics;
+		return this._fontManager.getFontMetrics(cocktail.core.unit.UnitManager.getCSSFontFamily(this.computedStyle.fontFamily),this.computedStyle.getFontSize());
 	}
 	,onTransitionUpdate: function(transition) {
 		this.invalidate(transition.invalidationReason);
@@ -7732,42 +7654,55 @@ cocktail.core.style.CoreStyle.prototype = {
 		if(index < length) return index;
 		return length % index;
 	}
-	,startTransitionIfNeeded: function(propertyName,invalidationReason) {
+	,startTransitionIfNeeded: function(pendingAnimation) {
 		var propertyIndex = 0;
 		var $e = (this.computedStyle.transitionProperty);
 		switch( $e[1] ) {
 		case 0:
-			return;
+			return false;
 		case 2:
 			var value = $e[2];
 			var foundFlag = false;
 			var _g1 = 0, _g = value.length;
 			while(_g1 < _g) {
 				var i = _g1++;
-				if(value[i] == propertyName) {
+				if(value[i] == pendingAnimation.propertyName) {
 					propertyIndex = i;
 					foundFlag = true;
 					break;
 				}
 			}
-			if(foundFlag == false) return;
+			if(foundFlag == false) return false;
 			break;
 		case 1:
 			break;
 		}
-		if(this.computedStyle.transitionDelay.length == 0 || this.computedStyle.transitionDuration.length == 0) return;
 		var combinedDuration = 0.0;
 		var transitionDelay = this.computedStyle.transitionDelay[this.getRepeatedIndex(propertyIndex,this.computedStyle.transitionDelay.length)];
 		var transitionDuration = this.computedStyle.transitionDuration[this.getRepeatedIndex(propertyIndex,this.computedStyle.transitionDuration.length)];
 		combinedDuration = transitionDuration + transitionDelay;
-		if(combinedDuration <= 0) return;
+		if(combinedDuration <= 0) return false;
 		var transitionTimingFunction = this.computedStyle.transitionTimingFunction[this.getRepeatedIndex(propertyIndex,this.computedStyle.transitionTimingFunction.length)];
-		var transition = cocktail.core.style.transition.TransitionManager.getInstance().getTransition(propertyName,this.computedStyle);
-		if(transition != null) cocktail.core.style.transition.TransitionManager.getInstance().stopTransition(transition);
-		var startValue = Reflect.getProperty(this.computedStyle,propertyName);
-		this.invalidate(cocktail.core.renderer.InvalidationReason.needsImmediateLayout);
-		var endValue = Reflect.getProperty(this.computedStyle,propertyName);
-		cocktail.core.style.transition.TransitionManager.getInstance().startTransition(this.computedStyle,propertyName,startValue,endValue,transitionDuration,transitionDelay,transitionTimingFunction,$bind(this,this.onTransitionComplete),$bind(this,this.onTransitionUpdate),invalidationReason);
+		var transitionManager = cocktail.core.style.transition.TransitionManager.getInstance();
+		var transition = transitionManager.getTransition(pendingAnimation.propertyName,this.computedStyle);
+		if(transition != null) return false;
+		var endValue = Reflect.getProperty(this.computedStyle,pendingAnimation.propertyName);
+		transitionManager.startTransition(this.computedStyle,pendingAnimation.propertyName,pendingAnimation.startValue,endValue,transitionDuration,transitionDelay,transitionTimingFunction,$bind(this,this.onTransitionComplete),$bind(this,this.onTransitionUpdate),pendingAnimation.invalidationReason);
+		return true;
+	}
+	,registerPendingAnimation: function(propertyName,invalidationReason,startValue) {
+		this._pendingAnimations.push({ propertyName : propertyName, invalidationReason : invalidationReason, startValue : startValue});
+	}
+	,startPendingAnimations: function() {
+		var atLeastOneAnimationStarted = false;
+		var _g1 = 0, _g = this._pendingAnimations.length;
+		while(_g1 < _g) {
+			var i = _g1++;
+			var animationStarted = this.startTransitionIfNeeded(this._pendingAnimations[i]);
+			if(animationStarted == true) atLeastOneAnimationStarted = true;
+		}
+		this._pendingAnimations = new Array();
+		return atLeastOneAnimationStarted;
 	}
 	,invalidatePositioningScheme: function() {
 		this.htmlElement.invalidatePositioningScheme();
@@ -7838,100 +7773,100 @@ cocktail.core.style.CoreStyle.prototype = {
 		cocktail.core.style.computer.DisplayStylesComputer.compute(this);
 	}
 	,applyDefaultHTMLStyles: function(tagName) {
-		switch(tagName.toLowerCase()) {
-		case "html":case "adress":case "dd":case "div":case "dl":case "dt":case "fieldset":case "form":case "frame":case "frameset":case "noframes":case "ol":case "center":case "dir":case "hr":case "menu":
+		switch(tagName.toUpperCase()) {
+		case "HTML":case "ADRESS":case "DD":case "DIV":case "DL":case "DT":case "FIELDSET":case "FORM":case "FRAME":case "FRAMESET":case "NOFRAMES":case "OL":case "CENTER":case "DIR":case "HR":case "MENU":
 			this.setDisplay(cocktail.core.style.Display.block);
 			break;
-		case "li":
+		case "LI":
 			this.setDisplay(cocktail.core.style.Display.block);
 			break;
-		case "a":
+		case "A":
 			this.setCursor(cocktail.core.style.Cursor.pointer);
 			break;
-		case "ul":
+		case "UL":
 			this.setDisplay(cocktail.core.style.Display.block);
 			this.setMarginTop(this.setMarginBottom(cocktail.core.style.Margin.length(cocktail.core.unit.Length.em(1.12))));
 			this.setMarginLeft(cocktail.core.style.Margin.length(cocktail.core.unit.Length.px(40)));
 			break;
-		case "head":
+		case "HEAD":
 			this.setDisplay(cocktail.core.style.Display.none);
 			break;
-		case "body":
+		case "BODY":
 			this.setDisplay(cocktail.core.style.Display.block);
 			this.setMarginLeft(this.setMarginRight(this.setMarginTop(this.setMarginBottom(cocktail.core.style.Margin.length(cocktail.core.unit.Length.px(8))))));
 			break;
-		case "h1":
+		case "H1":
 			this.setDisplay(cocktail.core.style.Display.block);
 			this.setFontSize(cocktail.core.style.FontSize.length(cocktail.core.unit.Length.em(2)));
 			this.setFontWeight(cocktail.core.style.FontWeight.bolder);
 			this.setMarginTop(this.setMarginBottom(cocktail.core.style.Margin.length(cocktail.core.unit.Length.em(0.67))));
 			break;
-		case "h2":
+		case "H2":
 			this.setDisplay(cocktail.core.style.Display.block);
 			this.setFontSize(cocktail.core.style.FontSize.length(cocktail.core.unit.Length.em(1.5)));
 			this.setFontWeight(cocktail.core.style.FontWeight.bolder);
 			this.setMarginTop(this.setMarginBottom(cocktail.core.style.Margin.length(cocktail.core.unit.Length.em(0.75))));
 			break;
-		case "h3":
+		case "H3":
 			this.setDisplay(cocktail.core.style.Display.block);
 			this.setFontSize(cocktail.core.style.FontSize.length(cocktail.core.unit.Length.em(1.17)));
 			this.setFontWeight(cocktail.core.style.FontWeight.bolder);
 			this.setMarginTop(this.setMarginBottom(cocktail.core.style.Margin.length(cocktail.core.unit.Length.em(0.83))));
 			break;
-		case "h4":
+		case "H4":
 			this.setDisplay(cocktail.core.style.Display.block);
 			this.setFontWeight(cocktail.core.style.FontWeight.bolder);
 			this.setMarginTop(this.setMarginBottom(cocktail.core.style.Margin.length(cocktail.core.unit.Length.em(1.12))));
 			break;
-		case "h5":
+		case "H5":
 			this.setDisplay(cocktail.core.style.Display.block);
 			this.setFontSize(cocktail.core.style.FontSize.length(cocktail.core.unit.Length.em(0.83)));
 			this.setFontWeight(cocktail.core.style.FontWeight.bolder);
 			this.setMarginTop(this.setMarginBottom(cocktail.core.style.Margin.length(cocktail.core.unit.Length.em(1.5))));
 			break;
-		case "h6":
+		case "H6":
 			this.setDisplay(cocktail.core.style.Display.block);
 			this.setFontSize(cocktail.core.style.FontSize.length(cocktail.core.unit.Length.em(0.75)));
 			this.setFontWeight(cocktail.core.style.FontWeight.bolder);
 			this.setMarginTop(this.setMarginBottom(cocktail.core.style.Margin.length(cocktail.core.unit.Length.em(1.67))));
 			break;
-		case "p":
+		case "P":
 			this.setDisplay(cocktail.core.style.Display.block);
 			this.setMarginTop(this.setMarginBottom(cocktail.core.style.Margin.length(cocktail.core.unit.Length.em(1))));
 			break;
-		case "pre":
+		case "PRE":
 			this.setDisplay(cocktail.core.style.Display.block);
 			this.setWhiteSpace(cocktail.core.style.WhiteSpace.pre);
 			this.setFontFamily(["monospace"]);
 			break;
-		case "code":
+		case "CODE":
 			this.setFontFamily(["monospace"]);
 			break;
-		case "i":case "cite":case "em":case "var":
+		case "I":case "CITE":case "EM":case "VAR":
 			this.setFontStyle(cocktail.core.style.FontStyle.italic);
 			break;
-		case "input":
+		case "INPUT":
 			this.setDisplay(cocktail.core.style.Display.inlineBlock);
 			break;
-		case "blockquote":
+		case "BLOCKQUOTE":
 			this.setDisplay(cocktail.core.style.Display.block);
 			this.setMarginTop(this.setMarginBottom(cocktail.core.style.Margin.length(cocktail.core.unit.Length.em(1.12))));
 			this.setMarginLeft(this.setMarginRight(cocktail.core.style.Margin.length(cocktail.core.unit.Length.px(40))));
 			break;
-		case "strong":
+		case "STRONG":
 			this.setFontWeight(cocktail.core.style.FontWeight.bolder);
 			break;
-		case "big":
+		case "BIG":
 			this.setFontSize(cocktail.core.style.FontSize.length(cocktail.core.unit.Length.em(1.17)));
 			break;
-		case "small":
+		case "SMALL":
 			this.setFontSize(cocktail.core.style.FontSize.length(cocktail.core.unit.Length.em(0.83)));
 			break;
-		case "sub":
+		case "SUB":
 			this.setFontSize(cocktail.core.style.FontSize.length(cocktail.core.unit.Length.em(0.83)));
 			this.setVerticalAlign(cocktail.core.style.VerticalAlign.sub);
 			break;
-		case "sup":
+		case "SUP":
 			this.setFontSize(cocktail.core.style.FontSize.length(cocktail.core.unit.Length.em(0.83)));
 			this.setVerticalAlign(cocktail.core.style.VerticalAlign.cssSuper);
 			break;
@@ -8001,6 +7936,8 @@ cocktail.core.style.CoreStyle.prototype = {
 		this.setColor(defaultStyles.color);
 		this.applyDefaultHTMLStyles(tagName);
 	}
+	,_pendingAnimations: null
+	,_fontManager: null
 	,htmlElement: null
 	,fontMetrics: null
 	,computedStyle: null
@@ -8497,7 +8434,23 @@ cocktail.core.style.adapter.Style = function(coreStyle) {
 $hxClasses["cocktail.core.style.adapter.Style"] = cocktail.core.style.adapter.Style;
 cocktail.core.style.adapter.Style.__name__ = ["cocktail","core","style","adapter","Style"];
 cocktail.core.style.adapter.Style.prototype = {
-	set_transitionTimingFunction: function(value) {
+	set_transformOrigin: function(value) {
+		this.setAttribute("transform-origin",value);
+		this._coreStyle.setTransformOrigin(cocktail.core.unit.UnitManager.getTransformOrigin(value));
+		return value;
+	}
+	,get_transformOrigin: function() {
+		return cocktail.core.unit.UnitManager.getCSSTransformOrigin(this._coreStyle.transformOrigin);
+	}
+	,set_transform: function(value) {
+		this.setAttribute("transform",value);
+		this._coreStyle.setTransform(cocktail.core.unit.UnitManager.getTransform(value));
+		return value;
+	}
+	,get_transform: function() {
+		return cocktail.core.unit.UnitManager.getCSSTransform(this._coreStyle.transform);
+	}
+	,set_transitionTimingFunction: function(value) {
 		this.setAttribute("transition-timing-function",value);
 		this._coreStyle.setTransitionTimingFunction(cocktail.core.unit.UnitManager.getTransitionTimingFunction(value));
 		return value;
@@ -8933,6 +8886,8 @@ cocktail.core.style.adapter.Style.prototype = {
 	,attributes: null
 	,_coreStyle: null
 	,cursor: null
+	,transformOrigin: null
+	,transform: null
 	,transitionDelay: null
 	,transitionTimingFunction: null
 	,transitionDuration: null
@@ -8986,7 +8941,7 @@ cocktail.core.style.adapter.Style.prototype = {
 	,position: null
 	,display: null
 	,__class__: cocktail.core.style.adapter.Style
-	,__properties__: {set_display:"set_display",get_display:"get_display",set_position:"set_position",get_position:"get_position",set_cssFloat:"set_CSSFloat",get_cssFloat:"get_CSSFloat",set_clear:"set_clear",get_clear:"get_clear",set_zIndex:"set_zIndex",get_zIndex:"get_zIndex",set_marginLeft:"set_marginLeft",get_marginLeft:"get_marginLeft",set_marginRight:"set_marginRight",get_marginRight:"get_marginRight",set_marginTop:"set_marginTop",get_marginTop:"get_marginTop",set_marginBottom:"set_marginBottom",get_marginBottom:"get_marginBottom",set_paddingLeft:"set_paddingLeft",get_paddingLeft:"get_paddingLeft",set_paddingRight:"set_paddingRight",get_paddingRight:"get_paddingRight",set_paddingTop:"set_paddingTop",get_paddingTop:"get_paddingTop",set_paddingBottom:"set_paddingBottom",get_paddingBottom:"get_paddingBottom",set_width:"set_width",get_width:"get_width",set_height:"set_height",get_height:"get_height",set_minHeight:"set_minHeight",get_minHeight:"get_minHeight",set_maxHeight:"set_maxHeight",get_maxHeight:"get_maxHeight",set_minWidth:"set_minWidth",get_minWidth:"get_minWidth",set_maxWidth:"set_maxWidth",get_maxWidth:"get_maxWidth",set_top:"set_top",get_top:"get_top",set_left:"set_left",get_left:"get_left",set_bottom:"set_bottom",get_bottom:"get_bottom",set_right:"set_right",get_right:"get_right",set_backgroundColor:"set_backgroundColor",get_backgroundColor:"get_backgroundColor",set_backgroundImage:"set_backgroundImage",get_backgroundImage:"get_backgroundImage",set_backgroundRepeat:"set_backgroundRepeat",get_backgroundRepeat:"get_backgroundRepeat",set_backgroundOrigin:"set_backgroundOrigin",get_backgroundOrigin:"get_backgroundOrigin",set_backgroundSize:"set_backgroundSize",get_backgroundSize:"get_backgroundSize",set_backgroundPosition:"set_backgroundPosition",get_backgroundPosition:"get_backgroundPosition",set_backgroundClip:"set_backgroundClip",get_backgroundClip:"get_backgroundClip",set_fontSize:"set_fontSize",get_fontSize:"get_fontSize",set_fontWeight:"set_fontWeight",get_fontWeight:"get_fontWeight",set_fontStyle:"set_fontStyle",get_fontStyle:"get_fontStyle",set_fontFamily:"set_fontFamily",get_fontFamily:"get_fontFamily",set_fontVariant:"set_fontVariant",get_fontVariant:"get_fontVariant",set_color:"set_color",get_color:"get_color",set_lineHeight:"set_lineHeight",get_lineHeight:"get_lineHeight",set_textTransform:"set_textTransform",get_textTransform:"get_textTransform",set_letterSpacing:"set_letterSpacing",get_letterSpacing:"get_letterSpacing",set_wordSpacing:"set_wordSpacing",get_wordSpacing:"get_wordSpacing",set_whiteSpace:"set_whiteSpace",get_whiteSpace:"get_whiteSpace",set_textAlign:"set_textAlign",get_textAlign:"get_textAlign",set_textIndent:"set_textIndent",get_textIndent:"get_textIndent",set_verticalAlign:"set_verticalAlign",get_verticalAlign:"get_verticalAlign",set_opacity:"set_opacity",get_opacity:"get_opacity",set_visibility:"set_visibility",get_visibility:"get_visibility",set_overflowX:"set_overflowX",get_overflowX:"get_overflowX",set_overflowY:"set_overflowY",get_overflowY:"get_overflowY",set_transitionProperty:"set_transitionProperty",get_transitionProperty:"get_transitionProperty",set_transitionDuration:"set_transitionDuration",get_transitionDuration:"get_transitionDuration",set_transitionTimingFunction:"set_transitionTimingFunction",get_transitionTimingFunction:"get_transitionTimingFunction",set_transitionDelay:"set_transitionDelay",get_transitionDelay:"get_transitionDelay",set_cursor:"set_cursor",get_cursor:"get_cursor"}
+	,__properties__: {set_display:"set_display",get_display:"get_display",set_position:"set_position",get_position:"get_position",set_cssFloat:"set_CSSFloat",get_cssFloat:"get_CSSFloat",set_clear:"set_clear",get_clear:"get_clear",set_zIndex:"set_zIndex",get_zIndex:"get_zIndex",set_marginLeft:"set_marginLeft",get_marginLeft:"get_marginLeft",set_marginRight:"set_marginRight",get_marginRight:"get_marginRight",set_marginTop:"set_marginTop",get_marginTop:"get_marginTop",set_marginBottom:"set_marginBottom",get_marginBottom:"get_marginBottom",set_paddingLeft:"set_paddingLeft",get_paddingLeft:"get_paddingLeft",set_paddingRight:"set_paddingRight",get_paddingRight:"get_paddingRight",set_paddingTop:"set_paddingTop",get_paddingTop:"get_paddingTop",set_paddingBottom:"set_paddingBottom",get_paddingBottom:"get_paddingBottom",set_width:"set_width",get_width:"get_width",set_height:"set_height",get_height:"get_height",set_minHeight:"set_minHeight",get_minHeight:"get_minHeight",set_maxHeight:"set_maxHeight",get_maxHeight:"get_maxHeight",set_minWidth:"set_minWidth",get_minWidth:"get_minWidth",set_maxWidth:"set_maxWidth",get_maxWidth:"get_maxWidth",set_top:"set_top",get_top:"get_top",set_left:"set_left",get_left:"get_left",set_bottom:"set_bottom",get_bottom:"get_bottom",set_right:"set_right",get_right:"get_right",set_backgroundColor:"set_backgroundColor",get_backgroundColor:"get_backgroundColor",set_backgroundImage:"set_backgroundImage",get_backgroundImage:"get_backgroundImage",set_backgroundRepeat:"set_backgroundRepeat",get_backgroundRepeat:"get_backgroundRepeat",set_backgroundOrigin:"set_backgroundOrigin",get_backgroundOrigin:"get_backgroundOrigin",set_backgroundSize:"set_backgroundSize",get_backgroundSize:"get_backgroundSize",set_backgroundPosition:"set_backgroundPosition",get_backgroundPosition:"get_backgroundPosition",set_backgroundClip:"set_backgroundClip",get_backgroundClip:"get_backgroundClip",set_fontSize:"set_fontSize",get_fontSize:"get_fontSize",set_fontWeight:"set_fontWeight",get_fontWeight:"get_fontWeight",set_fontStyle:"set_fontStyle",get_fontStyle:"get_fontStyle",set_fontFamily:"set_fontFamily",get_fontFamily:"get_fontFamily",set_fontVariant:"set_fontVariant",get_fontVariant:"get_fontVariant",set_color:"set_color",get_color:"get_color",set_lineHeight:"set_lineHeight",get_lineHeight:"get_lineHeight",set_textTransform:"set_textTransform",get_textTransform:"get_textTransform",set_letterSpacing:"set_letterSpacing",get_letterSpacing:"get_letterSpacing",set_wordSpacing:"set_wordSpacing",get_wordSpacing:"get_wordSpacing",set_whiteSpace:"set_whiteSpace",get_whiteSpace:"get_whiteSpace",set_textAlign:"set_textAlign",get_textAlign:"get_textAlign",set_textIndent:"set_textIndent",get_textIndent:"get_textIndent",set_verticalAlign:"set_verticalAlign",get_verticalAlign:"get_verticalAlign",set_opacity:"set_opacity",get_opacity:"get_opacity",set_visibility:"set_visibility",get_visibility:"get_visibility",set_overflowX:"set_overflowX",get_overflowX:"get_overflowX",set_overflowY:"set_overflowY",get_overflowY:"get_overflowY",set_transitionProperty:"set_transitionProperty",get_transitionProperty:"get_transitionProperty",set_transitionDuration:"set_transitionDuration",get_transitionDuration:"get_transitionDuration",set_transitionTimingFunction:"set_transitionTimingFunction",get_transitionTimingFunction:"get_transitionTimingFunction",set_transitionDelay:"set_transitionDelay",get_transitionDelay:"get_transitionDelay",set_transform:"set_transform",get_transform:"get_transform",set_transformOrigin:"set_transformOrigin",get_transformOrigin:"get_transformOrigin",set_cursor:"set_cursor",get_cursor:"get_cursor"}
 }
 cocktail.core.style.computer = {}
 cocktail.core.style.computer.BackgroundStylesComputer = function() {
@@ -8997,9 +8952,10 @@ cocktail.core.style.computer.BackgroundStylesComputer.compute = function(style) 
 	style.computedStyle.backgroundColor = cocktail.core.style.computer.BackgroundStylesComputer.getComputedBackgroundColor(style);
 }
 cocktail.core.style.computer.BackgroundStylesComputer.computeIndividualBackground = function(style,backgroundBox,intrinsicWidth,intrinsicHeight,intrinsicRatio,backgroundPosition,backgroundSize,backgroundOrigin,backgroundClip,backgroundRepeat,backgroundImage) {
+	var fontMetrics = style.get_fontMetricsData();
 	var backgroundPositioningArea = cocktail.core.style.computer.BackgroundStylesComputer.getBackgroundPositioningArea(style,backgroundOrigin,backgroundBox);
-	var computedBackgroundSize = cocktail.core.style.computer.BackgroundStylesComputer.getComputedBackgroundSize(backgroundSize,backgroundPositioningArea,intrinsicWidth,intrinsicHeight,intrinsicRatio,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight);
-	var computedBackgroundPosition = cocktail.core.style.computer.BackgroundStylesComputer.getComputedBackgroundPosition(backgroundPosition,backgroundPositioningArea,computedBackgroundSize,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight);
+	var computedBackgroundSize = cocktail.core.style.computer.BackgroundStylesComputer.getComputedBackgroundSize(backgroundSize,backgroundPositioningArea,intrinsicWidth,intrinsicHeight,intrinsicRatio,fontMetrics.fontSize,fontMetrics.xHeight);
+	var computedBackgroundPosition = cocktail.core.style.computer.BackgroundStylesComputer.getComputedBackgroundPosition(backgroundPosition,backgroundPositioningArea,computedBackgroundSize,fontMetrics.fontSize,fontMetrics.xHeight);
 	var computedBackgroundClip = cocktail.core.style.computer.BackgroundStylesComputer.getBackgroundPaintingArea(style,backgroundClip,backgroundBox);
 	var computedBackgroundStyle = { backgroundOrigin : backgroundPositioningArea, backgroundClip : computedBackgroundClip, backgroundRepeat : backgroundRepeat, backgroundImage : backgroundImage, backgroundSize : computedBackgroundSize, backgroundPosition : computedBackgroundPosition};
 	return computedBackgroundStyle;
@@ -9220,21 +9176,22 @@ $hxClasses["cocktail.core.style.computer.FontAndTextStylesComputer"] = cocktail.
 cocktail.core.style.computer.FontAndTextStylesComputer.__name__ = ["cocktail","core","style","computer","FontAndTextStylesComputer"];
 cocktail.core.style.computer.FontAndTextStylesComputer.compute = function(style,containingBlockData,containingBlockFontMetricsData) {
 	var computedStyle = style.computedStyle;
+	var fontMetrics = style.get_fontMetricsData();
 	computedStyle.set_fontSize(cocktail.core.style.computer.FontAndTextStylesComputer.getComputedFontSize(style,containingBlockFontMetricsData.fontSize,containingBlockFontMetricsData.xHeight));
-	computedStyle.set_lineHeight(cocktail.core.style.computer.FontAndTextStylesComputer.getComputedLineHeight(style));
-	computedStyle.verticalAlign = cocktail.core.style.computer.FontAndTextStylesComputer.getComputedVerticalAlign(style,containingBlockFontMetricsData);
-	computedStyle.set_letterSpacing(cocktail.core.style.computer.FontAndTextStylesComputer.getComputedLetterSpacing(style));
-	computedStyle.set_wordSpacing(cocktail.core.style.computer.FontAndTextStylesComputer.getComputedWordSpacing(style));
-	computedStyle.set_textIndent(cocktail.core.style.computer.FontAndTextStylesComputer.getComputedTextIndent(style,containingBlockData));
+	computedStyle.set_lineHeight(cocktail.core.style.computer.FontAndTextStylesComputer.getComputedLineHeight(style,fontMetrics));
+	computedStyle.verticalAlign = cocktail.core.style.computer.FontAndTextStylesComputer.getComputedVerticalAlign(style,containingBlockFontMetricsData,fontMetrics);
+	computedStyle.set_letterSpacing(cocktail.core.style.computer.FontAndTextStylesComputer.getComputedLetterSpacing(style,fontMetrics));
+	computedStyle.set_wordSpacing(cocktail.core.style.computer.FontAndTextStylesComputer.getComputedWordSpacing(style,fontMetrics));
+	computedStyle.set_textIndent(cocktail.core.style.computer.FontAndTextStylesComputer.getComputedTextIndent(style,containingBlockData,fontMetrics));
 	computedStyle.color = cocktail.core.style.computer.FontAndTextStylesComputer.getComputedColor(style);
 }
-cocktail.core.style.computer.FontAndTextStylesComputer.getComputedTextIndent = function(style,containingBlockData) {
+cocktail.core.style.computer.FontAndTextStylesComputer.getComputedTextIndent = function(style,containingBlockData,fontMetrics) {
 	var textIndent;
 	var $e = (style.textIndent);
 	switch( $e[1] ) {
 	case 0:
 		var value = $e[2];
-		textIndent = cocktail.core.unit.UnitManager.getPixelFromLength(value,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight);
+		textIndent = cocktail.core.unit.UnitManager.getPixelFromLength(value,fontMetrics.fontSize,fontMetrics.xHeight);
 		break;
 	case 1:
 		var value = $e[2];
@@ -9243,7 +9200,7 @@ cocktail.core.style.computer.FontAndTextStylesComputer.getComputedTextIndent = f
 	}
 	return textIndent;
 }
-cocktail.core.style.computer.FontAndTextStylesComputer.getComputedVerticalAlign = function(style,containingBlockFontMetricsData) {
+cocktail.core.style.computer.FontAndTextStylesComputer.getComputedVerticalAlign = function(style,containingBlockFontMetricsData,fontMetrics) {
 	var verticalAlign;
 	var $e = (style.verticalAlign);
 	switch( $e[1] ) {
@@ -9271,7 +9228,7 @@ cocktail.core.style.computer.FontAndTextStylesComputer.getComputedVerticalAlign 
 		break;
 	case 9:
 		var value = $e[2];
-		verticalAlign = cocktail.core.unit.UnitManager.getPixelFromLength(value,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight);
+		verticalAlign = cocktail.core.unit.UnitManager.getPixelFromLength(value,fontMetrics.fontSize,fontMetrics.xHeight);
 		break;
 	case 3:
 		verticalAlign = 0;
@@ -9285,7 +9242,7 @@ cocktail.core.style.computer.FontAndTextStylesComputer.getComputedVerticalAlign 
 cocktail.core.style.computer.FontAndTextStylesComputer.getComputedColor = function(style) {
 	return cocktail.core.unit.UnitManager.getColorDataFromCSSColor(style.color);
 }
-cocktail.core.style.computer.FontAndTextStylesComputer.getComputedWordSpacing = function(style) {
+cocktail.core.style.computer.FontAndTextStylesComputer.getComputedWordSpacing = function(style,fontMetrics) {
 	var wordSpacing;
 	var $e = (style.wordSpacing);
 	switch( $e[1] ) {
@@ -9294,18 +9251,18 @@ cocktail.core.style.computer.FontAndTextStylesComputer.getComputedWordSpacing = 
 		break;
 	case 1:
 		var unit = $e[2];
-		wordSpacing = cocktail.core.unit.UnitManager.getPixelFromLength(unit,style.computedStyle.getFontSize(),style.get_fontMetricsData().xHeight);
+		wordSpacing = cocktail.core.unit.UnitManager.getPixelFromLength(unit,style.computedStyle.getFontSize(),fontMetrics.xHeight);
 		break;
 	}
 	return wordSpacing;
 }
-cocktail.core.style.computer.FontAndTextStylesComputer.getComputedLineHeight = function(style) {
+cocktail.core.style.computer.FontAndTextStylesComputer.getComputedLineHeight = function(style,fontMetrics) {
 	var lineHeight;
 	var $e = (style.lineHeight);
 	switch( $e[1] ) {
 	case 2:
 		var unit = $e[2];
-		lineHeight = cocktail.core.unit.UnitManager.getPixelFromLength(unit,style.computedStyle.getFontSize(),style.get_fontMetricsData().xHeight);
+		lineHeight = cocktail.core.unit.UnitManager.getPixelFromLength(unit,style.computedStyle.getFontSize(),fontMetrics.xHeight);
 		break;
 	case 0:
 		lineHeight = style.computedStyle.getFontSize() * 1.2;
@@ -9321,7 +9278,7 @@ cocktail.core.style.computer.FontAndTextStylesComputer.getComputedLineHeight = f
 	}
 	return lineHeight;
 }
-cocktail.core.style.computer.FontAndTextStylesComputer.getComputedLetterSpacing = function(style) {
+cocktail.core.style.computer.FontAndTextStylesComputer.getComputedLetterSpacing = function(style,fontMetrics) {
 	var letterSpacing;
 	var $e = (style.letterSpacing);
 	switch( $e[1] ) {
@@ -9330,7 +9287,7 @@ cocktail.core.style.computer.FontAndTextStylesComputer.getComputedLetterSpacing 
 		break;
 	case 1:
 		var unit = $e[2];
-		letterSpacing = cocktail.core.unit.UnitManager.getPixelFromLength(unit,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight);
+		letterSpacing = cocktail.core.unit.UnitManager.getPixelFromLength(unit,fontMetrics.fontSize,fontMetrics.xHeight);
 		break;
 	}
 	return letterSpacing;
@@ -9417,17 +9374,18 @@ $hxClasses["cocktail.core.style.computer.VisualEffectStylesComputer"] = cocktail
 cocktail.core.style.computer.VisualEffectStylesComputer.__name__ = ["cocktail","core","style","computer","VisualEffectStylesComputer"];
 cocktail.core.style.computer.VisualEffectStylesComputer.compute = function(style) {
 	var computedStyle = style.computedStyle;
-	computedStyle.transformOrigin = cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTransformOrigin(style);
-	computedStyle.transform = cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTransform(style);
+	var fontMetrics = style.get_fontMetricsData();
+	computedStyle.transformOrigin = cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTransformOrigin(style,fontMetrics);
+	computedStyle.transform = cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTransform(style,fontMetrics);
 }
-cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTransformOrigin = function(style) {
+cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTransformOrigin = function(style,fontMetrics) {
 	var x;
 	var y;
 	var $e = (style.transformOrigin.x);
 	switch( $e[1] ) {
 	case 0:
 		var value = $e[2];
-		x = cocktail.core.unit.UnitManager.getPixelFromLength(value,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight);
+		x = cocktail.core.unit.UnitManager.getPixelFromLength(value,fontMetrics.fontSize,fontMetrics.xHeight);
 		break;
 	case 1:
 		var value = $e[2];
@@ -9447,7 +9405,7 @@ cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTransformOrig
 	switch( $e[1] ) {
 	case 0:
 		var value = $e[2];
-		y = cocktail.core.unit.UnitManager.getPixelFromLength(value,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight);
+		y = cocktail.core.unit.UnitManager.getPixelFromLength(value,fontMetrics.fontSize,fontMetrics.xHeight);
 		break;
 	case 1:
 		var value = $e[2];
@@ -9466,7 +9424,7 @@ cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTransformOrig
 	var transformOriginPoint = { x : x, y : y};
 	return transformOriginPoint;
 }
-cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTransform = function(style) {
+cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTransform = function(style,fontMetrics) {
 	var transformFunctions;
 	var transformOrigin = style.computedStyle.transformOrigin;
 	var matrix = new cocktail.core.geom.Matrix();
@@ -9526,18 +9484,18 @@ cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTransform = f
 			break;
 		case 1:
 			var ty = $e[3], tx = $e[2];
-			var translationX = cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTranslation(style,tx,style.computedStyle.getWidth());
-			var translationY = cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTranslation(style,ty,style.computedStyle.getHeight());
+			var translationX = cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTranslation(style,tx,style.computedStyle.getWidth(),fontMetrics);
+			var translationY = cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTranslation(style,ty,style.computedStyle.getHeight(),fontMetrics);
 			matrix.translate(translationX,translationY);
 			break;
 		case 2:
 			var tx = $e[2];
-			var translationX = cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTranslation(style,tx,style.computedStyle.getWidth());
+			var translationX = cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTranslation(style,tx,style.computedStyle.getWidth(),fontMetrics);
 			matrix.translate(translationX,0.0);
 			break;
 		case 3:
 			var ty = $e[2];
-			var translationY = cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTranslation(style,ty,style.computedStyle.getHeight());
+			var translationY = cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTranslation(style,ty,style.computedStyle.getHeight(),fontMetrics);
 			matrix.translate(0.0,translationY);
 			break;
 		}
@@ -9545,13 +9503,13 @@ cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTransform = f
 	matrix.translate(transformOrigin.x * -1,transformOrigin.y * -1);
 	return matrix;
 }
-cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTranslation = function(style,translation,percentReference) {
+cocktail.core.style.computer.VisualEffectStylesComputer.getComputedTranslation = function(style,translation,percentReference,fontMetrics) {
 	var computedTranslation;
 	var $e = (translation);
 	switch( $e[1] ) {
 	case 0:
 		var value = $e[2];
-		computedTranslation = cocktail.core.unit.UnitManager.getPixelFromLength(value,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight);
+		computedTranslation = cocktail.core.unit.UnitManager.getPixelFromLength(value,fontMetrics.fontSize,fontMetrics.xHeight);
 		break;
 	case 1:
 		var value = $e[2];
@@ -9569,7 +9527,23 @@ cocktail.core.style.computer.boxComputers.BoxStylesComputer = function() {
 $hxClasses["cocktail.core.style.computer.boxComputers.BoxStylesComputer"] = cocktail.core.style.computer.boxComputers.BoxStylesComputer;
 cocktail.core.style.computer.boxComputers.BoxStylesComputer.__name__ = ["cocktail","core","style","computer","boxComputers","BoxStylesComputer"];
 cocktail.core.style.computer.boxComputers.BoxStylesComputer.prototype = {
-	getComputedPadding: function(paddingStyleValue,containingHTMLElementDimension,fontSize,xHeight) {
+	constrainHeight: function(style,computedHeight) {
+		var computedStyle = style.computedStyle;
+		if(style.maxHeight != cocktail.core.style.ConstrainedDimension.none) {
+			if(computedHeight > computedStyle.getMaxHeight()) computedHeight = computedStyle.getMaxHeight();
+		}
+		if(computedHeight < computedStyle.getMinHeight()) computedHeight = computedStyle.getMinHeight();
+		return computedHeight;
+	}
+	,constrainWidth: function(style,computedWidth) {
+		var computedStyle = style.computedStyle;
+		if(style.maxWidth != cocktail.core.style.ConstrainedDimension.none) {
+			if(computedWidth > computedStyle.getMaxWidth()) computedWidth = computedStyle.getMaxWidth();
+		}
+		if(computedWidth < computedStyle.getMinWidth()) computedWidth = computedStyle.getMinWidth();
+		return computedWidth;
+	}
+	,getComputedPadding: function(paddingStyleValue,containingHTMLElementDimension,fontSize,xHeight) {
 		var computedPaddingValue;
 		var $e = (paddingStyleValue);
 		switch( $e[1] ) {
@@ -9673,84 +9647,91 @@ cocktail.core.style.computer.boxComputers.BoxStylesComputer.prototype = {
 		}
 		return computedMargin;
 	}
-	,getComputedMarginBottom: function(style,containingBlockData) {
-		return this.getComputedMargin(style.marginBottom,style.marginTop,containingBlockData.height,style.computedStyle.getHeight(),style.height == cocktail.core.style.Dimension.cssAuto,style.computedStyle.getPaddingTop() + style.computedStyle.getPaddingBottom(),style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight,false);
+	,getComputedMarginBottom: function(style,computedHeight,containingBlockData,fontMetrics) {
+		return this.getComputedMargin(style.marginBottom,style.marginTop,containingBlockData.height,computedHeight,style.height == cocktail.core.style.Dimension.cssAuto,style.computedStyle.getPaddingTop() + style.computedStyle.getPaddingBottom(),fontMetrics.fontSize,fontMetrics.xHeight,false);
 	}
-	,getComputedMarginTop: function(style,containingBlockData) {
-		return this.getComputedMargin(style.marginTop,style.marginBottom,containingBlockData.height,style.computedStyle.getHeight(),style.height == cocktail.core.style.Dimension.cssAuto,style.computedStyle.getPaddingTop() + style.computedStyle.getPaddingBottom(),style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight,false);
+	,getComputedMarginTop: function(style,computedHeight,containingBlockData,fontMetrics) {
+		return this.getComputedMargin(style.marginTop,style.marginBottom,containingBlockData.height,computedHeight,style.height == cocktail.core.style.Dimension.cssAuto,style.computedStyle.getPaddingTop() + style.computedStyle.getPaddingBottom(),fontMetrics.fontSize,fontMetrics.xHeight,false);
 	}
-	,getComputedMarginRight: function(style,containingBlockData) {
-		return this.getComputedMargin(style.marginRight,style.marginLeft,containingBlockData.width,style.computedStyle.getWidth(),style.width == cocktail.core.style.Dimension.cssAuto,style.computedStyle.getPaddingRight() + style.computedStyle.getPaddingLeft(),style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight,true);
+	,getComputedMarginRight: function(style,computedWidth,containingBlockData,fontMetrics) {
+		return this.getComputedMargin(style.marginRight,style.marginLeft,containingBlockData.width,computedWidth,style.width == cocktail.core.style.Dimension.cssAuto,style.computedStyle.getPaddingRight() + style.computedStyle.getPaddingLeft(),fontMetrics.fontSize,fontMetrics.xHeight,true);
 	}
-	,getComputedMarginLeft: function(style,containingBlockData) {
-		return this.getComputedMargin(style.marginLeft,style.marginRight,containingBlockData.width,style.computedStyle.getWidth(),style.width == cocktail.core.style.Dimension.cssAuto,style.computedStyle.getPaddingRight() + style.computedStyle.getPaddingLeft(),style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight,true);
+	,getComputedMarginLeft: function(style,computedWidth,containingBlockData,fontMetrics) {
+		return this.getComputedMargin(style.marginLeft,style.marginRight,containingBlockData.width,computedWidth,style.width == cocktail.core.style.Dimension.cssAuto,style.computedStyle.getPaddingRight() + style.computedStyle.getPaddingLeft(),fontMetrics.fontSize,fontMetrics.xHeight,true);
 	}
-	,getComputedAutoHeight: function(style,containingBlockData) {
+	,getComputedAutoHeight: function(style,containingBlockData,fontMetrics) {
 		return 0;
 	}
-	,getComputedHeight: function(style,containingBlockData) {
-		return this.getComputedDimension(style.height,containingBlockData.height,containingBlockData.isHeightAuto,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight);
+	,getComputedHeight: function(style,containingBlockData,fontMetrics) {
+		return this.getComputedDimension(style.height,containingBlockData.height,containingBlockData.isHeightAuto,fontMetrics.fontSize,fontMetrics.xHeight);
 	}
-	,getComputedAutoWidth: function(style,containingBlockData) {
+	,getComputedAutoWidth: function(style,containingBlockData,fontMetrics) {
 		return containingBlockData.width - style.computedStyle.getPaddingLeft() - style.computedStyle.getPaddingRight() - style.computedStyle.getMarginLeft() - style.computedStyle.getMarginRight();
 	}
-	,getComputedWidth: function(style,containingBlockData) {
-		return this.getComputedDimension(style.width,containingBlockData.width,containingBlockData.isWidthAuto,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight);
+	,getComputedWidth: function(style,containingBlockData,fontMetrics) {
+		return this.getComputedDimension(style.width,containingBlockData.width,containingBlockData.isWidthAuto,fontMetrics.fontSize,fontMetrics.xHeight);
 	}
-	,measureHeight: function(style,containingBlockData) {
-		style.computedStyle.set_height(this.getComputedHeight(style,containingBlockData));
-		style.computedStyle.set_marginTop(this.getComputedMarginTop(style,containingBlockData));
-		style.computedStyle.set_marginBottom(this.getComputedMarginBottom(style,containingBlockData));
+	,measureHeight: function(style,containingBlockData,fontMetrics) {
+		var computedHeight = this.getComputedHeight(style,containingBlockData,fontMetrics);
+		style.computedStyle.set_marginTop(this.getComputedMarginTop(style,computedHeight,containingBlockData,fontMetrics));
+		style.computedStyle.set_marginBottom(this.getComputedMarginBottom(style,computedHeight,containingBlockData,fontMetrics));
+		return computedHeight;
 	}
-	,measureAutoHeight: function(style,containingBlockData) {
-		style.computedStyle.set_height(this.getComputedAutoHeight(style,containingBlockData));
-		style.computedStyle.set_marginTop(this.getComputedMarginTop(style,containingBlockData));
-		style.computedStyle.set_marginBottom(this.getComputedMarginBottom(style,containingBlockData));
+	,measureAutoHeight: function(style,containingBlockData,fontMetrics) {
+		var computedHeight = this.getComputedAutoHeight(style,containingBlockData,fontMetrics);
+		style.computedStyle.set_marginTop(this.getComputedMarginTop(style,computedHeight,containingBlockData,fontMetrics));
+		style.computedStyle.set_marginBottom(this.getComputedMarginBottom(style,computedHeight,containingBlockData,fontMetrics));
+		return computedHeight;
 	}
-	,measureHeightAndVerticalMargins: function(style,containingBlockData) {
-		if(style.height == cocktail.core.style.Dimension.cssAuto) this.measureAutoHeight(style,containingBlockData); else this.measureHeight(style,containingBlockData);
+	,measureHeightAndVerticalMargins: function(style,containingBlockData,fontMetrics) {
+		if(style.height == cocktail.core.style.Dimension.cssAuto) return this.measureAutoHeight(style,containingBlockData,fontMetrics); else return this.measureHeight(style,containingBlockData,fontMetrics);
 	}
-	,measureWidth: function(style,containingBlockData) {
-		style.computedStyle.set_width(this.getComputedWidth(style,containingBlockData));
-		style.computedStyle.set_marginLeft(this.getComputedMarginLeft(style,containingBlockData));
-		style.computedStyle.set_marginRight(this.getComputedMarginRight(style,containingBlockData));
+	,measureWidth: function(style,containingBlockData,fontMetrics) {
+		var computedWidth = this.getComputedWidth(style,containingBlockData,fontMetrics);
+		style.computedStyle.set_marginLeft(this.getComputedMarginLeft(style,computedWidth,containingBlockData,fontMetrics));
+		style.computedStyle.set_marginRight(this.getComputedMarginRight(style,computedWidth,containingBlockData,fontMetrics));
+		return computedWidth;
 	}
-	,measureAutoWidth: function(style,containingBlockData) {
-		style.computedStyle.set_width(0.0);
-		style.computedStyle.set_marginLeft(this.getComputedMarginLeft(style,containingBlockData));
-		style.computedStyle.set_marginRight(this.getComputedMarginRight(style,containingBlockData));
-		style.computedStyle.set_width(this.getComputedAutoWidth(style,containingBlockData));
+	,measureAutoWidth: function(style,containingBlockData,fontMetrics) {
+		var computedWidth = 0.0;
+		style.computedStyle.set_marginLeft(this.getComputedMarginLeft(style,computedWidth,containingBlockData,fontMetrics));
+		style.computedStyle.set_marginRight(this.getComputedMarginRight(style,computedWidth,containingBlockData,fontMetrics));
+		return this.getComputedAutoWidth(style,containingBlockData,fontMetrics);
 	}
-	,measureWidthAndHorizontalMargins: function(style,containingBlockData) {
-		if(style.width == cocktail.core.style.Dimension.cssAuto) this.measureAutoWidth(style,containingBlockData); else this.measureWidth(style,containingBlockData);
+	,measureWidthAndHorizontalMargins: function(style,containingBlockData,fontMetrics) {
+		if(style.width == cocktail.core.style.Dimension.cssAuto) return this.measureAutoWidth(style,containingBlockData,fontMetrics); else return this.measureWidth(style,containingBlockData,fontMetrics);
 	}
-	,measureHorizontalPaddings: function(style,containingBlockData) {
-		style.computedStyle.set_paddingLeft(this.getComputedPadding(style.paddingLeft,containingBlockData.width,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
-		style.computedStyle.set_paddingRight(this.getComputedPadding(style.paddingRight,containingBlockData.width,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
+	,measureHorizontalPaddings: function(style,containingBlockData,fontMetrics) {
+		style.computedStyle.set_paddingLeft(this.getComputedPadding(style.paddingLeft,containingBlockData.width,fontMetrics.fontSize,fontMetrics.xHeight));
+		style.computedStyle.set_paddingRight(this.getComputedPadding(style.paddingRight,containingBlockData.width,fontMetrics.fontSize,fontMetrics.xHeight));
 	}
-	,measureVerticalPaddings: function(style,containingBlockData) {
-		style.computedStyle.set_paddingTop(this.getComputedPadding(style.paddingTop,containingBlockData.width,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
-		style.computedStyle.set_paddingBottom(this.getComputedPadding(style.paddingBottom,containingBlockData.width,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
+	,measureVerticalPaddings: function(style,containingBlockData,fontMetrics) {
+		style.computedStyle.set_paddingTop(this.getComputedPadding(style.paddingTop,containingBlockData.width,fontMetrics.fontSize,fontMetrics.xHeight));
+		style.computedStyle.set_paddingBottom(this.getComputedPadding(style.paddingBottom,containingBlockData.width,fontMetrics.fontSize,fontMetrics.xHeight));
 	}
-	,measurePositionOffsets: function(style,containingBlockData) {
-		style.computedStyle.set_left(this.getComputedPositionOffset(style.left,containingBlockData.width,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
-		style.computedStyle.set_right(this.getComputedPositionOffset(style.right,containingBlockData.width,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
-		style.computedStyle.set_top(this.getComputedPositionOffset(style.top,containingBlockData.height,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
-		style.computedStyle.set_bottom(this.getComputedPositionOffset(style.bottom,containingBlockData.height,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
+	,measureDimensionsAndMargins: function(style,containingBlockData,fontMetrics) {
+		style.computedStyle.set_width(this.constrainWidth(style,this.measureWidthAndHorizontalMargins(style,containingBlockData,fontMetrics)));
+		style.computedStyle.set_height(this.constrainHeight(style,this.measureHeightAndVerticalMargins(style,containingBlockData,fontMetrics)));
 	}
-	,measureDimensionsConstraints: function(style,containingBlockData) {
-		style.computedStyle.set_maxHeight(this.getComputedConstrainedDimension(style.maxHeight,containingBlockData.height,containingBlockData.isHeightAuto,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
-		style.computedStyle.set_minHeight(this.getComputedConstrainedDimension(style.minHeight,containingBlockData.height,containingBlockData.isHeightAuto,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight,true));
-		style.computedStyle.set_maxWidth(this.getComputedConstrainedDimension(style.maxWidth,containingBlockData.width,containingBlockData.isWidthAuto,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
-		style.computedStyle.set_minWidth(this.getComputedConstrainedDimension(style.minWidth,containingBlockData.width,containingBlockData.isWidthAuto,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight,true));
+	,measurePositionOffsets: function(style,containingBlockData,fontMetrics) {
+		style.computedStyle.set_left(this.getComputedPositionOffset(style.left,containingBlockData.width,fontMetrics.fontSize,fontMetrics.xHeight));
+		style.computedStyle.set_right(this.getComputedPositionOffset(style.right,containingBlockData.width,fontMetrics.fontSize,fontMetrics.xHeight));
+		style.computedStyle.set_top(this.getComputedPositionOffset(style.top,containingBlockData.height,fontMetrics.fontSize,fontMetrics.xHeight));
+		style.computedStyle.set_bottom(this.getComputedPositionOffset(style.bottom,containingBlockData.height,fontMetrics.fontSize,fontMetrics.xHeight));
+	}
+	,measureDimensionsConstraints: function(style,containingBlockData,fontMetrics) {
+		style.computedStyle.set_maxHeight(this.getComputedConstrainedDimension(style.maxHeight,containingBlockData.height,containingBlockData.isHeightAuto,fontMetrics.fontSize,fontMetrics.xHeight));
+		style.computedStyle.set_minHeight(this.getComputedConstrainedDimension(style.minHeight,containingBlockData.height,containingBlockData.isHeightAuto,fontMetrics.fontSize,fontMetrics.xHeight,true));
+		style.computedStyle.set_maxWidth(this.getComputedConstrainedDimension(style.maxWidth,containingBlockData.width,containingBlockData.isWidthAuto,fontMetrics.fontSize,fontMetrics.xHeight));
+		style.computedStyle.set_minWidth(this.getComputedConstrainedDimension(style.minWidth,containingBlockData.width,containingBlockData.isWidthAuto,fontMetrics.fontSize,fontMetrics.xHeight,true));
 	}
 	,measure: function(style,containingBlockData) {
-		this.measureHorizontalPaddings(style,containingBlockData);
-		this.measureVerticalPaddings(style,containingBlockData);
-		this.measureDimensionsConstraints(style,containingBlockData);
-		this.measureWidthAndHorizontalMargins(style,containingBlockData);
-		this.measureHeightAndVerticalMargins(style,containingBlockData);
-		this.measurePositionOffsets(style,containingBlockData);
+		var fontMetrics = style.get_fontMetricsData();
+		this.measureHorizontalPaddings(style,containingBlockData,fontMetrics);
+		this.measureVerticalPaddings(style,containingBlockData,fontMetrics);
+		this.measureDimensionsConstraints(style,containingBlockData,fontMetrics);
+		this.measureDimensionsAndMargins(style,containingBlockData,fontMetrics);
+		this.measurePositionOffsets(style,containingBlockData,fontMetrics);
 	}
 	,__class__: cocktail.core.style.computer.boxComputers.BoxStylesComputer
 }
@@ -9775,20 +9756,19 @@ cocktail.core.style.computer.boxComputers.EmbeddedBlockBoxStylesComputer.prototy
 		if(isHorizontalMargin == false) computedMargin = 0.0; else computedMargin = cocktail.core.style.computer.boxComputers.BoxStylesComputer.prototype.getComputedAutoMargin.call(this,marginStyleValue,opositeMargin,containingHTMLElementDimension,computedDimension,false,computedPaddingsDimension,fontSize,xHeight,isHorizontalMargin);
 		return computedMargin;
 	}
-	,getComputedAutoHeight: function(style,containingBlockData) {
+	,getComputedAutoHeight: function(style,containingBlockData,fontMetrics) {
 		var ret = 0.0;
 		var embeddedHTMLElement = style.htmlElement;
 		if(embeddedHTMLElement.getAttributeNode("height") != null) ret = embeddedHTMLElement.get_height(); else if(style.width == cocktail.core.style.Dimension.cssAuto) {
 			if(embeddedHTMLElement.get_intrinsicHeight() != null) ret = embeddedHTMLElement.get_intrinsicHeight(); else if(embeddedHTMLElement.get_intrinsicWidth() != null && embeddedHTMLElement.get_intrinsicRatio() != null) ret = embeddedHTMLElement.get_intrinsicWidth() * embeddedHTMLElement.get_intrinsicRatio(); else if(embeddedHTMLElement.get_intrinsicRatio() != null) {
 			}
 		} else {
-			var computedWidth = this.getComputedDimension(style.width,containingBlockData.width,containingBlockData.isWidthAuto,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight);
-			style.computedStyle.set_width(computedWidth);
+			var computedWidth = this.getComputedDimension(style.width,containingBlockData.width,containingBlockData.isWidthAuto,fontMetrics.fontSize,fontMetrics.xHeight);
 			if(embeddedHTMLElement.get_intrinsicRatio() != null) ret = style.computedStyle.getWidth() * embeddedHTMLElement.get_intrinsicRatio(); else ret = 150;
 		}
 		return ret;
 	}
-	,getComputedAutoWidth: function(style,containingBlockData) {
+	,getComputedAutoWidth: function(style,containingBlockData,fontMetrics) {
 		var ret = 0.0;
 		var embeddedHTMLElement = style.htmlElement;
 		if(embeddedHTMLElement.getAttributeNode("width") != null) ret = embeddedHTMLElement.get_width(); else if(style.height == cocktail.core.style.Dimension.cssAuto) {
@@ -9799,16 +9779,74 @@ cocktail.core.style.computer.boxComputers.EmbeddedBlockBoxStylesComputer.prototy
 				} else ret = 0.0;
 			}
 		} else {
-			var computedHeight = this.getComputedDimension(style.height,containingBlockData.height,containingBlockData.isHeightAuto,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight);
-			style.computedStyle.set_height(computedHeight);
+			var computedHeight = this.getComputedDimension(style.height,containingBlockData.height,containingBlockData.isHeightAuto,fontMetrics.fontSize,fontMetrics.xHeight);
 			if(embeddedHTMLElement.get_intrinsicRatio() != null) ret = computedHeight / embeddedHTMLElement.get_intrinsicRatio(); else if(embeddedHTMLElement.get_intrinsicWidth() != null) ret = embeddedHTMLElement.get_intrinsicWidth(); else ret = 300;
 		}
 		return ret;
 	}
-	,measureAutoWidth: function(style,containingBlockData) {
-		style.computedStyle.set_width(this.getComputedAutoWidth(style,containingBlockData));
-		style.computedStyle.set_marginLeft(this.getComputedMarginLeft(style,containingBlockData));
-		style.computedStyle.set_marginRight(this.getComputedMarginRight(style,containingBlockData));
+	,measureAutoWidth: function(style,containingBlockData,fontMetrics) {
+		var computedWidth = this.getComputedAutoWidth(style,containingBlockData,fontMetrics);
+		style.computedStyle.set_marginLeft(this.getComputedMarginLeft(style,computedWidth,containingBlockData,fontMetrics));
+		style.computedStyle.set_marginRight(this.getComputedMarginRight(style,computedWidth,containingBlockData,fontMetrics));
+		return computedWidth;
+	}
+	,constrainDimensions: function(style,computedWidth,computedHeight) {
+		var maxHeight = style.computedStyle.getMaxHeight();
+		var minHeight = style.computedStyle.getMinHeight();
+		var maxWidth = style.computedStyle.getMaxWidth();
+		var minWidth = style.computedStyle.getMinWidth();
+		var widthSuperiorToMaxWidth = false;
+		if(style.maxWidth != cocktail.core.style.ConstrainedDimension.none) widthSuperiorToMaxWidth = computedWidth > maxWidth;
+		var heightSuperiorToMaxHeight = false;
+		if(style.maxHeight != cocktail.core.style.ConstrainedDimension.none) heightSuperiorToMaxHeight = computedHeight > maxHeight;
+		var widthInferiorToMinWidth = computedWidth < minWidth;
+		var heightInferiorToMinHeight = computedHeight < minHeight;
+		if(widthSuperiorToMaxWidth == true) {
+			if(heightSuperiorToMaxHeight == true) {
+				if(maxWidth / computedWidth <= maxHeight / computedHeight) {
+					if(minHeight > maxWidth * (computedHeight / computedWidth)) computedHeight = minHeight; else computedHeight = maxWidth * (computedHeight / computedWidth);
+					computedWidth = maxWidth;
+				}
+			} else if(heightInferiorToMinHeight == true) {
+				computedWidth = maxWidth;
+				computedHeight = minHeight;
+			} else {
+				if(maxWidth * (computedHeight / computedWidth) > minHeight) computedHeight = maxWidth * (computedHeight / computedWidth); else computedHeight = minHeight;
+				computedWidth = maxWidth;
+			}
+		} else if(widthInferiorToMinWidth == true) {
+			if(heightInferiorToMinHeight == true) {
+				if(minWidth / computedWidth <= minHeight / computedHeight) {
+					if(maxWidth < minHeight * (computedWidth / computedHeight)) computedWidth = maxWidth; else computedWidth = minHeight * (computedWidth / computedHeight);
+					computedHeight = minHeight;
+				} else {
+					if(maxHeight < minWidth * (computedHeight / computedWidth)) computedHeight = maxHeight; else computedHeight = minWidth * (computedHeight / computedWidth);
+					computedWidth = minWidth;
+				}
+			} else if(heightSuperiorToMaxHeight == true) {
+				computedWidth = minWidth;
+				computedHeight = maxHeight;
+			} else {
+				if(minWidth * (computedHeight / computedWidth) < maxHeight) computedHeight = minWidth * (computedHeight / computedWidth); else computedHeight = maxHeight;
+				computedWidth = minWidth;
+			}
+		} else if(heightSuperiorToMaxHeight == true) {
+			if(maxHeight * (computedWidth / computedHeight) > minWidth) computedWidth = maxHeight * (computedWidth / computedHeight); else computedWidth = minWidth;
+			computedHeight = maxHeight;
+		} else if(heightInferiorToMinHeight == true) {
+			if(minHeight * (computedWidth / computedHeight) < minHeight) computedWidth = minHeight * (computedWidth / computedHeight); else computedWidth = minHeight;
+			computedHeight = minHeight;
+		}
+		style.computedStyle.set_width(computedWidth);
+		style.computedStyle.set_height(computedHeight);
+	}
+	,measureDimensionsAndMargins: function(style,containingBlockData,fontMetrics) {
+		var computedWidth = this.measureWidthAndHorizontalMargins(style,containingBlockData,fontMetrics);
+		var computedHeight = this.measureHeightAndVerticalMargins(style,containingBlockData,fontMetrics);
+		if(style.width == cocktail.core.style.Dimension.cssAuto && style.height == cocktail.core.style.Dimension.cssAuto) this.constrainDimensions(style,computedWidth,computedHeight); else {
+			style.computedStyle.set_width(this.constrainWidth(style,computedWidth));
+			style.computedStyle.set_height(this.constrainHeight(style,computedHeight));
+		}
 	}
 	,__class__: cocktail.core.style.computer.boxComputers.EmbeddedBlockBoxStylesComputer
 });
@@ -9855,7 +9893,7 @@ cocktail.core.style.computer.boxComputers.EmbeddedPositionedBoxStylesComputer.pr
 	,getComputedStaticLeft: function(style,containingBlockData) {
 		return style.computedStyle.getMarginLeft();
 	}
-	,measureVerticalPositionOffsets: function(style,containingBlockData) {
+	,measureVerticalPositionOffsets: function(style,containingBlockData,fontMetrics) {
 		var computedStyle = style.computedStyle;
 		if(style.top == cocktail.core.style.PositionOffset.cssAuto || style.bottom == cocktail.core.style.PositionOffset.cssAuto) {
 			if(style.marginTop == cocktail.core.style.Margin.cssAuto) style.computedStyle.set_marginTop(0);
@@ -9864,18 +9902,18 @@ cocktail.core.style.computer.boxComputers.EmbeddedPositionedBoxStylesComputer.pr
 				style.computedStyle.set_top(this.getComputedStaticTop(style,containingBlockData));
 				style.computedStyle.set_bottom(containingBlockData.height - computedStyle.getHeight() - computedStyle.getMarginTop() - computedStyle.getMarginBottom() - computedStyle.getPaddingTop() - computedStyle.getPaddingBottom() - computedStyle.getTop());
 			} else if(style.top == cocktail.core.style.PositionOffset.cssAuto) {
-				style.computedStyle.set_bottom(this.getComputedPositionOffset(style.bottom,containingBlockData.height,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
+				style.computedStyle.set_bottom(this.getComputedPositionOffset(style.bottom,containingBlockData.height,fontMetrics.fontSize,fontMetrics.xHeight));
 				style.computedStyle.set_top(containingBlockData.height - computedStyle.getHeight() - computedStyle.getMarginTop() - computedStyle.getMarginBottom() - computedStyle.getBottom() - computedStyle.getPaddingTop() - computedStyle.getPaddingBottom());
 			} else if(style.bottom == cocktail.core.style.PositionOffset.cssAuto) {
-				style.computedStyle.set_top(this.getComputedPositionOffset(style.top,containingBlockData.height,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
+				style.computedStyle.set_top(this.getComputedPositionOffset(style.top,containingBlockData.height,fontMetrics.fontSize,fontMetrics.xHeight));
 				style.computedStyle.set_bottom(containingBlockData.height - computedStyle.getHeight() - computedStyle.getMarginTop() - computedStyle.getMarginBottom() - computedStyle.getTop() - computedStyle.getPaddingTop() - computedStyle.getPaddingBottom());
 			} else {
-				style.computedStyle.set_top(this.getComputedPositionOffset(style.top,containingBlockData.height,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
-				style.computedStyle.set_bottom(this.getComputedPositionOffset(style.bottom,containingBlockData.height,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
+				style.computedStyle.set_top(this.getComputedPositionOffset(style.top,containingBlockData.height,fontMetrics.fontSize,fontMetrics.xHeight));
+				style.computedStyle.set_bottom(this.getComputedPositionOffset(style.bottom,containingBlockData.height,fontMetrics.fontSize,fontMetrics.xHeight));
 			}
 		} else {
-			style.computedStyle.set_top(this.getComputedPositionOffset(style.top,containingBlockData.height,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
-			style.computedStyle.set_bottom(this.getComputedPositionOffset(style.bottom,containingBlockData.height,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
+			style.computedStyle.set_top(this.getComputedPositionOffset(style.top,containingBlockData.height,fontMetrics.fontSize,fontMetrics.xHeight));
+			style.computedStyle.set_bottom(this.getComputedPositionOffset(style.bottom,containingBlockData.height,fontMetrics.fontSize,fontMetrics.xHeight));
 			if(style.marginTop == cocktail.core.style.Margin.cssAuto && style.marginBottom == cocktail.core.style.Margin.cssAuto) {
 				var margin = (containingBlockData.height - computedStyle.getTop() - computedStyle.getBottom() - computedStyle.getPaddingTop() - computedStyle.getPaddingBottom()) / 2;
 				var computedMargin = (containingBlockData.height - computedStyle.getHeight() - computedStyle.getPaddingTop() - computedStyle.getPaddingBottom() - computedStyle.getTop() - computedStyle.getBottom()) / 2;
@@ -9889,7 +9927,7 @@ cocktail.core.style.computer.boxComputers.EmbeddedPositionedBoxStylesComputer.pr
 			} else if(style.marginTop == cocktail.core.style.Margin.cssAuto) style.computedStyle.set_marginTop(containingBlockData.height - computedStyle.getHeight() - computedStyle.getPaddingTop() - computedStyle.getPaddingBottom() - computedStyle.getTop() - computedStyle.getBottom() - computedStyle.getMarginBottom()); else if(style.marginBottom == cocktail.core.style.Margin.cssAuto) style.computedStyle.set_marginBottom(containingBlockData.height - computedStyle.getHeight() - computedStyle.getPaddingTop() - computedStyle.getPaddingBottom() - computedStyle.getTop() - computedStyle.getBottom() - computedStyle.getMarginTop());
 		}
 	}
-	,measureHorizontalPositionOffsets: function(style,containingBlockData) {
+	,measureHorizontalPositionOffsets: function(style,containingBlockData,fontMetrics) {
 		var computedStyle = style.computedStyle;
 		if(style.left == cocktail.core.style.PositionOffset.cssAuto || style.right == cocktail.core.style.PositionOffset.cssAuto) {
 			if(style.marginLeft == cocktail.core.style.Margin.cssAuto) style.computedStyle.set_marginLeft(0);
@@ -9898,15 +9936,15 @@ cocktail.core.style.computer.boxComputers.EmbeddedPositionedBoxStylesComputer.pr
 				style.computedStyle.set_left(this.getComputedStaticLeft(style,containingBlockData));
 				style.computedStyle.set_right(containingBlockData.width - computedStyle.getWidth() - computedStyle.getMarginLeft() - computedStyle.getMarginRight() - computedStyle.getPaddingLeft() - computedStyle.getPaddingRight() - computedStyle.getLeft());
 			} else if(style.left == cocktail.core.style.PositionOffset.cssAuto) {
-				style.computedStyle.set_right(this.getComputedPositionOffset(style.right,containingBlockData.width,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
+				style.computedStyle.set_right(this.getComputedPositionOffset(style.right,containingBlockData.width,fontMetrics.fontSize,fontMetrics.xHeight));
 				style.computedStyle.set_left(containingBlockData.width - computedStyle.getWidth() - computedStyle.getMarginLeft() - computedStyle.getMarginRight() - computedStyle.getRight() - computedStyle.getPaddingLeft() - computedStyle.getPaddingRight());
 			} else if(style.right == cocktail.core.style.PositionOffset.cssAuto) {
-				style.computedStyle.set_left(this.getComputedPositionOffset(style.left,containingBlockData.width,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
+				style.computedStyle.set_left(this.getComputedPositionOffset(style.left,containingBlockData.width,fontMetrics.fontSize,fontMetrics.xHeight));
 				style.computedStyle.set_right(containingBlockData.width - computedStyle.getWidth() - computedStyle.getMarginLeft() - computedStyle.getMarginRight() - computedStyle.getLeft() - computedStyle.getPaddingLeft() - computedStyle.getPaddingRight());
 			}
 		} else {
-			style.computedStyle.set_left(this.getComputedPositionOffset(style.left,containingBlockData.width,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
-			style.computedStyle.set_right(this.getComputedPositionOffset(style.right,containingBlockData.width,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
+			style.computedStyle.set_left(this.getComputedPositionOffset(style.left,containingBlockData.width,fontMetrics.fontSize,fontMetrics.xHeight));
+			style.computedStyle.set_right(this.getComputedPositionOffset(style.right,containingBlockData.width,fontMetrics.fontSize,fontMetrics.xHeight));
 			if(style.marginLeft == cocktail.core.style.Margin.cssAuto && style.marginRight == cocktail.core.style.Margin.cssAuto) {
 				var margin = (containingBlockData.width - computedStyle.getLeft() - computedStyle.getRight() - computedStyle.getPaddingLeft() - computedStyle.getPaddingRight()) / 2;
 				var computedMargin = (containingBlockData.width - computedStyle.getWidth() - computedStyle.getPaddingLeft() - computedStyle.getPaddingRight() - computedStyle.getLeft() - computedStyle.getRight()) / 2;
@@ -9921,9 +9959,9 @@ cocktail.core.style.computer.boxComputers.EmbeddedPositionedBoxStylesComputer.pr
 			} else if(style.marginLeft == cocktail.core.style.Margin.cssAuto) style.computedStyle.set_marginLeft(containingBlockData.width - computedStyle.getWidth() - computedStyle.getPaddingLeft() - computedStyle.getPaddingRight() - computedStyle.getLeft() - computedStyle.getRight() - computedStyle.getMarginRight()); else if(style.marginRight == cocktail.core.style.Margin.cssAuto) style.computedStyle.set_marginRight(containingBlockData.width - computedStyle.getWidth() - computedStyle.getPaddingLeft() - computedStyle.getPaddingRight() - computedStyle.getLeft() - computedStyle.getRight() - computedStyle.getMarginLeft());
 		}
 	}
-	,measurePositionOffsets: function(style,containingBlockData) {
-		this.measureHorizontalPositionOffsets(style,containingBlockData);
-		this.measureVerticalPositionOffsets(style,containingBlockData);
+	,measurePositionOffsets: function(style,containingBlockData,fontMetrics) {
+		this.measureHorizontalPositionOffsets(style,containingBlockData,fontMetrics);
+		this.measureVerticalPositionOffsets(style,containingBlockData,fontMetrics);
 	}
 	,__class__: cocktail.core.style.computer.boxComputers.EmbeddedPositionedBoxStylesComputer
 });
@@ -9946,7 +9984,7 @@ $hxClasses["cocktail.core.style.computer.boxComputers.FloatBoxStylesComputer"] =
 cocktail.core.style.computer.boxComputers.FloatBoxStylesComputer.__name__ = ["cocktail","core","style","computer","boxComputers","FloatBoxStylesComputer"];
 cocktail.core.style.computer.boxComputers.FloatBoxStylesComputer.__super__ = cocktail.core.style.computer.boxComputers.InlineBlockBoxStylesComputer;
 cocktail.core.style.computer.boxComputers.FloatBoxStylesComputer.prototype = $extend(cocktail.core.style.computer.boxComputers.InlineBlockBoxStylesComputer.prototype,{
-	getComputedAutoWidth: function(style,containingBlockData) {
+	getComputedAutoWidth: function(style,containingBlockData,fontMetrics) {
 		return 0.0;
 	}
 	,__class__: cocktail.core.style.computer.boxComputers.FloatBoxStylesComputer
@@ -9958,26 +9996,28 @@ $hxClasses["cocktail.core.style.computer.boxComputers.InLineBoxStylesComputer"] 
 cocktail.core.style.computer.boxComputers.InLineBoxStylesComputer.__name__ = ["cocktail","core","style","computer","boxComputers","InLineBoxStylesComputer"];
 cocktail.core.style.computer.boxComputers.InLineBoxStylesComputer.__super__ = cocktail.core.style.computer.boxComputers.BoxStylesComputer;
 cocktail.core.style.computer.boxComputers.InLineBoxStylesComputer.prototype = $extend(cocktail.core.style.computer.boxComputers.BoxStylesComputer.prototype,{
-	getComputedHeight: function(style,containingBlockData) {
+	getComputedHeight: function(style,containingBlockData,fontMetrics) {
 		return 0.0;
 	}
-	,getComputedWidth: function(style,containingBlockData) {
+	,getComputedWidth: function(style,containingBlockData,fontMetrics) {
 		return 0.0;
 	}
 	,getComputedAutoMargin: function(marginStyleValue,opositeMargin,containingHTMLElementDimension,computedDimension,isDimensionAuto,computedPaddingsDimension,fontSize,xHeight,isHorizontalMargin) {
 		return 0.0;
 	}
-	,measureHeight: function(style,containingBlockData) {
-		style.computedStyle.set_height(this.getComputedHeight(style,containingBlockData));
+	,measureHeight: function(style,containingBlockData,fontMetrics) {
+		var computedHeight = this.getComputedHeight(style,containingBlockData,fontMetrics);
 		style.computedStyle.set_marginTop(0.0);
 		style.computedStyle.set_marginBottom(0.0);
+		return computedHeight;
 	}
-	,measureAutoHeight: function(style,containingBlockData) {
-		style.computedStyle.set_height(this.getComputedAutoHeight(style,containingBlockData));
+	,measureAutoHeight: function(style,containingBlockData,fontMetrics) {
+		var computedHeight = this.getComputedAutoHeight(style,containingBlockData,fontMetrics);
 		style.computedStyle.set_marginTop(0.0);
 		style.computedStyle.set_marginBottom(0.0);
+		return computedHeight;
 	}
-	,measureVerticalPaddings: function(style,containingBlockData) {
+	,measureVerticalPaddings: function(style,containingBlockData,fontMetrics) {
 		style.computedStyle.set_paddingTop(0);
 		style.computedStyle.set_paddingBottom(0);
 	}
@@ -9996,12 +10036,12 @@ cocktail.core.style.computer.boxComputers.PositionedBoxStylesComputer.prototype 
 	,getComputedStaticLeft: function(style,containingBlockData) {
 		return style.computedStyle.getMarginLeft();
 	}
-	,measureHeight: function(style,containingBlockData) {
+	,measureHeight: function(style,containingBlockData,fontMetrics) {
 		var computedStyle = style.computedStyle;
-		style.computedStyle.set_height(this.getComputedHeight(style,containingBlockData));
+		var computedHeight = this.getComputedHeight(style,containingBlockData,fontMetrics);
 		if(style.top != cocktail.core.style.PositionOffset.cssAuto && style.bottom != cocktail.core.style.PositionOffset.cssAuto) {
-			style.computedStyle.set_top(this.getComputedPositionOffset(style.top,containingBlockData.height,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
-			style.computedStyle.set_bottom(this.getComputedPositionOffset(style.bottom,containingBlockData.height,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
+			style.computedStyle.set_top(this.getComputedPositionOffset(style.top,containingBlockData.height,fontMetrics.fontSize,fontMetrics.xHeight));
+			style.computedStyle.set_bottom(this.getComputedPositionOffset(style.bottom,containingBlockData.height,fontMetrics.fontSize,fontMetrics.xHeight));
 			if(style.marginTop == cocktail.core.style.Margin.cssAuto && style.marginBottom == cocktail.core.style.Margin.cssAuto) {
 				var computedMargin = (containingBlockData.height - computedStyle.getHeight() - computedStyle.getPaddingTop() - computedStyle.getPaddingBottom() - computedStyle.getTop() - computedStyle.getBottom()) / 2;
 				if(computedMargin >= 0) {
@@ -10012,52 +10052,55 @@ cocktail.core.style.computer.boxComputers.PositionedBoxStylesComputer.prototype 
 					style.computedStyle.set_marginTop(containingBlockData.height - computedStyle.getHeight() - computedStyle.getPaddingTop() - computedStyle.getPaddingBottom() - computedStyle.getBottom() - computedStyle.getTop());
 				}
 			} else if(style.marginTop == cocktail.core.style.Margin.cssAuto) {
-				style.computedStyle.set_marginBottom(this.getComputedMarginBottom(style,containingBlockData));
+				style.computedStyle.set_marginBottom(this.getComputedMarginBottom(style,computedHeight,containingBlockData,fontMetrics));
 				style.computedStyle.set_marginTop(containingBlockData.height - computedStyle.getHeight() - computedStyle.getPaddingTop() - computedStyle.getPaddingBottom() - computedStyle.getTop() - computedStyle.getBottom() - computedStyle.getMarginBottom());
 			} else if(style.marginBottom == cocktail.core.style.Margin.cssAuto) {
-				style.computedStyle.set_marginTop(this.getComputedMarginTop(style,containingBlockData));
+				style.computedStyle.set_marginTop(this.getComputedMarginTop(style,computedHeight,containingBlockData,fontMetrics));
 				style.computedStyle.set_marginBottom(containingBlockData.height - computedStyle.getHeight() - computedStyle.getPaddingTop() - computedStyle.getPaddingBottom() - computedStyle.getTop() - computedStyle.getBottom() - computedStyle.getMarginTop());
 			} else {
-				style.computedStyle.set_marginTop(this.getComputedMarginTop(style,containingBlockData));
-				style.computedStyle.set_marginBottom(this.getComputedMarginBottom(style,containingBlockData));
+				style.computedStyle.set_marginTop(this.getComputedMarginTop(style,computedHeight,containingBlockData,fontMetrics));
+				style.computedStyle.set_marginBottom(this.getComputedMarginBottom(style,computedHeight,containingBlockData,fontMetrics));
 			}
 		} else {
-			if(style.marginTop == cocktail.core.style.Margin.cssAuto) style.computedStyle.set_marginTop(0); else style.computedStyle.set_marginTop(this.getComputedMarginTop(style,containingBlockData));
-			if(style.marginBottom == cocktail.core.style.Margin.cssAuto) style.computedStyle.set_marginBottom(0); else style.computedStyle.set_marginBottom(this.getComputedMarginBottom(style,containingBlockData));
+			if(style.marginTop == cocktail.core.style.Margin.cssAuto) style.computedStyle.set_marginTop(0); else style.computedStyle.set_marginTop(this.getComputedMarginTop(style,computedHeight,containingBlockData,fontMetrics));
+			if(style.marginBottom == cocktail.core.style.Margin.cssAuto) style.computedStyle.set_marginBottom(0); else style.computedStyle.set_marginBottom(this.getComputedMarginBottom(style,computedHeight,containingBlockData,fontMetrics));
 			if(style.top == cocktail.core.style.PositionOffset.cssAuto && style.bottom == cocktail.core.style.PositionOffset.cssAuto) {
 				style.computedStyle.set_top(this.getComputedStaticTop(style,containingBlockData));
 				style.computedStyle.set_bottom(containingBlockData.height - computedStyle.getMarginTop() - computedStyle.getMarginBottom() - computedStyle.getHeight() - computedStyle.getPaddingTop() - computedStyle.getPaddingBottom() - computedStyle.getTop());
 			} else if(style.bottom == cocktail.core.style.PositionOffset.cssAuto) {
-				style.computedStyle.set_top(this.getComputedPositionOffset(style.top,containingBlockData.height,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
+				style.computedStyle.set_top(this.getComputedPositionOffset(style.top,containingBlockData.height,fontMetrics.fontSize,fontMetrics.xHeight));
 				style.computedStyle.set_bottom(containingBlockData.height - computedStyle.getMarginTop() - computedStyle.getMarginBottom() - computedStyle.getHeight() - computedStyle.getPaddingTop() - computedStyle.getPaddingBottom() - computedStyle.getTop());
 			} else if(style.top == cocktail.core.style.PositionOffset.cssAuto) {
-				style.computedStyle.set_bottom(this.getComputedPositionOffset(style.bottom,containingBlockData.height,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
+				style.computedStyle.set_bottom(this.getComputedPositionOffset(style.bottom,containingBlockData.height,fontMetrics.fontSize,fontMetrics.xHeight));
 				style.computedStyle.set_top(containingBlockData.height - computedStyle.getMarginTop() - computedStyle.getMarginBottom() - computedStyle.getHeight() - computedStyle.getPaddingTop() - computedStyle.getPaddingBottom() - computedStyle.getBottom());
 			}
 		}
+		return computedHeight;
 	}
-	,measureAutoHeight: function(style,containingBlockData) {
+	,measureAutoHeight: function(style,containingBlockData,fontMetrics) {
 		var computedStyle = style.computedStyle;
-		if(style.marginTop == cocktail.core.style.Margin.cssAuto) style.computedStyle.set_marginTop(0); else style.computedStyle.set_marginTop(this.getComputedMarginTop(style,containingBlockData));
-		if(style.marginBottom == cocktail.core.style.Margin.cssAuto) style.computedStyle.set_marginBottom(0); else style.computedStyle.set_marginBottom(this.getComputedMarginBottom(style,containingBlockData));
+		var computedHeight = 0.0;
+		if(style.marginTop == cocktail.core.style.Margin.cssAuto) style.computedStyle.set_marginTop(0); else style.computedStyle.set_marginTop(this.getComputedMarginTop(style,computedHeight,containingBlockData,fontMetrics));
+		if(style.marginBottom == cocktail.core.style.Margin.cssAuto) style.computedStyle.set_marginBottom(0); else style.computedStyle.set_marginBottom(this.getComputedMarginBottom(style,computedHeight,containingBlockData,fontMetrics));
 		if(style.top != cocktail.core.style.PositionOffset.cssAuto && style.bottom != cocktail.core.style.PositionOffset.cssAuto) {
-			style.computedStyle.set_top(this.getComputedPositionOffset(style.top,containingBlockData.height,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
-			style.computedStyle.set_bottom(this.getComputedPositionOffset(style.bottom,containingBlockData.height,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
-			style.computedStyle.set_height(containingBlockData.height - computedStyle.getMarginTop() - computedStyle.getTop() - computedStyle.getBottom() - computedStyle.getMarginBottom() - computedStyle.getPaddingTop() - computedStyle.getPaddingBottom());
+			style.computedStyle.set_top(this.getComputedPositionOffset(style.top,containingBlockData.height,fontMetrics.fontSize,fontMetrics.xHeight));
+			style.computedStyle.set_bottom(this.getComputedPositionOffset(style.bottom,containingBlockData.height,fontMetrics.fontSize,fontMetrics.xHeight));
+			computedHeight = containingBlockData.height - computedStyle.getMarginTop() - computedStyle.getTop() - computedStyle.getBottom() - computedStyle.getMarginBottom() - computedStyle.getPaddingTop() - computedStyle.getPaddingBottom();
 		} else if(style.bottom == cocktail.core.style.PositionOffset.cssAuto) {
-			style.computedStyle.set_top(this.getComputedPositionOffset(style.top,containingBlockData.height,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
+			style.computedStyle.set_top(this.getComputedPositionOffset(style.top,containingBlockData.height,fontMetrics.fontSize,fontMetrics.xHeight));
 			style.computedStyle.set_bottom(containingBlockData.height - computedStyle.getMarginTop() - computedStyle.getMarginBottom() - computedStyle.getHeight() - computedStyle.getPaddingTop() - computedStyle.getPaddingBottom() - computedStyle.getTop());
 		} else if(style.top == cocktail.core.style.PositionOffset.cssAuto) {
-			style.computedStyle.set_bottom(this.getComputedPositionOffset(style.bottom,containingBlockData.height,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
+			style.computedStyle.set_bottom(this.getComputedPositionOffset(style.bottom,containingBlockData.height,fontMetrics.fontSize,fontMetrics.xHeight));
 			style.computedStyle.set_top(containingBlockData.height - computedStyle.getMarginTop() - computedStyle.getMarginBottom() - computedStyle.getHeight() - computedStyle.getPaddingTop() - computedStyle.getPaddingBottom() - computedStyle.getBottom());
 		}
+		return computedHeight;
 	}
-	,measureWidth: function(style,containingBlockData) {
+	,measureWidth: function(style,containingBlockData,fontMetrics) {
 		var computedStyle = style.computedStyle;
-		style.computedStyle.set_width(this.getComputedWidth(style,containingBlockData));
+		var computedWidth = this.getComputedWidth(style,containingBlockData,fontMetrics);
 		if(style.left != cocktail.core.style.PositionOffset.cssAuto && style.right != cocktail.core.style.PositionOffset.cssAuto) {
-			style.computedStyle.set_left(this.getComputedPositionOffset(style.left,containingBlockData.width,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
-			style.computedStyle.set_right(this.getComputedPositionOffset(style.right,containingBlockData.width,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
+			style.computedStyle.set_left(this.getComputedPositionOffset(style.left,containingBlockData.width,fontMetrics.fontSize,fontMetrics.xHeight));
+			style.computedStyle.set_right(this.getComputedPositionOffset(style.right,containingBlockData.width,fontMetrics.fontSize,fontMetrics.xHeight));
 			if(style.marginLeft == cocktail.core.style.Margin.cssAuto && style.marginRight == cocktail.core.style.Margin.cssAuto) {
 				var computedMargin = (containingBlockData.width - computedStyle.getWidth() - computedStyle.getPaddingLeft() - computedStyle.getPaddingRight() - computedStyle.getLeft() - computedStyle.getRight()) / 2;
 				if(computedMargin >= 0) {
@@ -10068,44 +10111,47 @@ cocktail.core.style.computer.boxComputers.PositionedBoxStylesComputer.prototype 
 					style.computedStyle.set_marginRight(containingBlockData.width - computedStyle.getWidth() - computedStyle.getPaddingLeft() - computedStyle.getPaddingRight() - computedStyle.getLeft() - computedStyle.getRight());
 				}
 			} else if(style.marginLeft == cocktail.core.style.Margin.cssAuto) {
-				style.computedStyle.set_marginRight(this.getComputedMarginRight(style,containingBlockData));
+				style.computedStyle.set_marginRight(this.getComputedMarginRight(style,computedWidth,containingBlockData,fontMetrics));
 				style.computedStyle.set_marginLeft(containingBlockData.width - computedStyle.getWidth() - computedStyle.getPaddingLeft() - computedStyle.getPaddingRight() - computedStyle.getLeft() - computedStyle.getRight() - computedStyle.getMarginRight());
 			} else if(style.marginRight == cocktail.core.style.Margin.cssAuto) {
-				style.computedStyle.set_marginLeft(this.getComputedMarginLeft(style,containingBlockData));
+				style.computedStyle.set_marginLeft(this.getComputedMarginLeft(style,computedWidth,containingBlockData,fontMetrics));
 				style.computedStyle.set_marginRight(containingBlockData.width - computedStyle.getWidth() - computedStyle.getPaddingLeft() - computedStyle.getPaddingRight() - computedStyle.getLeft() - computedStyle.getRight() - computedStyle.getMarginLeft());
 			} else {
-				style.computedStyle.set_marginLeft(this.getComputedMarginLeft(style,containingBlockData));
-				style.computedStyle.set_marginRight(this.getComputedMarginRight(style,containingBlockData));
+				style.computedStyle.set_marginLeft(this.getComputedMarginLeft(style,computedWidth,containingBlockData,fontMetrics));
+				style.computedStyle.set_marginRight(this.getComputedMarginRight(style,computedWidth,containingBlockData,fontMetrics));
 			}
 		} else {
-			if(style.marginLeft == cocktail.core.style.Margin.cssAuto) style.computedStyle.set_marginLeft(0); else style.computedStyle.set_marginLeft(this.getComputedMarginLeft(style,containingBlockData));
-			if(style.marginRight == cocktail.core.style.Margin.cssAuto) style.computedStyle.set_marginRight(0); else style.computedStyle.set_marginRight(this.getComputedMarginRight(style,containingBlockData));
+			if(style.marginLeft == cocktail.core.style.Margin.cssAuto) style.computedStyle.set_marginLeft(0); else style.computedStyle.set_marginLeft(this.getComputedMarginLeft(style,computedWidth,containingBlockData,fontMetrics));
+			if(style.marginRight == cocktail.core.style.Margin.cssAuto) style.computedStyle.set_marginRight(0); else style.computedStyle.set_marginRight(this.getComputedMarginRight(style,computedWidth,containingBlockData,fontMetrics));
 			if(style.left == cocktail.core.style.PositionOffset.cssAuto && style.right == cocktail.core.style.PositionOffset.cssAuto) {
 				style.computedStyle.set_left(this.getComputedStaticLeft(style,containingBlockData));
 				style.computedStyle.set_right(containingBlockData.width - computedStyle.getMarginLeft() - computedStyle.getMarginRight() - computedStyle.getWidth() - computedStyle.getPaddingLeft() - computedStyle.getPaddingRight() - computedStyle.getLeft());
 			} else if(style.left == cocktail.core.style.PositionOffset.cssAuto) {
-				style.computedStyle.set_right(this.getComputedPositionOffset(style.right,containingBlockData.width,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
+				style.computedStyle.set_right(this.getComputedPositionOffset(style.right,containingBlockData.width,fontMetrics.fontSize,fontMetrics.xHeight));
 				style.computedStyle.set_left(containingBlockData.width - computedStyle.getMarginLeft() - computedStyle.getMarginRight() - computedStyle.getWidth() - computedStyle.getPaddingLeft() - computedStyle.getPaddingRight() - computedStyle.getRight());
 			} else if(style.right == cocktail.core.style.PositionOffset.cssAuto) {
-				style.computedStyle.set_left(this.getComputedPositionOffset(style.left,containingBlockData.width,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
+				style.computedStyle.set_left(this.getComputedPositionOffset(style.left,containingBlockData.width,fontMetrics.fontSize,fontMetrics.xHeight));
 				style.computedStyle.set_right(containingBlockData.width - computedStyle.getMarginLeft() - computedStyle.getMarginRight() - computedStyle.getWidth() - computedStyle.getPaddingLeft() - computedStyle.getPaddingRight() - computedStyle.getLeft());
 			}
 		}
+		return computedWidth;
 	}
-	,measureAutoWidth: function(style,containingBlockData) {
+	,measureAutoWidth: function(style,containingBlockData,fontMetrics) {
 		var computedStyle = style.computedStyle;
-		if(style.marginLeft == cocktail.core.style.Margin.cssAuto) computedStyle.set_marginLeft(0); else computedStyle.set_marginLeft(this.getComputedMarginLeft(style,containingBlockData));
-		if(style.marginRight == cocktail.core.style.Margin.cssAuto) computedStyle.set_marginRight(0); else computedStyle.set_marginRight(this.getComputedMarginRight(style,containingBlockData));
+		var computedWidth = 0.0;
+		if(style.marginLeft == cocktail.core.style.Margin.cssAuto) computedStyle.set_marginLeft(0); else computedStyle.set_marginLeft(this.getComputedMarginLeft(style,computedWidth,containingBlockData,fontMetrics));
+		if(style.marginRight == cocktail.core.style.Margin.cssAuto) computedStyle.set_marginRight(0); else computedStyle.set_marginRight(this.getComputedMarginRight(style,computedWidth,containingBlockData,fontMetrics));
 		if(style.left != cocktail.core.style.PositionOffset.cssAuto && style.right != cocktail.core.style.PositionOffset.cssAuto) {
-			computedStyle.set_left(this.getComputedPositionOffset(style.left,containingBlockData.width,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
-			computedStyle.set_right(this.getComputedPositionOffset(style.right,containingBlockData.width,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
-			style.computedStyle.set_width(containingBlockData.width - computedStyle.getMarginLeft() - computedStyle.getLeft() - computedStyle.getRight() - computedStyle.getMarginRight() - computedStyle.getPaddingLeft() - computedStyle.getPaddingRight());
+			computedStyle.set_left(this.getComputedPositionOffset(style.left,containingBlockData.width,fontMetrics.fontSize,fontMetrics.xHeight));
+			computedStyle.set_right(this.getComputedPositionOffset(style.right,containingBlockData.width,fontMetrics.fontSize,fontMetrics.xHeight));
+			computedWidth = containingBlockData.width - computedStyle.getMarginLeft() - computedStyle.getLeft() - computedStyle.getRight() - computedStyle.getMarginRight() - computedStyle.getPaddingLeft() - computedStyle.getPaddingRight();
 		} else {
-			if(style.left == cocktail.core.style.PositionOffset.cssAuto) style.computedStyle.set_right(this.getComputedPositionOffset(style.right,containingBlockData.width,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight)); else if(style.right == cocktail.core.style.PositionOffset.cssAuto) style.computedStyle.set_left(this.getComputedPositionOffset(style.left,containingBlockData.width,style.get_fontMetricsData().fontSize,style.get_fontMetricsData().xHeight));
-			style.computedStyle.set_width(containingBlockData.width);
+			if(style.left == cocktail.core.style.PositionOffset.cssAuto) style.computedStyle.set_right(this.getComputedPositionOffset(style.right,containingBlockData.width,fontMetrics.fontSize,fontMetrics.xHeight)); else if(style.right == cocktail.core.style.PositionOffset.cssAuto) style.computedStyle.set_left(this.getComputedPositionOffset(style.left,containingBlockData.width,fontMetrics.fontSize,fontMetrics.xHeight));
+			computedWidth = containingBlockData.width;
 		}
+		return computedWidth;
 	}
-	,measurePositionOffsets: function(style,containingBlockData) {
+	,measurePositionOffsets: function(style,containingBlockData,fontMetrics) {
 	}
 	,__class__: cocktail.core.style.computer.boxComputers.PositionedBoxStylesComputer
 });
@@ -10160,9 +10206,10 @@ cocktail.core.style.floats.FloatsManager.prototype = {
 		var retY = currentFormattingContextY;
 		while(this.getLeftFloatOffset(retY) + this.getRightFloatOffset(retY,containingBlockWidth) + elementWidth > containingBlockWidth) {
 			var afterFloats = new Array();
-			var _g1 = 0, _g = this._floats.left.length;
-			while(_g1 < _g) {
-				var i = _g1++;
+			var leftFloatLength = this._floats.left.length;
+			var _g = 0;
+			while(_g < leftFloatLength) {
+				var i = _g++;
 				if(this._floats.left[i].y <= retY && this._floats.left[i].height + this._floats.left[i].y > retY) afterFloats.push(this._floats.left[i]);
 			}
 			var _g1 = 0, _g = this._floats.right.length;
@@ -10292,12 +10339,12 @@ cocktail.core.style.formatter.FormattingContext.prototype = {
 		this._floatsManager = floatsManager;
 		this.initFormattingContextData();
 		this.startFormatting();
-		this.applyShrinkToFitIfNeeded(this._formattingContextRoot,this._formattingContextData.maxWidth);
+		this.applyShrinkToFitIfNeeded(this._formattingContextRoot,this._formattingContextData.width);
 	}
 	,initFormattingContextData: function() {
 		var x = this._formattingContextRoot.get_coreStyle().computedStyle.getPaddingLeft();
 		var y = this._formattingContextRoot.get_coreStyle().computedStyle.getPaddingTop();
-		this._formattingContextData = { x : x, y : y, maxHeight : 0.0, maxWidth : 0.0};
+		this._formattingContextData = { x : x, y : y, height : 0.0, width : 0.0};
 	}
 	,_formattingContextData: null
 	,_floatsManager: null
@@ -10313,12 +10360,14 @@ cocktail.core.style.formatter.BlockFormattingContext.__name__ = ["cocktail","cor
 cocktail.core.style.formatter.BlockFormattingContext.__super__ = cocktail.core.style.formatter.FormattingContext;
 cocktail.core.style.formatter.BlockFormattingContext.prototype = $extend(cocktail.core.style.formatter.FormattingContext.prototype,{
 	getCollapsedMarginBottom: function(child,parentCollapsedMarginBottom) {
-		var marginBottom = child.get_coreStyle().computedStyle.getMarginBottom();
-		if(child.get_coreStyle().computedStyle.getPaddingBottom() == 0) {
+		var childComputedStyle = child.get_coreStyle().computedStyle;
+		var marginBottom = childComputedStyle.getMarginBottom();
+		if(childComputedStyle.getPaddingBottom() == 0) {
 			if(child.get_nextSibling() != null) {
 				var nextSibling = child.get_nextSibling();
-				if(nextSibling.get_coreStyle().computedStyle.getPaddingTop() == 0) {
-					if(nextSibling.get_coreStyle().computedStyle.getMarginTop() > marginBottom) marginBottom = 0;
+				var nextSiblingComputedStyle = nextSibling.get_coreStyle().computedStyle;
+				if(nextSiblingComputedStyle.getPaddingTop() == 0) {
+					if(nextSiblingComputedStyle.getMarginTop() > marginBottom) marginBottom = 0;
 				}
 			} else if(child.parentNode != null) {
 				var parent = child.parentNode;
@@ -10332,12 +10381,14 @@ cocktail.core.style.formatter.BlockFormattingContext.prototype = $extend(cocktai
 		return marginBottom;
 	}
 	,getCollapsedMarginTop: function(child,parentCollapsedMarginTop) {
-		var marginTop = child.get_coreStyle().computedStyle.getMarginTop();
-		if(child.get_coreStyle().computedStyle.getPaddingTop() == 0) {
+		var childComputedStyle = child.get_coreStyle().computedStyle;
+		var marginTop = childComputedStyle.getMarginTop();
+		if(childComputedStyle.getPaddingTop() == 0) {
 			if(child.get_previousSibling() != null) {
 				var previousSibling = child.get_previousSibling();
-				if(previousSibling.get_coreStyle().computedStyle.getPaddingBottom() == 0) {
-					if(previousSibling.get_coreStyle().computedStyle.getMarginBottom() > marginTop) {
+				var previsousSiblingComputedStyle = previousSibling.get_coreStyle().computedStyle;
+				if(previsousSiblingComputedStyle.getPaddingBottom() == 0) {
+					if(previsousSiblingComputedStyle.getMarginBottom() > marginTop) {
 						if(marginTop > 0) marginTop = 0;
 					}
 				}
@@ -10353,8 +10404,9 @@ cocktail.core.style.formatter.BlockFormattingContext.prototype = $extend(cocktai
 		return marginTop;
 	}
 	,doFormat: function(elementRenderer,concatenatedX,concatenatedY,currentLineY,parentCollapsedMarginTop,parentCollapsedMarginBottom) {
-		concatenatedX += elementRenderer.get_coreStyle().computedStyle.getPaddingLeft() + elementRenderer.get_coreStyle().computedStyle.getMarginLeft();
-		concatenatedY += elementRenderer.get_coreStyle().computedStyle.getPaddingTop() + parentCollapsedMarginTop;
+		var elementRendererComputedStyle = elementRenderer.get_coreStyle().computedStyle;
+		concatenatedX += elementRendererComputedStyle.getPaddingLeft() + elementRendererComputedStyle.getMarginLeft();
+		concatenatedY += elementRendererComputedStyle.getPaddingTop() + parentCollapsedMarginTop;
 		var childHeight = concatenatedY;
 		var length = elementRenderer.childNodes.length;
 		var _g = 0;
@@ -10368,21 +10420,22 @@ cocktail.core.style.formatter.BlockFormattingContext.prototype = $extend(cocktai
 			var height = computedStyle.getHeight() + computedStyle.getPaddingTop() + computedStyle.getPaddingBottom();
 			var x = concatenatedX + child.get_coreStyle().computedStyle.getMarginLeft();
 			var y = concatenatedY + marginTop;
-			child.get_bounds().x = x;
-			child.get_bounds().y = y;
-			child.get_bounds().width = width;
-			child.get_bounds().height = height;
+			var childBounds = child.get_bounds();
+			childBounds.x = x;
+			childBounds.y = y;
+			childBounds.width = width;
+			childBounds.height = height;
 			if(child.isFloat() == true) {
 				if(this.isFloatRegistered(child) == false) {
-					var floatBounds = this._floatsManager.registerFloat(child,concatenatedY,0,elementRenderer.getComputedStyle().getWidth());
+					var floatBounds = this._floatsManager.registerFloat(child,concatenatedY,0,elementRendererComputedStyle.getWidth());
 					this._registeredFloats.push({ node : child, bounds : floatBounds});
 					this.format(this._floatsManager);
 					return 0.0;
 				}
 				var floatBounds = this.getRegisteredFloat(child).bounds;
-				child.get_bounds().x = floatBounds.x + child.get_coreStyle().computedStyle.getMarginLeft();
-				child.get_bounds().y = floatBounds.y + child.get_coreStyle().computedStyle.getMarginTop();
-				child.get_bounds().x += concatenatedX;
+				childBounds.x = floatBounds.x + computedStyle.getMarginLeft();
+				childBounds.y = floatBounds.y + computedStyle.getMarginTop();
+				childBounds.x += concatenatedX;
 			} else if(child.hasChildNodes() == true) {
 				if(child.establishesNewFormattingContext() == false) {
 					currentLineY = child.get_bounds().y;
@@ -10396,17 +10449,20 @@ cocktail.core.style.formatter.BlockFormattingContext.prototype = $extend(cocktai
 					concatenatedY += child.get_bounds().height + marginTop + marginBottom;
 				}
 			} else if(child.isPositioned() == false || child.isRelativePositioned() == true) concatenatedY += child.get_bounds().height + marginTop + marginBottom;
-			if(child.get_bounds().x + child.get_bounds().width + child.get_coreStyle().computedStyle.getMarginRight() > this._formattingContextData.maxWidth) {
-				if(child.isAnonymousBlockBox() == false) this._formattingContextData.maxWidth = child.get_bounds().x + child.get_bounds().width + child.get_coreStyle().computedStyle.getMarginRight();
+			if(childBounds.x + childBounds.width + computedStyle.getMarginRight() > this._formattingContextData.width) {
+				if(child.isAnonymousBlockBox() == false) this._formattingContextData.width = childBounds.x + childBounds.width + computedStyle.getMarginRight();
 			}
-			if(concatenatedY > this._formattingContextData.maxHeight) this._formattingContextData.maxHeight = concatenatedY;
+			if(concatenatedY > this._formattingContextData.height) this._formattingContextData.height = concatenatedY;
 		}
-		childHeight = concatenatedY - childHeight;
 		if(elementRenderer.get_coreStyle().height == cocktail.core.style.Dimension.cssAuto) {
-			elementRenderer.get_bounds().height = childHeight + elementRenderer.get_coreStyle().computedStyle.getPaddingBottom() + elementRenderer.get_coreStyle().computedStyle.getPaddingTop();
-			elementRenderer.get_coreStyle().computedStyle.set_height(childHeight);
+			childHeight = concatenatedY - childHeight;
+			elementRenderer.get_bounds().height = childHeight + elementRendererComputedStyle.getPaddingBottom() + elementRendererComputedStyle.getPaddingTop();
+			elementRendererComputedStyle.set_height(childHeight);
+		} else {
+			concatenatedY = childHeight;
+			concatenatedY += elementRenderer.get_bounds().height;
 		}
-		concatenatedY += elementRenderer.get_coreStyle().computedStyle.getPaddingBottom() + parentCollapsedMarginBottom;
+		concatenatedY += elementRendererComputedStyle.getPaddingBottom() + parentCollapsedMarginBottom;
 		this._floatsManager.removeFloats(concatenatedY);
 		return concatenatedY;
 	}
@@ -10444,14 +10500,14 @@ $hxClasses["cocktail.core.style.formatter.InlineFormattingContext"] = cocktail.c
 cocktail.core.style.formatter.InlineFormattingContext.__name__ = ["cocktail","core","style","formatter","InlineFormattingContext"];
 cocktail.core.style.formatter.InlineFormattingContext.__super__ = cocktail.core.style.formatter.FormattingContext;
 cocktail.core.style.formatter.InlineFormattingContext.prototype = $extend(cocktail.core.style.formatter.FormattingContext.prototype,{
-	alignLineBoxesVertically: function(lineBox,lineBoxAscent,formattingContextY,parentBaseLineOffset) {
+	alignLineBoxesVertically: function(lineBox,lineBoxAscent,formattingContextY,parentBaseLineOffset,formattingContextFontMetrics) {
 		var length = lineBox.childNodes.length;
 		var _g = 0;
 		while(_g < length) {
 			var i = _g++;
 			var child = lineBox.childNodes[i];
-			var baselineOffset = child.getBaselineOffset(parentBaseLineOffset,this._formattingContextRoot.get_coreStyle().get_fontMetricsData().xHeight);
-			switch( (child.get_elementRenderer().get_coreStyle().verticalAlign)[1] ) {
+			var baselineOffset = child.getBaselineOffset(parentBaseLineOffset,formattingContextFontMetrics.xHeight);
+			switch( (child.elementRenderer.get_coreStyle().verticalAlign)[1] ) {
 			case 3:
 				child.get_bounds().y = formattingContextY;
 				break;
@@ -10459,31 +10515,29 @@ cocktail.core.style.formatter.InlineFormattingContext.prototype = $extend(cockta
 				child.get_bounds().y = formattingContextY - baselineOffset + lineBoxAscent;
 				child.get_bounds().y -= child.get_leadedAscent();
 			}
-			if(child.hasChildNodes() == true) this.alignLineBoxesVertically(child,lineBoxAscent,formattingContextY,baselineOffset);
-			if(child.establishesNewFormattingContext() == true || child.get_elementRenderer().isReplaced() == true && child.get_elementRenderer().isText() == false) {
-				if(child.isAbsolutelyPositioned() == true) child.get_bounds().y += child.get_leadedAscent();
-			}
+			if(child.hasChildNodes() == true) this.alignLineBoxesVertically(child,lineBoxAscent,formattingContextY,baselineOffset,formattingContextFontMetrics);
 		}
 	}
-	,setRootLineBoxMetrics: function(lineBox,rootLineBox,parentBaseLineOffset) {
+	,setRootLineBoxMetrics: function(lineBox,rootLineBox,parentBaseLineOffset,formattingContextFontMetrics) {
 		var length = lineBox.childNodes.length;
 		var _g = 0;
 		while(_g < length) {
 			var i = _g++;
 			var child = lineBox.childNodes[i];
-			if(child.isAbsolutelyPositioned() == false || child.isText() == true) {
+			if(child.isStaticPosition() == false) {
 				var leadedAscent = child.get_leadedAscent();
 				var leadedDescent = child.get_leadedDescent();
-				var baselineOffset = child.getBaselineOffset(parentBaseLineOffset,this._formattingContextRoot.get_coreStyle().get_fontMetricsData().xHeight);
+				var baselineOffset = child.getBaselineOffset(parentBaseLineOffset,formattingContextFontMetrics.xHeight);
 				if(leadedAscent + baselineOffset > rootLineBox.get_leadedAscent()) rootLineBox.set_leadedAscent(leadedAscent + baselineOffset);
 				if(leadedDescent + baselineOffset > rootLineBox.get_leadedDescent()) rootLineBox.set_leadedDescent(leadedDescent + baselineOffset);
-				if(child.hasChildNodes() == true) this.setRootLineBoxMetrics(child,rootLineBox,baselineOffset);
+				if(child.hasChildNodes() == true) this.setRootLineBoxMetrics(child,rootLineBox,baselineOffset,formattingContextFontMetrics);
 			}
 		}
 	}
 	,computeLineBoxHeight: function(rootLineBox) {
-		this.setRootLineBoxMetrics(rootLineBox,rootLineBox,0.0);
-		this.alignLineBoxesVertically(rootLineBox,rootLineBox.get_leadedAscent(),this._formattingContextData.y,0.0);
+		var formattingContextFontMetrics = this._formattingContextRoot.get_coreStyle().get_fontMetricsData();
+		this.setRootLineBoxMetrics(rootLineBox,rootLineBox,0.0,formattingContextFontMetrics);
+		this.alignLineBoxesVertically(rootLineBox,rootLineBox.get_leadedAscent(),this._formattingContextData.y,0.0,formattingContextFontMetrics);
 		var lineBoxHeight = rootLineBox.get_bounds().height;
 		return lineBoxHeight;
 	}
@@ -10493,7 +10547,7 @@ cocktail.core.style.formatter.InlineFormattingContext.prototype = $extend(cockta
 		while(_g1 < _g) {
 			var i = _g1++;
 			var child = rootLineBox.childNodes[i];
-			if(child.hasChildNodes() == true && child.isAbsolutelyPositioned() == false) {
+			if(child.hasChildNodes() == true && child.isStaticPosition() == false) {
 				var children = this.getLineBoxTreeAsArray(child);
 				var _g3 = 0, _g2 = children.length;
 				while(_g3 < _g2) {
@@ -10512,7 +10566,7 @@ cocktail.core.style.formatter.InlineFormattingContext.prototype = $extend(cockta
 			while(i < lineBoxes.length) {
 				var lineBox = lineBoxes[i];
 				if(lineBox.isSpace() == true) {
-					switch( (lineBox.get_elementRenderer().get_coreStyle().computedStyle.whiteSpace)[1] ) {
+					switch( (lineBox.elementRenderer.get_coreStyle().computedStyle.whiteSpace)[1] ) {
 					case 0:
 					case 2:
 					case 4:
@@ -10521,7 +10575,7 @@ cocktail.core.style.formatter.InlineFormattingContext.prototype = $extend(cockta
 					default:
 						throw "__break__";
 					}
-				} else if(lineBox.isAbsolutelyPositioned() == false) throw "__break__";
+				} else if(lineBox.isStaticPosition() == false) throw "__break__";
 				i++;
 			}
 		} catch( e ) { if( e != "__break__" ) throw e; }
@@ -10532,7 +10586,7 @@ cocktail.core.style.formatter.InlineFormattingContext.prototype = $extend(cockta
 			while(i1 >= 0) {
 				var lineBox = lineBoxes[i1];
 				if(lineBox.isSpace() == true) {
-					switch( (lineBox.get_elementRenderer().get_coreStyle().computedStyle.whiteSpace)[1] ) {
+					switch( (lineBox.elementRenderer.get_coreStyle().computedStyle.whiteSpace)[1] ) {
 					case 0:
 					case 2:
 					case 4:
@@ -10541,57 +10595,10 @@ cocktail.core.style.formatter.InlineFormattingContext.prototype = $extend(cockta
 					default:
 						throw "__break__";
 					}
-				} else if(lineBox.isAbsolutelyPositioned() == false) throw "__break__";
+				} else if(lineBox.isStaticPosition() == false) throw "__break__";
 				i1--;
 			}
 		} catch( e ) { if( e != "__break__" ) throw e; }
-	}
-	,shouldInsertSpace: function(whiteSpace,isNexElementALineFeed) {
-		var shouldInsertSpace;
-		switch( (whiteSpace)[1] ) {
-		case 0:
-		case 2:
-		case 4:
-			shouldInsertSpace = isNexElementALineFeed == false;
-			break;
-		case 3:
-		case 1:
-			shouldInsertSpace = true;
-			break;
-		}
-		if(shouldInsertSpace == true) {
-		}
-		return shouldInsertSpace;
-	}
-	,isLineFeedAllowed: function(whiteSpace) {
-		var lineFeedAllowed;
-		switch( (whiteSpace)[1] ) {
-		case 0:
-		case 2:
-			lineFeedAllowed = false;
-			break;
-		case 1:
-		case 3:
-		case 4:
-			lineFeedAllowed = true;
-			break;
-		}
-		return lineFeedAllowed;
-	}
-	,shouldTabBeConvertedToSpace: function(whiteSpace) {
-		var shouldTabBeConvertedToSpace;
-		switch( (whiteSpace)[1] ) {
-		case 0:
-		case 2:
-		case 4:
-			shouldTabBeConvertedToSpace = true;
-			break;
-		case 1:
-		case 3:
-			shouldTabBeConvertedToSpace = false;
-			break;
-		}
-		return shouldTabBeConvertedToSpace;
 	}
 	,alignJustify: function(flowX,remainingSpace,lineBox,spacesInLine) {
 		var length = lineBox.childNodes.length;
@@ -10611,7 +10618,7 @@ cocktail.core.style.formatter.InlineFormattingContext.prototype = $extend(cockta
 		}
 	}
 	,alignRight: function(flowX,remainingSpace,lineBox) {
-		flowX += lineBox.get_marginLeft() + lineBox.get_paddingLeft();
+		flowX += lineBox.marginLeft + lineBox.paddingLeft;
 		var length = lineBox.childNodes.length;
 		var _g = 0;
 		while(_g < length) {
@@ -10621,11 +10628,11 @@ cocktail.core.style.formatter.InlineFormattingContext.prototype = $extend(cockta
 			child.get_bounds().x = flowX + remainingSpace;
 			flowX += child.get_bounds().width;
 		}
-		flowX += lineBox.get_marginRight() + lineBox.get_paddingRight();
+		flowX += lineBox.marginRight + lineBox.paddingRight;
 		return flowX;
 	}
 	,alignCenter: function(flowX,remainingSpace,lineBox) {
-		flowX += lineBox.get_marginLeft() + lineBox.get_paddingLeft();
+		flowX += lineBox.marginLeft + lineBox.paddingLeft;
 		var length = lineBox.childNodes.length;
 		var _g = 0;
 		while(_g < length) {
@@ -10635,35 +10642,36 @@ cocktail.core.style.formatter.InlineFormattingContext.prototype = $extend(cockta
 			child.get_bounds().x = remainingSpace / 2 + flowX;
 			flowX += child.get_bounds().width;
 		}
-		flowX += lineBox.get_marginRight() + lineBox.get_paddingRight();
+		flowX += lineBox.marginRight + lineBox.paddingRight;
 		return flowX;
 	}
 	,alignLeft: function(flowX,lineBox) {
-		flowX += lineBox.get_paddingLeft() + lineBox.get_marginLeft();
+		flowX += lineBox.paddingLeft + lineBox.marginLeft;
 		var length = lineBox.childNodes.length;
 		var _g = 0;
 		while(_g < length) {
 			var i = _g++;
 			var child = lineBox.childNodes[i];
-			if(child.hasChildNodes() == true && child.isAbsolutelyPositioned() == false) flowX = this.alignLeft(flowX,child); else {
-				child.get_bounds().x = flowX + child.get_marginLeft();
-				if(child.isAbsolutelyPositioned() == false || child.isText() == true) flowX += child.get_bounds().width + child.get_marginLeft() + child.get_marginRight();
+			if(child.hasChildNodes() == true && child.isStaticPosition() == false) flowX = this.alignLeft(flowX,child); else {
+				child.get_bounds().x = flowX + child.marginLeft;
+				if(child.isStaticPosition() == false) flowX += child.get_bounds().width + child.marginLeft + child.marginRight;
 			}
 		}
-		flowX += lineBox.get_paddingRight() + lineBox.get_marginRight();
+		flowX += lineBox.paddingRight + lineBox.marginRight;
 		return flowX;
 	}
-	,alignLineBox: function(rootLineBox,isLastLine,concatenatedLength,spaceInLine) {
+	,alignLineBox: function(rootLineBox,isLastLine,concatenatedLength) {
 		var remainingSpace;
 		var flowX;
-		remainingSpace = this._formattingContextRoot.get_coreStyle().computedStyle.getWidth() - concatenatedLength - this._floatsManager.getLeftFloatOffset(this._formattingContextData.y) - this._floatsManager.getRightFloatOffset(this._formattingContextData.y + this._formattingContextRoot.get_bounds().y,this._formattingContextRoot.get_coreStyle().computedStyle.getWidth());
-		flowX = this._formattingContextRoot.get_coreStyle().computedStyle.getPaddingLeft();
+		var formattingContextRootComputedStyle = this._formattingContextRoot.get_coreStyle().computedStyle;
+		remainingSpace = formattingContextRootComputedStyle.getWidth() - concatenatedLength - this._floatsManager.getLeftFloatOffset(this._formattingContextData.y) - this._floatsManager.getRightFloatOffset(this._formattingContextData.y + this._formattingContextRoot.get_bounds().y,formattingContextRootComputedStyle.getWidth());
+		flowX = formattingContextRootComputedStyle.getPaddingLeft();
 		if(this._firstLineFormatted == false) {
-			flowX += this._formattingContextRoot.get_coreStyle().computedStyle.getTextIndent();
-			remainingSpace -= this._formattingContextRoot.get_coreStyle().computedStyle.getTextIndent();
+			flowX += formattingContextRootComputedStyle.getTextIndent();
+			remainingSpace -= formattingContextRootComputedStyle.getTextIndent();
 		}
 		flowX += this._floatsManager.getLeftFloatOffset(this._formattingContextData.y + this._formattingContextRoot.get_bounds().y);
-		switch( (this._formattingContextRoot.get_coreStyle().computedStyle.textAlign)[1] ) {
+		switch( (formattingContextRootComputedStyle.textAlign)[1] ) {
 		case 0:
 			this.alignLeft(flowX,rootLineBox);
 			break;
@@ -10675,8 +10683,8 @@ cocktail.core.style.formatter.InlineFormattingContext.prototype = $extend(cockta
 			break;
 		case 3:
 			if(isLastLine == true) this.alignLeft(flowX,rootLineBox); else {
-				concatenatedLength = this._formattingContextRoot.get_coreStyle().computedStyle.getWidth();
-				this.alignJustify(flowX,remainingSpace,rootLineBox,spaceInLine);
+				concatenatedLength = formattingContextRootComputedStyle.getWidth();
+				this.alignJustify(flowX,remainingSpace,rootLineBox,this.getSpacesNumber(rootLineBox));
 			}
 			break;
 		}
@@ -10703,15 +10711,17 @@ cocktail.core.style.formatter.InlineFormattingContext.prototype = $extend(cockta
 		while(_g < length) {
 			var i = _g++;
 			var child = lineBox.childNodes[i];
-			if(child.hasChildNodes() == true && (child.isAbsolutelyPositioned() == false || child.isText() == true)) concatenatedWidth += this.getConcatenatedWidth(child);
-			if(child.isAbsolutelyPositioned() == false || child.isText() == true) concatenatedWidth += child.get_bounds().width;
+			if(child.isStaticPosition() == false) {
+				if(child.hasChildNodes() == true) concatenatedWidth += this.getConcatenatedWidth(child);
+				concatenatedWidth += child.get_bounds().width;
+			}
 		}
 		return concatenatedWidth;
 	}
 	,formatLine: function(rootLineBox,isLastLine) {
 		this.removeSpaces(rootLineBox);
-		var lineBoxWidth = this.alignLineBox(rootLineBox,isLastLine,this.getConcatenatedWidth(rootLineBox),this.getSpacesNumber(rootLineBox));
-		if(lineBoxWidth > this._formattingContextData.maxWidth) this._formattingContextData.maxWidth = lineBoxWidth;
+		var lineBoxWidth = this.alignLineBox(rootLineBox,isLastLine,this.getConcatenatedWidth(rootLineBox));
+		if(lineBoxWidth > this._formattingContextData.width) this._formattingContextData.width = lineBoxWidth;
 		var lineBoxHeight = this.computeLineBoxHeight(rootLineBox);
 		this._formattingContextData.y += lineBoxHeight;
 		this._firstLineFormatted = true;
@@ -10722,14 +10732,14 @@ cocktail.core.style.formatter.InlineFormattingContext.prototype = $extend(cockta
 		while(_g < length) {
 			var i = _g++;
 			this._unbreakableLineBoxes.push(lineBoxes[i]);
-			if(lineBoxes[i].isAbsolutelyPositioned() == false || lineBoxes[i].isText() == true) this._unbreakableWidth += lineBoxes[i].get_bounds().width + lineBox.get_marginLeft() + lineBox.get_marginRight();
+			if(lineBoxes[i].isStaticPosition() == false) this._unbreakableWidth += lineBoxes[i].get_bounds().width + lineBox.marginLeft + lineBox.marginRight;
 			var remainingLineWidth = this.getRemainingLineWidth();
 			if(remainingLineWidth - this._unbreakableWidth < 0) {
 				this._formattingContextData.y = this._floatsManager.getFirstAvailableY(this._formattingContextData.y + this._formattingContextRoot.get_bounds().y,this._unbreakableWidth,this._formattingContextRoot.get_coreStyle().computedStyle.getWidth());
 				this._formattingContextData.y -= this._formattingContextRoot.get_bounds().y;
 				this._formattingContextData.x = this._floatsManager.getLeftFloatOffset(this._formattingContextData.y + this._formattingContextRoot.get_bounds().y);
 				this.formatLine(rootLineBoxes[rootLineBoxes.length - 1],false);
-				var rootLineBox = new cocktail.core.renderer.RootLineBox(this._formattingContextRoot);
+				var rootLineBox = new cocktail.core.linebox.RootLineBox(this._formattingContextRoot);
 				rootLineBoxes.push(rootLineBox);
 				lineBox = rootLineBox;
 				var _g2 = 0, _g1 = openedElementRenderers.length;
@@ -10753,7 +10763,7 @@ cocktail.core.style.formatter.InlineFormattingContext.prototype = $extend(cockta
 		return lineBox;
 	}
 	,createContainerLineBox: function(child) {
-		var lineBox = new cocktail.core.renderer.LineBox(child);
+		var lineBox = new cocktail.core.linebox.LineBox(child);
 		child.lineBoxes.push(lineBox);
 		return lineBox;
 	}
@@ -10763,46 +10773,46 @@ cocktail.core.style.formatter.InlineFormattingContext.prototype = $extend(cockta
 		while(_g < length) {
 			var i = _g++;
 			var child = elementRenderer.childNodes[i];
-			if(child.establishesNewFormattingContext() == true) {
+			if(child.isPositioned() == true && child.isRelativePositioned() == false) {
+				var staticLineBox = new cocktail.core.linebox.StaticPositionLineBox(child);
 				child.get_bounds().width = child.get_coreStyle().computedStyle.getWidth() + child.get_coreStyle().computedStyle.getPaddingLeft() + child.get_coreStyle().computedStyle.getPaddingRight();
 				child.get_bounds().height = child.get_coreStyle().computedStyle.getHeight() + child.get_coreStyle().computedStyle.getPaddingTop() + child.get_coreStyle().computedStyle.getPaddingBottom();
-				var inlineBlockLineBox = new cocktail.core.renderer.InlineBlockLineBox(child);
-				child.lineBoxes.push(inlineBlockLineBox);
-				inlineBlockLineBox.set_marginLeft(child.get_coreStyle().computedStyle.getMarginLeft());
-				inlineBlockLineBox.set_marginRight(child.get_coreStyle().computedStyle.getMarginRight());
-				var childLineBoxes = [inlineBlockLineBox];
-				lineBox = this.insertIntoLine(childLineBoxes,lineBox,rootLineBoxes,openedElementRenderers);
-			} else if(child.isReplaced() == true && child.isText() == false) {
-				var embeddedLineBox = new cocktail.core.renderer.EmbeddedLineBox(child);
-				child.lineBoxes.push(embeddedLineBox);
-				var childLineBoxes = [embeddedLineBox];
-				lineBox = this.insertIntoLine(childLineBoxes,lineBox,rootLineBoxes,openedElementRenderers);
-			} else if(child.hasChildNodes() == true && child.establishesNewFormattingContext() == false) {
+				lineBox = this.insertIntoLine([staticLineBox],lineBox,rootLineBoxes,openedElementRenderers);
+			} else if(child.establishesNewFormattingContext() == true || child.isReplaced() == true) {
+				var childComputedStyle = child.get_coreStyle().computedStyle;
+				var childBounds = child.get_bounds();
+				childBounds.width = childComputedStyle.getWidth() + childComputedStyle.getPaddingLeft() + childComputedStyle.getPaddingRight();
+				childBounds.height = childComputedStyle.getHeight() + childComputedStyle.getPaddingTop() + childComputedStyle.getPaddingBottom();
+				var embeddedLineBox = new cocktail.core.linebox.EmbeddedLineBox(child);
+				embeddedLineBox.marginLeft = childComputedStyle.getMarginLeft();
+				embeddedLineBox.marginRight = childComputedStyle.getMarginRight();
+				lineBox = this.insertIntoLine([embeddedLineBox],lineBox,rootLineBoxes,openedElementRenderers);
+			} else if(child.hasChildNodes() == true) {
 				child.lineBoxes = new Array();
 				var childLineBox = this.createContainerLineBox(child);
-				childLineBox.set_marginLeft(child.get_coreStyle().computedStyle.getMarginLeft());
-				childLineBox.set_paddingLeft(child.get_coreStyle().computedStyle.getPaddingLeft());
-				this._unbreakableWidth += child.get_coreStyle().computedStyle.getMarginLeft() + child.get_coreStyle().computedStyle.getPaddingLeft();
+				var childComputedStyle = child.get_coreStyle().computedStyle;
+				childLineBox.marginLeft = childComputedStyle.getMarginLeft();
+				childLineBox.paddingLeft = childComputedStyle.getPaddingLeft();
+				this._unbreakableWidth += childComputedStyle.getMarginLeft() + childComputedStyle.getPaddingLeft();
 				lineBox.appendChild(childLineBox);
 				openedElementRenderers.push(child);
 				lineBox = this.doFormat(child,childLineBox,rootLineBoxes,openedElementRenderers);
 				openedElementRenderers.pop();
 				lineBox = lineBox.parentNode;
-				child.lineBoxes[child.lineBoxes.length - 1].set_marginRight(child.get_coreStyle().computedStyle.getMarginRight());
-				child.lineBoxes[child.lineBoxes.length - 1].set_paddingRight(child.get_coreStyle().computedStyle.getPaddingRight());
-				this._unbreakableWidth += child.get_coreStyle().computedStyle.getMarginRight() + child.get_coreStyle().computedStyle.getPaddingRight();
-			} else {
-				var childLineBoxes = child.lineBoxes;
-				lineBox = this.insertIntoLine(childLineBoxes,lineBox,rootLineBoxes,openedElementRenderers);
-			}
+				var lastLineBox = child.lineBoxes[child.lineBoxes.length - 1];
+				lastLineBox.marginRight = childComputedStyle.getMarginRight();
+				lastLineBox.paddingRight = childComputedStyle.getPaddingRight();
+				this._unbreakableWidth += childComputedStyle.getMarginRight() + childComputedStyle.getPaddingRight();
+			} else lineBox = this.insertIntoLine(child.lineBoxes,lineBox,rootLineBoxes,openedElementRenderers);
 		}
 		return lineBox;
 	}
 	,startFormatting: function() {
 		this._unbreakableLineBoxes = new Array();
 		var rootLineBoxes = new Array();
-		var initialRootLineBox = new cocktail.core.renderer.RootLineBox(this._formattingContextRoot);
+		var initialRootLineBox = new cocktail.core.linebox.RootLineBox(this._formattingContextRoot);
 		rootLineBoxes.push(initialRootLineBox);
+		this._firstLineFormatted = false;
 		this._unbreakableWidth = this._formattingContextRoot.get_coreStyle().computedStyle.getTextIndent();
 		this._formattingContextData.x = this._formattingContextRoot.get_coreStyle().computedStyle.getTextIndent();
 		this._formattingContextData.x += this._floatsManager.getLeftFloatOffset(this._formattingContextRoot.get_bounds().y);
@@ -10810,8 +10820,9 @@ cocktail.core.style.formatter.InlineFormattingContext.prototype = $extend(cockta
 		this.formatLine(rootLineBoxes[rootLineBoxes.length - 1],true);
 		this._formattingContextRoot.lineBoxes = rootLineBoxes;
 		if(this._formattingContextRoot.get_coreStyle().height == cocktail.core.style.Dimension.cssAuto) {
-			this._formattingContextRoot.get_bounds().height = this._formattingContextData.y + this._formattingContextRoot.get_coreStyle().computedStyle.getPaddingBottom();
-			this._formattingContextRoot.get_coreStyle().computedStyle.set_height(this._formattingContextRoot.get_bounds().height - this._formattingContextRoot.get_coreStyle().computedStyle.getPaddingBottom() - this._formattingContextRoot.get_coreStyle().computedStyle.getPaddingTop());
+			var formattingContextComputedStyle = this._formattingContextRoot.get_coreStyle().computedStyle;
+			this._formattingContextRoot.get_bounds().height = this._formattingContextData.y + formattingContextComputedStyle.getPaddingBottom();
+			formattingContextComputedStyle.set_height(this._formattingContextData.y - formattingContextComputedStyle.getPaddingTop());
 		}
 	}
 	,_firstLineFormatted: null
@@ -10837,7 +10848,9 @@ $hxClasses["cocktail.core.style.transition.Transition"] = cocktail.core.style.tr
 cocktail.core.style.transition.Transition.__name__ = ["cocktail","core","style","transition","Transition"];
 cocktail.core.style.transition.Transition.prototype = {
 	get_currentValue: function() {
-		var completePercent = this._elapsedTime / ((this._transitionDelay + this.transitionDuration) * 1000);
+		var transitionTime = this._elapsedTime - this._transitionDelay * 1000;
+		if(transitionTime < 0) return this._startValue;
+		var completePercent = transitionTime / (this.transitionDuration * 1000);
 		var $e = (this._transitionTimingFunction);
 		switch( $e[1] ) {
 		case 0:
@@ -10955,6 +10968,7 @@ cocktail.core.style.transition.TransitionManager.prototype = {
 		this._currentTransitionsNumber++;
 	}
 	,getTransition: function(propertyName,style) {
+		if(this._currentTransitionsNumber == 0) return null;
 		if(this._transitions.exists(propertyName)) {
 			var propertyTransitions = this._transitions.get(propertyName);
 			var length = propertyTransitions.length;
@@ -11800,7 +11814,7 @@ cocktail.core.unit.UnitManager.string2TimeValue = function(string) {
 	var ts = 0;
 	var tms = 0;
 	var tv;
-	var r = new EReg("^([0-9]+)(ms|s)$","");
+	var r = new EReg("^([0-9\\.]+)(ms|s)$","");
 	r.match(string);
 	if(r.matched(2) == "s") tv = cocktail.core.unit.TimeValue.seconds(Std.parseFloat(r.matched(1))); else tv = cocktail.core.unit.TimeValue.milliSeconds(Std.parseFloat(r.matched(1)));
 	return tv;
@@ -13426,6 +13440,135 @@ cocktail.core.unit.UnitManager.getCSSTransitionTimingFunction = function(functio
 	}
 	return tResult.join(",");
 }
+cocktail.core.unit.UnitManager.getTransform = function(value) {
+	var tFunctions;
+	var tFresult = [];
+	var res;
+	var func;
+	var rMatrix = new EReg("matrix[ ]*\\([ ]*([0-9\\.\\-]+)[ ]*,[ ]*([0-9\\.\\-]+)[ ]*,[ ]*([0-9\\.\\-]+)[ ]*,[ ]*([0-9\\.\\-]+)[ ]*,[ ]*([0-9\\.\\-]+)[ ]*,[ ]*([0-9\\.\\-]+)[ ]*\\)","i");
+	var rTranslate = new EReg("translate[ ]*\\([ ]*([0-9]+(%|px))[ ]*,[ ]*([0-9]+(%|px))[ ]*\\)","i");
+	var rTranslateX = new EReg("translatex[ ]*\\([ ]*([0-9]+(%|px))[ ]*\\)","i");
+	var rTranslateY = new EReg("translatey[ ]*\\([ ]*([0-9]+(%|px))[ ]*\\)","i");
+	var rScale = new EReg("scale[ ]*\\([ ]*([0-9].+)[ ]*,[ ]*([0-9].+)[ ]*\\)","i");
+	var rScaleX = new EReg("scaleX[ ]*\\([ ]*([0-9].+)[ ]*\\)","i");
+	var rScaleY = new EReg("scaleY[ ]*\\([ ]*([0-9].+)[ ]*\\)","i");
+	var rRotate = new EReg("rotate[ ]*\\([ ]*([0-9].+)deg[ ]*\\)","i");
+	var rSkewX = new EReg("skewX[ ]*\\([ ]*([0-9].+)deg[ ]*\\)","i");
+	var rSkewY = new EReg("skewY[ ]*\\([ ]*([0-9].+)deg[ ]*\\)","i");
+	var rSkew = new EReg("skew[ ]*\\([ ]*([0-9].+)deg[ ]*,[ ]*([0-9].+)deg[ ]*\\)","i");
+	tFunctions = value.split(" ");
+	func = cocktail.core.unit.UnitManager.trim(value);
+	if(func == "none") {
+		res = cocktail.core.style.Transform.none;
+		return res;
+	}
+	if(rMatrix.match(func)) {
+		var tMatrixData = { a : Std.parseFloat(rMatrix.matched(1)), b : Std.parseFloat(rMatrix.matched(2)), c : Std.parseFloat(rMatrix.matched(3)), d : Std.parseFloat(rMatrix.matched(4)), e : Std.parseFloat(rMatrix.matched(5)), f : Std.parseFloat(rMatrix.matched(6))};
+		tFresult.push(cocktail.core.style.TransformFunction.matrix(tMatrixData));
+	}
+	if(rTranslate.match(func)) {
+		var parsed = cocktail.core.unit.UnitManager.string2VUnit(rTranslate.matched(1));
+		var tx;
+		var ty;
+		switch(parsed.unit) {
+		case "%":
+			tx = cocktail.core.style.Translation.percent(Std.parseInt(parsed.value));
+			break;
+		default:
+			tx = cocktail.core.style.Translation.length(cocktail.core.unit.UnitManager.string2Length(parsed));
+		}
+		parsed = cocktail.core.unit.UnitManager.string2VUnit(rTranslate.matched(3));
+		switch(parsed.unit) {
+		case "%":
+			ty = cocktail.core.style.Translation.percent(Std.parseInt(parsed.value));
+			break;
+		default:
+			ty = cocktail.core.style.Translation.length(cocktail.core.unit.UnitManager.string2Length(parsed));
+		}
+		tFresult.push(cocktail.core.style.TransformFunction.translate(tx,ty));
+	}
+	if(rTranslateX.match(func)) {
+		var parsed = cocktail.core.unit.UnitManager.string2VUnit(rTranslateX.matched(1));
+		var tx;
+		switch(parsed.unit) {
+		case "%":
+			tx = cocktail.core.style.Translation.percent(Std.parseInt(parsed.value));
+			break;
+		default:
+			tx = cocktail.core.style.Translation.length(cocktail.core.unit.UnitManager.string2Length(parsed));
+		}
+		tFresult.push(cocktail.core.style.TransformFunction.translateX(tx));
+	}
+	if(rTranslateY.match(func)) {
+		var parsed = cocktail.core.unit.UnitManager.string2VUnit(rTranslateY.matched(1));
+		var ty;
+		switch(parsed.unit) {
+		case "%":
+			ty = cocktail.core.style.Translation.percent(Std.parseInt(parsed.value));
+			break;
+		default:
+			ty = cocktail.core.style.Translation.length(cocktail.core.unit.UnitManager.string2Length(parsed));
+		}
+		tFresult.push(cocktail.core.style.TransformFunction.translateY(ty));
+	}
+	if(rScale.match(func)) tFresult.push(cocktail.core.style.TransformFunction.scale(Std.parseFloat(rScale.matched(1)),Std.parseFloat(rScale.matched(2))));
+	if(rScaleX.match(func)) tFresult.push(cocktail.core.style.TransformFunction.scaleX(Std.parseFloat(rScaleX.matched(1))));
+	if(rScaleY.match(func)) tFresult.push(cocktail.core.style.TransformFunction.scaleY(Std.parseFloat(rScaleY.matched(1))));
+	if(rRotate.match(func)) tFresult.push(cocktail.core.style.TransformFunction.rotate(cocktail.core.unit.Angle.deg(Std.parseFloat(rRotate.matched(1)))));
+	if(rSkewX.match(func)) tFresult.push(cocktail.core.style.TransformFunction.skewX(cocktail.core.unit.Angle.deg(Std.parseFloat(rSkewX.matched(1)))));
+	if(rSkewY.match(func)) tFresult.push(cocktail.core.style.TransformFunction.skewY(cocktail.core.unit.Angle.deg(Std.parseFloat(rSkewY.matched(1)))));
+	if(rSkew.match(func)) tFresult.push(cocktail.core.style.TransformFunction.skew(cocktail.core.unit.Angle.deg(Std.parseFloat(rSkew.matched(1))),cocktail.core.unit.Angle.deg(Std.parseFloat(rSkew.matched(2)))));
+	res = cocktail.core.style.Transform.transformFunctions(tFresult);
+	return res;
+}
+cocktail.core.unit.UnitManager.getTransformOrigin = function(string) {
+	var tAxis = [];
+	string = cocktail.core.unit.UnitManager.trim(string);
+	tAxis = string.split(" ");
+	var result;
+	result = { x : cocktail.core.style.TransformOriginX.percent(50), y : cocktail.core.style.TransformOriginY.percent(50)};
+	switch(tAxis[0]) {
+	case "left":
+		result.x = cocktail.core.style.TransformOriginX.left;
+		break;
+	case "center":
+		result.x = cocktail.core.style.TransformOriginX.center;
+		break;
+	case "right":
+		result.x = cocktail.core.style.TransformOriginX.right;
+		break;
+	default:
+		var parsed = cocktail.core.unit.UnitManager.string2VUnit(tAxis[0]);
+		switch(parsed.unit) {
+		case "%":
+			result.x = cocktail.core.style.TransformOriginX.percent(Std.parseInt(parsed.value));
+			break;
+		default:
+			result.x = cocktail.core.style.TransformOriginX.length(cocktail.core.unit.UnitManager.string2Length(parsed));
+		}
+	}
+	switch(tAxis[1]) {
+	case "top":
+		result.y = cocktail.core.style.TransformOriginY.top;
+		break;
+	case "center":
+		result.y = cocktail.core.style.TransformOriginY.center;
+		break;
+	case "bottom":
+		result.y = cocktail.core.style.TransformOriginY.bottom;
+		break;
+	default:
+		var parsed = cocktail.core.unit.UnitManager.string2VUnit(tAxis[1]);
+		switch(parsed.unit) {
+		case "%":
+			result.y = cocktail.core.style.TransformOriginY.percent(Std.parseInt(parsed.value));
+			break;
+		default:
+			result.y = cocktail.core.style.TransformOriginY.length(cocktail.core.unit.UnitManager.string2Length(parsed));
+		}
+	}
+	return result;
+}
 cocktail.core.unit.UnitManager.prototype = {
 	__class__: cocktail.core.unit.UnitManager
 }
@@ -13439,44 +13582,44 @@ cocktail.core.window.Window.__name__ = ["cocktail","core","window","Window"];
 cocktail.core.window.Window.__super__ = cocktail.core.event.EventCallback;
 cocktail.core.window.Window.prototype = $extend(cocktail.core.event.EventCallback.prototype,{
 	get_innerWidth: function() {
-		return this._platform.get_innerWidth();
+		return this.platform.nativeWindow.get_innerWidth();
 	}
 	,get_innerHeight: function() {
-		return this._platform.get_innerHeight();
+		return this.platform.nativeWindow.get_innerHeight();
 	}
 	,onDocumentSetMouseCursor: function(cursor) {
-		this._platform.setMouseCursor(cursor);
+		this.platform.mouse.setMouseCursor(cursor);
 	}
 	,onDocumentExitFullscreen: function() {
-		this._platform.exitFullscreen();
+		this.platform.nativeWindow.exitFullscreen();
 	}
 	,onDocumentEnterFullscreen: function() {
-		this._platform.enterFullscreen();
+		this.platform.nativeWindow.enterFullscreen();
 	}
 	,onPlatformFullScreenChange: function(event) {
-		if(this._platform.fullscreen() == false) this.document.exitFullscreen();
+		if(this.platform.nativeWindow.fullscreen() == false) this.document.exitFullscreen();
 	}
 	,open: function(url,name) {
 		if(name == null) name = "_blank";
-		this._platform.open(url,name);
+		this.platform.nativeWindow.open(url,name);
 	}
 	,init: function() {
-		this._platform = new cocktail.port.platform.Platform();
+		this.platform = new cocktail.port.platform.Platform();
 		var htmlDocument = new cocktail.core.html.HTMLDocument();
-		this._platform.set_onMouseDown($bind(htmlDocument,htmlDocument.onPlatformMouseEvent));
-		this._platform.set_onMouseUp($bind(htmlDocument,htmlDocument.onPlatformMouseEvent));
-		this._platform.set_onMouseMove($bind(htmlDocument,htmlDocument.onPlatformMouseMoveEvent));
-		this._platform.set_onMouseWheel($bind(htmlDocument,htmlDocument.onPlatformMouseWheelEvent));
-		this._platform.set_onKeyDown($bind(htmlDocument,htmlDocument.onPlatformKeyDownEvent));
-		this._platform.set_onKeyUp($bind(htmlDocument,htmlDocument.onPlatformKeyUpEvent));
-		this._platform.set_onResize($bind(htmlDocument,htmlDocument.onPlatformResizeEvent));
+		this.platform.mouse.onMouseDown = $bind(htmlDocument,htmlDocument.onPlatformMouseEvent);
+		this.platform.mouse.onMouseUp = $bind(htmlDocument,htmlDocument.onPlatformMouseEvent);
+		this.platform.mouse.onMouseMove = $bind(htmlDocument,htmlDocument.onPlatformMouseMoveEvent);
+		this.platform.mouse.onMouseWheel = $bind(htmlDocument,htmlDocument.onPlatformMouseWheelEvent);
+		this.platform.keyboard.onKeyDown = $bind(htmlDocument,htmlDocument.onPlatformKeyDownEvent);
+		this.platform.keyboard.onKeyUp = $bind(htmlDocument,htmlDocument.onPlatformKeyUpEvent);
+		this.platform.nativeWindow.onResize = $bind(htmlDocument,htmlDocument.onPlatformResizeEvent);
 		htmlDocument.onEnterFullscreen = $bind(this,this.onDocumentEnterFullscreen);
 		htmlDocument.onExitFullscreen = $bind(this,this.onDocumentExitFullscreen);
-		this._platform.set_onFullScreenChange($bind(this,this.onPlatformFullScreenChange));
+		this.platform.nativeWindow.onFullScreenChange = $bind(this,this.onPlatformFullScreenChange);
 		htmlDocument.onSetMouseCursor = $bind(this,this.onDocumentSetMouseCursor);
 		this.document = htmlDocument;
 	}
-	,_platform: null
+	,platform: null
 	,innerWidth: null
 	,innerHeight: null
 	,document: null
@@ -13485,93 +13628,18 @@ cocktail.core.window.Window.prototype = $extend(cocktail.core.event.EventCallbac
 });
 cocktail.port.platform = {}
 cocktail.port.platform.Platform = function() {
-	cocktail.core.event.EventCallback.call(this);
-	this.initKeyboardListeners();
-	this.initMouseListeners();
-	this.initNativeWindowListners();
+	this.mouse = new cocktail.port.server.Mouse();
+	this.keyboard = new cocktail.port.server.Keyboard();
+	this.nativeWindow = new cocktail.port.server.NativeWindow();
 };
 $hxClasses["cocktail.port.platform.Platform"] = cocktail.port.platform.Platform;
 cocktail.port.platform.Platform.__name__ = ["cocktail","port","platform","Platform"];
-cocktail.port.platform.Platform.__super__ = cocktail.core.event.EventCallback;
-cocktail.port.platform.Platform.prototype = $extend(cocktail.core.event.EventCallback.prototype,{
-	get_innerWidth: function() {
-		return this._nativeWindow.get_innerWidth();
-	}
-	,get_innerHeight: function() {
-		return this._nativeWindow.get_innerHeight();
-	}
-	,dispatchFullScreenEvent: function(event) {
-		if(this.onfullscreenchange != null) this.onfullscreenchange(event);
-	}
-	,dispatchUIEvent: function(uiEvent) {
-		if(this.onresize != null) this.onresize(uiEvent);
-	}
-	,dispatchKeyboardEvent: function(keyboardEvent) {
-		switch(keyboardEvent.type) {
-		case "keydown":
-			if(this.onkeydown != null) this.onkeydown(keyboardEvent);
-			break;
-		case "keyup":
-			if(this.onkeyup != null) this.onkeyup(keyboardEvent);
-			break;
-		}
-	}
-	,dispatchMouseWheelEvent: function(mouseWheelEvent) {
-		if(this.onmousewheel != null) this.onmousewheel(mouseWheelEvent);
-	}
-	,dispatchMouseEvent: function(mouseEvent) {
-		switch(mouseEvent.type) {
-		case "mousedown":
-			if(this.onmousedown != null) this.onmousedown(mouseEvent);
-			break;
-		case "mousemove":
-			if(this.onmousemove != null) this.onmousemove(mouseEvent);
-			break;
-		case "mouseup":
-			if(this.onmouseup != null) this.onmouseup(mouseEvent);
-			break;
-		}
-	}
-	,setMouseCursor: function(cursor) {
-		this._mouse.setMouseCursor(cursor);
-	}
-	,fullscreen: function() {
-		return this._nativeWindow.fullscreen();
-	}
-	,exitFullscreen: function() {
-		this._nativeWindow.exitFullscreen();
-	}
-	,enterFullscreen: function() {
-		this._nativeWindow.enterFullscreen();
-	}
-	,open: function(url,name) {
-		this._nativeWindow.open(url,name);
-	}
-	,initNativeWindowListners: function() {
-		this._nativeWindow = new cocktail.port.server.NativeWindow();
-		this._nativeWindow.onResize = $bind(this,this.dispatchUIEvent);
-		this._nativeWindow.onFullScreenChange = $bind(this,this.dispatchFullScreenEvent);
-	}
-	,initKeyboardListeners: function() {
-		this._keyboard = new cocktail.port.server.Keyboard();
-		this._keyboard.onKeyDown = $bind(this,this.dispatchKeyboardEvent);
-		this._keyboard.onKeyUp = $bind(this,this.dispatchKeyboardEvent);
-	}
-	,initMouseListeners: function() {
-		this._mouse = new cocktail.port.server.Mouse();
-		this._mouse.onMouseDown = $bind(this,this.dispatchMouseEvent);
-		this._mouse.onMouseUp = $bind(this,this.dispatchMouseEvent);
-		this._mouse.onMouseMove = $bind(this,this.dispatchMouseEvent);
-		this._mouse.onMouseWheel = $bind(this,this.dispatchMouseWheelEvent);
-	}
-	,_nativeWindow: null
-	,_mouse: null
-	,_keyboard: null
-	,innerWidth: null
-	,innerHeight: null
+cocktail.port.platform.Platform.prototype = {
+	nativeWindow: null
+	,mouse: null
+	,keyboard: null
 	,__class__: cocktail.port.platform.Platform
-	,__properties__: $extend(cocktail.core.event.EventCallback.prototype.__properties__,{get_innerHeight:"get_innerHeight",get_innerWidth:"get_innerWidth"})
-});
+}
 cocktail.port.platform.keyboard = {}
 cocktail.port.platform.keyboard.AbstractKeyboard = function() {
 	this.setNativeListeners();
@@ -13727,6 +13795,9 @@ cocktail.port.platform.nativeWindow.AbstractNativeWindow.prototype = {
 	,fullscreen: function() {
 		return false;
 	}
+	,fullScreenEnabled: function() {
+		return false;
+	}
 	,exitFullscreen: function() {
 	}
 	,enterFullscreen: function() {
@@ -13740,23 +13811,14 @@ cocktail.port.platform.nativeWindow.AbstractNativeWindow.prototype = {
 	,__class__: cocktail.port.platform.nativeWindow.AbstractNativeWindow
 	,__properties__: {get_innerHeight:"get_innerHeight",get_innerWidth:"get_innerWidth"}
 }
-cocktail.port.server.FontLoader = function() {
-	cocktail.core.font.AbstractFontLoader.call(this);
+cocktail.port.server.FontManagerImpl = function() {
+	cocktail.core.font.AbstractFontManagerImpl.call(this);
 };
-$hxClasses["cocktail.port.server.FontLoader"] = cocktail.port.server.FontLoader;
-cocktail.port.server.FontLoader.__name__ = ["cocktail","port","server","FontLoader"];
-cocktail.port.server.FontLoader.__super__ = cocktail.core.font.AbstractFontLoader;
-cocktail.port.server.FontLoader.prototype = $extend(cocktail.core.font.AbstractFontLoader.prototype,{
-	__class__: cocktail.port.server.FontLoader
-});
-cocktail.port.server.FontManager = function() {
-	cocktail.core.font.AbstractFontManager.call(this);
-};
-$hxClasses["cocktail.port.server.FontManager"] = cocktail.port.server.FontManager;
-cocktail.port.server.FontManager.__name__ = ["cocktail","port","server","FontManager"];
-cocktail.port.server.FontManager.__super__ = cocktail.core.font.AbstractFontManager;
-cocktail.port.server.FontManager.prototype = $extend(cocktail.core.font.AbstractFontManager.prototype,{
-	__class__: cocktail.port.server.FontManager
+$hxClasses["cocktail.port.server.FontManagerImpl"] = cocktail.port.server.FontManagerImpl;
+cocktail.port.server.FontManagerImpl.__name__ = ["cocktail","port","server","FontManagerImpl"];
+cocktail.port.server.FontManagerImpl.__super__ = cocktail.core.font.AbstractFontManagerImpl;
+cocktail.port.server.FontManagerImpl.prototype = $extend(cocktail.core.font.AbstractFontManagerImpl.prototype,{
+	__class__: cocktail.port.server.FontManagerImpl
 });
 cocktail.port.server.Keyboard = function() {
 	cocktail.port.platform.keyboard.AbstractKeyboard.call(this);
@@ -13803,40 +13865,40 @@ cocktail.port.server.Resource.__super__ = cocktail.core.resource.AbstractResourc
 cocktail.port.server.Resource.prototype = $extend(cocktail.core.resource.AbstractResource.prototype,{
 	__class__: cocktail.port.server.Resource
 });
-var slplayer = {}
-slplayer.core = {}
-slplayer.core.ISLPlayerComponent = function() { }
-$hxClasses["slplayer.core.ISLPlayerComponent"] = slplayer.core.ISLPlayerComponent;
-slplayer.core.ISLPlayerComponent.__name__ = ["slplayer","core","ISLPlayerComponent"];
-slplayer.core.ISLPlayerComponent.prototype = {
+var org = {}
+org.slplayer = {}
+org.slplayer.component = {}
+org.slplayer.component.ISLPlayerComponent = function() { }
+$hxClasses["org.slplayer.component.ISLPlayerComponent"] = org.slplayer.component.ISLPlayerComponent;
+org.slplayer.component.ISLPlayerComponent.__name__ = ["org","slplayer","component","ISLPlayerComponent"];
+org.slplayer.component.ISLPlayerComponent.prototype = {
 	getSLPlayer: null
 	,SLPlayerInstanceId: null
-	,__class__: slplayer.core.ISLPlayerComponent
+	,__class__: org.slplayer.component.ISLPlayerComponent
 }
-slplayer.ui = {}
-slplayer.ui.IDisplayObject = function() { }
-$hxClasses["slplayer.ui.IDisplayObject"] = slplayer.ui.IDisplayObject;
-slplayer.ui.IDisplayObject.__name__ = ["slplayer","ui","IDisplayObject"];
-slplayer.ui.IDisplayObject.__interfaces__ = [slplayer.core.ISLPlayerComponent];
-slplayer.ui.IDisplayObject.prototype = {
+org.slplayer.component.ui = {}
+org.slplayer.component.ui.IDisplayObject = function() { }
+$hxClasses["org.slplayer.component.ui.IDisplayObject"] = org.slplayer.component.ui.IDisplayObject;
+org.slplayer.component.ui.IDisplayObject.__name__ = ["org","slplayer","component","ui","IDisplayObject"];
+org.slplayer.component.ui.IDisplayObject.__interfaces__ = [org.slplayer.component.ISLPlayerComponent];
+org.slplayer.component.ui.IDisplayObject.prototype = {
 	rootElement: null
-	,__class__: slplayer.ui.IDisplayObject
+	,__class__: org.slplayer.component.ui.IDisplayObject
 }
-slplayer.ui.DisplayObject = function(rootElement,SLPId) {
+org.slplayer.component.ui.DisplayObject = function(rootElement,SLPId) {
 	this.rootElement = rootElement;
-	slplayer.core.SLPlayerComponent.initSLPlayerComponent(this,SLPId);
-	slplayer.core.Application.get(this.SLPlayerInstanceId).addAssociatedComponent(rootElement,this);
-	haxe.Log.trace("Successfuly created instance of " + Type.getClassName(Type.getClass(this)),{ fileName : "DisplayObject.hx", lineNumber : 85, className : "slplayer.ui.DisplayObject", methodName : "new"});
+	org.slplayer.component.SLPlayerComponent.initSLPlayerComponent(this,SLPId);
+	org.slplayer.core.Application.get(this.SLPlayerInstanceId).addAssociatedComponent(rootElement,this);
 };
-$hxClasses["slplayer.ui.DisplayObject"] = slplayer.ui.DisplayObject;
-slplayer.ui.DisplayObject.__name__ = ["slplayer","ui","DisplayObject"];
-slplayer.ui.DisplayObject.__interfaces__ = [slplayer.ui.IDisplayObject];
-slplayer.ui.DisplayObject.isDisplayObject = function(cmpClass) {
-	if(cmpClass == Type.resolveClass("slplayer.ui.DisplayObject")) return true;
-	if(Type.getSuperClass(cmpClass) != null) return slplayer.ui.DisplayObject.isDisplayObject(Type.getSuperClass(cmpClass));
+$hxClasses["org.slplayer.component.ui.DisplayObject"] = org.slplayer.component.ui.DisplayObject;
+org.slplayer.component.ui.DisplayObject.__name__ = ["org","slplayer","component","ui","DisplayObject"];
+org.slplayer.component.ui.DisplayObject.__interfaces__ = [org.slplayer.component.ui.IDisplayObject];
+org.slplayer.component.ui.DisplayObject.isDisplayObject = function(cmpClass) {
+	if(cmpClass == Type.resolveClass("org.slplayer.component.ui.DisplayObject")) return true;
+	if(Type.getSuperClass(cmpClass) != null) return org.slplayer.component.ui.DisplayObject.isDisplayObject(Type.getSuperClass(cmpClass));
 	return false;
 }
-slplayer.ui.DisplayObject.checkFilterOnElt = function(cmpClass,elt) {
+org.slplayer.component.ui.DisplayObject.checkFilterOnElt = function(cmpClass,elt) {
 	if(elt.nodeType != js.Lib.document.body.nodeType) throw "cannot instantiate " + Type.getClassName(cmpClass) + " on a non element node.";
 	var tagFilter = haxe.rtti.Meta.getType(cmpClass) != null?haxe.rtti.Meta.getType(cmpClass).tagNameFilter:null;
 	if(tagFilter == null) return;
@@ -13845,68 +13907,120 @@ slplayer.ui.DisplayObject.checkFilterOnElt = function(cmpClass,elt) {
 	})) return;
 	throw "cannot instantiate " + Type.getClassName(cmpClass) + " on this type of HTML element: " + elt.nodeName.toLowerCase();
 }
-slplayer.ui.DisplayObject.prototype = {
+org.slplayer.component.ui.DisplayObject.prototype = {
 	init: function() {
 	}
 	,getSLPlayer: function() {
-		return slplayer.core.SLPlayerComponent.getSLPlayer(this);
+		return org.slplayer.component.SLPlayerComponent.getSLPlayer(this);
 	}
 	,rootElement: null
 	,SLPlayerInstanceId: null
-	,__class__: slplayer.ui.DisplayObject
+	,__class__: org.slplayer.component.ui.DisplayObject
 }
 var filemanager = {}
 filemanager.client = {}
 filemanager.client.FileManager = function(rootElement,SLPId) {
-	slplayer.ui.DisplayObject.call(this,rootElement,SLPId);
-	this._application = slplayer.core.Application.get(SLPId);
-	this.showDialogPanel(true);
+	org.slplayer.component.ui.DisplayObject.call(this,rootElement,SLPId);
+	this._application = org.slplayer.core.Application.get(SLPId);
 };
 $hxClasses["filemanager.client.FileManager"] = filemanager.client.FileManager;
 filemanager.client.FileManager.__name__ = ["filemanager","client","FileManager"];
-filemanager.client.FileManager.__super__ = slplayer.ui.DisplayObject;
-filemanager.client.FileManager.prototype = $extend(slplayer.ui.DisplayObject.prototype,{
-	showFiles: function(data) {
-		haxe.Log.trace("FileManager - showFolders() " + data.toString(),{ fileName : "FileManager.hx", lineNumber : 94, className : "filemanager.client.FileManager", methodName : "showFiles"});
+filemanager.client.FileManager.__super__ = org.slplayer.component.ui.DisplayObject;
+filemanager.client.FileManager.prototype = $extend(org.slplayer.component.ui.DisplayObject.prototype,{
+	handleDropingOfFiles: function(evt) {
+		this._filesModel.setFolderOfDroppedFile(this._foldersView.currentDroppedInFolder);
 	}
-	,updateFilesList: function(inData) {
-		var filesViews = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"FilesView");
-		var _g = 0;
-		while(_g < filesViews.length) {
-			var display = filesViews[_g];
-			++_g;
-			var fileView = display;
-			fileView.setList(inData);
-		}
+	,showFiles: function(data) {
+	}
+	,handleDraggingFile: function(evt) {
+		this._filesModel.setDraggedFile(this._filesView.currentDraggedFile);
 	}
 	,requestFiles: function(folderPath) {
-		this._filesModel.getFiles(folderPath,$bind(this,this.updateFilesList));
+		var _g = this;
+		this._filesModel.set_selectedFolderOrFile(folderPath);
+		this._filesModel.getFiles(folderPath,function(inData) {
+			_g._filesView.setList(inData);
+		});
 	}
 	,showFolders: function(data) {
 		var folderTreeViews = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"FolderTreeView");
-		var folderView = folderTreeViews[0];
-		folderView.onSelectFolder = $bind(this,this.requestFiles);
-		folderView.initialize(data);
+		this._foldersView = folderTreeViews[0];
+		this._foldersView.onSelectFolder = $bind(this,this.requestFiles);
+		this._foldersView.rootElement.addEventListener("droppedFile",$bind(this,this.handleDropingOfFiles),false);
+		data.open = true;
+		this._foldersView.initialize(data);
+		var filesViews = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"FilesView");
+		this._filesView = filesViews[0];
+		this._filesView.rootElement.addEventListener("startedToDragFile",$bind(this,this.handleDraggingFile),false);
+		this.requestFiles("../files");
 	}
-	,init: function() {
-		this._filesModel = new filemanager.client.models.FilesModel();
-		this._filesModel.getTreeFolder("../files",$bind(this,this.showFolders));
-		this._filesModel.getFiles("../files",$bind(this,this.showFiles));
+	,showConfirmation: function(b) {
+	}
+	,showInputOverlay: function(b,title) {
+		if(this._dialogPanel == null) this._dialogPanel = new filemanager.client.views.uis.SimpleDialogPanel(this.SLPlayerInstanceId,js.Lib.document.body);
+		if(b) this._dialogPanel.show(title); else this._dialogPanel.hide();
+	}
+	,updateUserInputsStates: function() {
+	}
+	,onClickedToolBox: function(buttonId) {
+		switch(buttonId) {
+		case "CreateFolderButton":
+			this.showInputOverlay(true,"Folder's name");
+			break;
+		case "DownloadButton":
+			break;
+		case "CopyButton":
+			break;
+		case "DeleteButton":
+			break;
+		case "PasteButton":
+			break;
+		case "UploadButton":
+			break;
+		case "RenameButton":
+			this.showInputOverlay(true,"New name:");
+			break;
+		}
+	}
+	,initializeFileDropper: function() {
 		var fileDroppers = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"FileDropper");
 		this._fileDropper = fileDroppers[0];
 		this._fileDropper.onFileDropped = ($_=this._filesModel,$bind($_,$_.uploadSelectedFiles));
+	}
+	,initializeAppModel: function() {
+		this._filesModel = new filemanager.client.models.FilesModel();
+		this._filesModel.getTreeFolder("../files",$bind(this,this.showFolders));
+		this._filesModel.getFiles("../files",$bind(this,this.showFiles));
+	}
+	,initializeUploadStatus: function() {
 		var uploadStatus = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"UploadStatus");
 		this._uploadStatus = uploadStatus[0];
 		this._uploadStatus.onCancelUpload = ($_=this._filesModel,$bind($_,$_.onCancelUpload));
 		this._filesModel.onUploadUpdate = ($_=this._uploadStatus,$bind($_,$_.onUpdate));
 	}
-	,showDialogPanel: function(b) {
-		if(this._dialogPanel == null) this._dialogPanel = new filemanager.client.views.uis.SimpleDialogPanel(this.SLPlayerInstanceId,js.Lib.document.body);
-		if(b) this._dialogPanel.show("My title"); else this._dialogPanel.hide();
+	,initializeToolBox: function() {
+		var toolBoxes = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"ToolBox");
+		this._toolBox = toolBoxes[0];
+		this._toolBox.set_onClickedDownload($bind(this,this.onClickedToolBox));
+		this._toolBox.set_onClickedCopy($bind(this,this.onClickedToolBox));
+		this._toolBox.set_onClickedCreate($bind(this,this.onClickedToolBox));
+		this._toolBox.set_onClickedDelete($bind(this,this.onClickedToolBox));
+		this._toolBox.set_onClickedPaste($bind(this,this.onClickedToolBox));
+		this._toolBox.set_onClickedUpload($bind(this,this.onClickedToolBox));
+		this._toolBox.set_onClickedRename($bind(this,this.onClickedToolBox));
+	}
+	,init: function() {
+		this.initializeAppModel();
+		this.initializeFileDropper();
+		this.initializeUploadStatus();
+		this.initializeToolBox();
 	}
 	,_application: null
+	,_foldersView: null
+	,_filesView: null
 	,_fileDropper: null
 	,_dialogPanel: null
+	,_toolBox: null
 	,_uploadStatus: null
 	,_folderView: null
 	,_filesModel: null
@@ -13920,8 +14034,20 @@ filemanager.client.models.FilesModel = function() {
 $hxClasses["filemanager.client.models.FilesModel"] = filemanager.client.models.FilesModel;
 filemanager.client.models.FilesModel.__name__ = ["filemanager","client","models","FilesModel"];
 filemanager.client.models.FilesModel.prototype = {
-	onCancelUpload: function(trackID) {
-		haxe.Log.trace("FilesModel - onCancelUpload() " + trackID,{ fileName : "FilesModel.hx", lineNumber : 216, className : "filemanager.client.models.FilesModel", methodName : "onCancelUpload"});
+	setFolderOfDroppedFile: function(folder) {
+		haxe.Log.trace("FileModel - setFolderOfDroppedFile() " + folder.path,{ fileName : "FilesModel.hx", lineNumber : 238, className : "filemanager.client.models.FilesModel", methodName : "setFolderOfDroppedFile"});
+	}
+	,setDraggedFile: function(file) {
+		haxe.Log.trace("FileModel - setDraggedFile() " + file.path,{ fileName : "FilesModel.hx", lineNumber : 234, className : "filemanager.client.models.FilesModel", methodName : "setDraggedFile"});
+	}
+	,set_selectedFolderOrFile: function(value) {
+		return this._selectedFolderOrFile = value;
+	}
+	,get_selectedFolderOrFile: function() {
+		return this._selectedFolderOrFile;
+	}
+	,onCancelUpload: function(trackID) {
+		haxe.Log.trace("FilesModel - onCancelUpload() " + trackID,{ fileName : "FilesModel.hx", lineNumber : 218, className : "filemanager.client.models.FilesModel", methodName : "onCancelUpload"});
 	}
 	,createNewFolder: function(folderName) {
 	}
@@ -13962,7 +14088,7 @@ filemanager.client.models.FilesModel.prototype = {
 			this.onUploadUpdate(this._uploadsQueue.get(response.result.filename));
 			break;
 		case "error":
-			haxe.Log.trace("FilesModel - handleUploadProgress() - response: error " + Std.string(response.error),{ fileName : "FilesModel.hx", lineNumber : 169, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
+			haxe.Log.trace("FilesModel - handleUploadProgress() - response: error " + Std.string(response.error),{ fileName : "FilesModel.hx", lineNumber : 171, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
 			break;
 		}
 	}
@@ -13981,7 +14107,6 @@ filemanager.client.models.FilesModel.prototype = {
 			var file = files[_g];
 			++_g;
 			var fileToUpload = { file : file, validateFileName : this.validateFileName(file.name), initialized : false, progressPercent : 0, completed : false, started : false};
-			haxe.Log.trace("FilesModel - uploadSelectedFiles() " + this.validateFileName(file.name),{ fileName : "FilesModel.hx", lineNumber : 105, className : "filemanager.client.models.FilesModel", methodName : "uploadSelectedFiles"});
 			this._uploadsQueue.set(this.validateFileName(file.name),fileToUpload);
 		}
 		var $it0 = this._uploadsQueue.keys();
@@ -14004,12 +14129,15 @@ filemanager.client.models.FilesModel.prototype = {
 		this._api.getTreeFolder(folderpath,onSuccess);
 	}
 	,handleError: function(e) {
-		haxe.Log.trace("FilesModel - handleError() ERROR: Line " + Std.string(e.lineno) + " in " + Std.string(e.filename) + ": " + Std.string(e.message),{ fileName : "FilesModel.hx", lineNumber : 64, className : "filemanager.client.models.FilesModel", methodName : "handleError"});
+		haxe.Log.trace("FilesModel - handleError() ERROR: Line " + Std.string(e.lineno) + " in " + Std.string(e.filename) + ": " + Std.string(e.message),{ fileName : "FilesModel.hx", lineNumber : 67, className : "filemanager.client.models.FilesModel", methodName : "handleError"});
 	}
+	,selectedFolderOrFile: null
+	,_selectedFolderOrFile: null
 	,onUploadUpdate: null
 	,_uploadsQueue: null
 	,_api: null
 	,__class__: filemanager.client.models.FilesModel
+	,__properties__: {set_selectedFolderOrFile:"set_selectedFolderOrFile",get_selectedFolderOrFile:"get_selectedFolderOrFile"}
 }
 filemanager.client.models.Locator = function() { }
 $hxClasses["filemanager.client.models.Locator"] = filemanager.client.models.Locator;
@@ -14037,7 +14165,7 @@ $hxClasses["filemanager.client.services.Api"] = filemanager.client.services.Api;
 filemanager.client.services.Api.__name__ = ["filemanager","client","services","Api"];
 filemanager.client.services.Api.prototype = {
 	defaultOnError: function(err) {
-		haxe.Log.trace("Error (API default error handler) : " + Std.string(err),{ fileName : "Api.hx", lineNumber : 91, className : "filemanager.client.services.Api", methodName : "defaultOnError"});
+		haxe.Log.trace("Error (API default error handler) : " + Std.string(err),{ fileName : "Api.hx", lineNumber : 89, className : "filemanager.client.services.Api", methodName : "defaultOnError"});
 	}
 	,deleteTempFile: function(fullpath,onSuccess,onError) {
 		var cnx = haxe.remoting.HttpAsyncConnection.urlConnect("server/index.php");
@@ -14055,6 +14183,7 @@ filemanager.client.services.Api.prototype = {
 		cnx.resolve("api").resolve("getFiles").call([folderpath],onSuccess);
 	}
 	,getTreeFolder: function(folderpath,onSuccess,onError) {
+		haxe.Log.trace("Api - getTreeFolder() " + folderpath,{ fileName : "Api.hx", lineNumber : 31, className : "filemanager.client.services.Api", methodName : "getTreeFolder"});
 		var cnx = haxe.remoting.HttpAsyncConnection.urlConnect("server/index.php");
 		if(onError != null) cnx.setErrorHandler(onError); else cnx.setErrorHandler($bind(this,this.defaultOnError));
 		cnx.resolve("api").resolve("getTreeFolder").call([folderpath],onSuccess);
@@ -14064,12 +14193,12 @@ filemanager.client.services.Api.prototype = {
 filemanager.client.views = {}
 filemanager.client.views.base = {}
 filemanager.client.views.base.View = function(rootElement,SLPId) {
-	slplayer.ui.DisplayObject.call(this,rootElement,SLPId);
+	org.slplayer.component.ui.DisplayObject.call(this,rootElement,SLPId);
 };
 $hxClasses["filemanager.client.views.base.View"] = filemanager.client.views.base.View;
 filemanager.client.views.base.View.__name__ = ["filemanager","client","views","base","View"];
-filemanager.client.views.base.View.__super__ = slplayer.ui.DisplayObject;
-filemanager.client.views.base.View.prototype = $extend(slplayer.ui.DisplayObject.prototype,{
+filemanager.client.views.base.View.__super__ = org.slplayer.component.ui.DisplayObject;
+filemanager.client.views.base.View.prototype = $extend(org.slplayer.component.ui.DisplayObject.prototype,{
 	clear: function() {
 		var childNodes = this.rootElement.childNodes.length;
 		while(this.rootElement.hasChildNodes()) {
@@ -14120,15 +14249,28 @@ $hxClasses["filemanager.client.views.FilesView"] = filemanager.client.views.File
 filemanager.client.views.FilesView.__name__ = ["filemanager","client","views","FilesView"];
 filemanager.client.views.FilesView.__super__ = filemanager.client.views.base.View;
 filemanager.client.views.FilesView.prototype = $extend(filemanager.client.views.base.View.prototype,{
-	setList: function(data) {
+	handleFileDragged: function(file,evt) {
+		this.currentDraggedFile = file;
+		var event = js.Lib.document.createEvent("CustomEvent");
+		event.initCustomEvent("startedToDragFile",false,false,this.rootElement);
+		this.rootElement.dispatchEvent(event);
+	}
+	,setList: function(data) {
 		this.clear();
 		var _g1 = 0, _g = data.length;
 		while(_g1 < _g) {
 			var i = _g1++;
 			var file = new filemanager.client.views.uis.FileUI(data[i],this.SLPlayerInstanceId);
 			this.rootElement.appendChild(file.rootElement);
+			var draggedCallBack = (function(f,a1) {
+				return function(a2) {
+					return f(a1,a2);
+				};
+			})($bind(this,this.handleFileDragged),data[i]);
+			file.rootElement.addEventListener("dragEventDrag",draggedCallBack,false);
 		}
 	}
+	,currentDraggedFile: null
 	,__class__: filemanager.client.views.FilesView
 });
 filemanager.client.views.FolderTreeView = function(rootElement,SLPId) {
@@ -14144,6 +14286,12 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 		this._data = data;
 		this.buildView();
 	}
+	,handleFileDropped: function(folder,evt) {
+		this.currentDroppedInFolder = folder;
+		var event = js.Lib.document.createEvent("CustomEvent");
+		event.initCustomEvent("droppedFile",false,false,this.rootElement);
+		this.rootElement.dispatchEvent(event);
+	}
 	,handleOnFolderClick: function(target,folderData,evt) {
 		target.isOpen = !target.isOpen;
 		if(this._currentFolderUISelected != null && this._currentFolderUISelected != target) {
@@ -14155,7 +14303,6 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 		var folderPath = folderData.path;
 		this._folderStatus.set(folderPath,target.isOpen);
 		folderData.open = target.isOpen;
-		this.updateSubFolders(target);
 		target.refresh();
 		this.onSelectFolder(folderPath);
 	}
@@ -14166,15 +14313,12 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 			};
 		})($bind(this,this.handleOnFolderClick),folder,data);
 		folder.rootElement.onclick = handelClickCallback;
-	}
-	,updateSubFolders: function(target) {
-		var _g1 = 0, _g = target.subFolders.length;
-		while(_g1 < _g) {
-			var i = _g1++;
-			var folderChild = target.subFolders[i];
-			folderChild.isVisible = target.isOpen;
-			folderChild.refresh();
-		}
+		var droppedCallBack = (function(f,a1) {
+			return function(a2) {
+				return f(a1,a2);
+			};
+		})($bind(this,this.handleFileDropped),data);
+		folder.rootElement.addEventListener("dragEventDropped",droppedCallBack,false);
 	}
 	,createSubFolders: function(currentFolder,target,inDescendant) {
 		var _g1 = 0, _g = currentFolder.children.length;
@@ -14187,22 +14331,23 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 			target.subFolders.push(folderChild);
 			this.rootElement.appendChild(folderChild.rootElement);
 			folderChild.isVisible = target.isOpen;
-			folderChild.refresh();
 			folderChild.isOpen = child.open;
 			this.makeInteractive(folderChild,child);
 			this.createSubFolders(child,folderChild,inDescendant + 1);
 		}
 	}
 	,buildView: function() {
+		var isOpen = true;
 		this._rootFolder = new filemanager.client.views.uis.FolderUI(this._data.children.length > 0,0,this._data.name,this.SLPlayerInstanceId);
-		this._rootFolder.isOpen = this._data.open;
 		var folderPath = this._data.path + "/" + this._data.name;
-		this._folderStatus.set(folderPath,this._data.open);
+		this._folderStatus.set(folderPath,isOpen);
 		this.makeInteractive(this._rootFolder,this._data);
 		this.rootElement.appendChild(this._rootFolder.rootElement);
 		this.createSubFolders(this._data,this._rootFolder,1);
+		this.handleOnFolderClick(this._rootFolder,this._data,null);
 	}
 	,_currentFolderUISelected: null
+	,currentDroppedInFolder: null
 	,onSelectFolder: null
 	,_folderStatus: null
 	,_data: null
@@ -14217,6 +14362,7 @@ filemanager.client.views.ToolBox = function(rootElement,SLPId) {
 	this._delete = new filemanager.client.views.uis.buttons.DeleteButton("Delete",SLPId);
 	this._upload = new filemanager.client.views.uis.buttons.UploadButton("Upload",SLPId);
 	this._createFolder = new filemanager.client.views.uis.buttons.CreateFolderButton("Create New Folder",SLPId);
+	this._rename = new filemanager.client.views.uis.buttons.RenameButton("Rename",SLPId);
 	rootElement.className = "toolBox smallFont";
 	rootElement.appendChild(this._download.rootElement);
 	rootElement.appendChild(this._copy.rootElement);
@@ -14224,19 +14370,64 @@ filemanager.client.views.ToolBox = function(rootElement,SLPId) {
 	rootElement.appendChild(this._delete.rootElement);
 	rootElement.appendChild(this._upload.rootElement);
 	rootElement.appendChild(this._createFolder.rootElement);
+	rootElement.appendChild(this._rename.rootElement);
 	filemanager.client.views.base.View.call(this,rootElement,SLPId);
 };
 $hxClasses["filemanager.client.views.ToolBox"] = filemanager.client.views.ToolBox;
 filemanager.client.views.ToolBox.__name__ = ["filemanager","client","views","ToolBox"];
 filemanager.client.views.ToolBox.__super__ = filemanager.client.views.base.View;
 filemanager.client.views.ToolBox.prototype = $extend(filemanager.client.views.base.View.prototype,{
-	_createFolder: null
+	set_onClickedRename: function(value) {
+		this._rename.onButtonClicked = value;
+		return this._onClickedRename = value;
+	}
+	,set_onClickedCreate: function(value) {
+		this._createFolder.onButtonClicked = value;
+		return this._onClickedCreate = value;
+	}
+	,set_onClickedUpload: function(value) {
+		this._upload.onButtonClicked = value;
+		return this._onClickedUpload = value;
+	}
+	,set_onClickedDelete: function(value) {
+		this._delete.onButtonClicked = value;
+		return this._onClickedDelete = value;
+	}
+	,set_onClickedPaste: function(value) {
+		this._paste.onButtonClicked = value;
+		return this._onClickedPaste = value;
+	}
+	,set_onClickedCopy: function(value) {
+		this._copy.onButtonClicked = value;
+		return this._onClickedCopy = value;
+	}
+	,set_onClickedDownload: function(value) {
+		this._download.onButtonClicked = value;
+		return this._onClickedDownload = value;
+	}
+	,_rename: null
+	,_createFolder: null
 	,_upload: null
 	,_delete: null
 	,_paste: null
 	,_copy: null
 	,_download: null
+	,onClickedRename: null
+	,onClickedCreate: null
+	,onClickedUpload: null
+	,onClickedDelete: null
+	,onClickedCopy: null
+	,onClickedDownload: null
+	,onClickedPaste: null
+	,_onClickedRename: null
+	,_onClickedCreate: null
+	,_onClickedUpload: null
+	,_onClickedDelete: null
+	,_onClickedPaste: null
+	,_onClickedCopy: null
+	,_onClickedDownload: null
 	,__class__: filemanager.client.views.ToolBox
+	,__properties__: {set_onClickedPaste:"set_onClickedPaste",set_onClickedDownload:"set_onClickedDownload",set_onClickedCopy:"set_onClickedCopy",set_onClickedDelete:"set_onClickedDelete",set_onClickedUpload:"set_onClickedUpload",set_onClickedCreate:"set_onClickedCreate",set_onClickedRename:"set_onClickedRename"}
 });
 filemanager.client.views.UploadStatus = function(rootElement,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"UploadStatus");
@@ -14326,7 +14517,7 @@ filemanager.client.views.uis.FileUI.prototype = $extend(filemanager.client.views
 		this.rootElement.style.backgroundImage = "url('imgs/icons/" + data.extension + ".png')";
 	}
 	,makeDraggable: function() {
-		var draggable = new slplayer.ui.interaction.Draggable(this.rootElement,this.SLPlayerInstanceId);
+		var draggable = new org.slplayer.component.interaction.Draggable(this.rootElement,this.SLPlayerInstanceId);
 		draggable.init();
 	}
 	,__class__: filemanager.client.views.uis.FileUI
@@ -14390,17 +14581,14 @@ filemanager.client.views.uis.FileUploadStatus.prototype = $extend(filemanager.cl
 });
 filemanager.client.views.uis.FolderUI = function(isFull,isDescendant,inTitle,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"FolderUI");
-	var viewDom = js.Lib.document.createElement("span");
-	viewDom.className = "draggable-dropzone";
+	var viewDom = js.Lib.document.createElement("div");
 	this._title = inTitle;
 	this._isFull = isFull;
 	this._isDescendant = isDescendant;
-	this.isSelected = false;
-	this.isOpen = false;
+	this.isSelected = this.isOpen = false;
 	this.isVisible = true;
 	this.subFolders = new Array();
 	filemanager.client.views.base.View.call(this,viewDom,SLPId);
-	this.setStyle();
 };
 $hxClasses["filemanager.client.views.uis.FolderUI"] = filemanager.client.views.uis.FolderUI;
 filemanager.client.views.uis.FolderUI.__name__ = ["filemanager","client","views","uis","FolderUI"];
@@ -14421,11 +14609,11 @@ filemanager.client.views.uis.FolderUI.prototype = $extend(filemanager.client.vie
 				this.subFolders[i].refresh();
 			}
 			return;
-		} else if(this.isOpen) {
+		} else {
 			var _g1 = 0, _g = this.subFolders.length;
 			while(_g1 < _g) {
 				var i = _g1++;
-				this.subFolders[i].isVisible = true;
+				this.subFolders[i].isVisible = this.isOpen;
 				this.subFolders[i].refresh();
 			}
 		}
@@ -14457,14 +14645,9 @@ filemanager.client.views.uis.FolderUI.prototype = $extend(filemanager.client.vie
 		}
 		var title = js.Lib.document.createTextNode(this._title);
 		this.rootElement.appendChild(title);
-		this.rootElement.style.backgroundPosition = "left center";
-		this.rootElement.style.backgroundRepeat = "no-repeat";
-		this.rootElement.style.paddingLeft = "50px";
-		this.rootElement.style.display = "block";
-		this.rootElement.style.marginTop = "5px";
-		this.rootElement.style.height = null;
-		this.rootElement.style.width = "250px";
+		this.rootElement.className = "draggable-dropzone folderUI";
 		this.rootElement.style.cursor = cocktail.core.unit.UnitManager.getCSSCursor(cocktail.core.style.Cursor.pointer);
+		this.rootElement.style.height = null;
 		this.rootElement.style.marginLeft = Std.string(this._isDescendant * 20 + "px");
 	}
 	,subFolders: null
@@ -14513,38 +14696,41 @@ filemanager.client.views.uis.SimpleDialogPanel = function(SLPId,parent) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"SimpleDialogPanel");
 	var root = js.Lib.document.createElement("div");
 	root.className = "simpleDialogPanel smallFont";
-	var background = js.Lib.document.createElement("div");
-	background.className = "overlayBackground";
-	var panel = js.Lib.document.createElement("div");
-	panel.className = "panel";
+	this._background = js.Lib.document.createElement("div");
+	this._background.className = "overlayBackground";
+	this._panel = js.Lib.document.createElement("div");
+	this._panel.className = "panel";
 	this._title = js.Lib.document.createElement("span");
-	panel.appendChild(this._title);
+	this._panel.appendChild(this._title);
 	this._input = js.Lib.document.createElement("input");
-	panel.appendChild(this._input);
+	this._panel.appendChild(this._input);
 	this._cancel = new filemanager.client.views.uis.buttons.CancelButton("Cancel",SLPId);
-	panel.appendChild(this._cancel.rootElement);
+	this._panel.appendChild(this._cancel.rootElement);
 	this._cancel.set_enabled(true);
+	this._cancel.onclicked = $bind(this,this.hide);
 	this._confirm = new filemanager.client.views.uis.buttons.ConfirmButton("Confirm",SLPId);
-	panel.appendChild(this._confirm.rootElement);
+	this._panel.appendChild(this._confirm.rootElement);
 	this._confirm.set_enabled(true);
-	root.appendChild(background);
-	root.appendChild(panel);
+	root.appendChild(this._background);
+	root.appendChild(this._panel);
 	filemanager.client.views.base.View.call(this,root,SLPId);
 };
 $hxClasses["filemanager.client.views.uis.SimpleDialogPanel"] = filemanager.client.views.uis.SimpleDialogPanel;
 filemanager.client.views.uis.SimpleDialogPanel.__name__ = ["filemanager","client","views","uis","SimpleDialogPanel"];
 filemanager.client.views.uis.SimpleDialogPanel.__super__ = filemanager.client.views.base.View;
 filemanager.client.views.uis.SimpleDialogPanel.prototype = $extend(filemanager.client.views.base.View.prototype,{
-	hide: function() {
+	hide: function(evt) {
 		this._parent.removeChild(this.rootElement);
-		haxe.Log.trace("SimpleDialogPanel - hide() ",{ fileName : "SimpleDialogPanel.hx", lineNumber : 68, className : "filemanager.client.views.uis.SimpleDialogPanel", methodName : "hide"});
+		haxe.Log.trace("SimpleDialogPanel - hide() ",{ fileName : "SimpleDialogPanel.hx", lineNumber : 73, className : "filemanager.client.views.uis.SimpleDialogPanel", methodName : "hide"});
 	}
 	,show: function(title) {
 		this._title.innerHTML = title;
 		this._parent.appendChild(this.rootElement);
-		haxe.Log.trace("SimpleDialogPanel - show() " + title,{ fileName : "SimpleDialogPanel.hx", lineNumber : 63, className : "filemanager.client.views.uis.SimpleDialogPanel", methodName : "show"});
+		haxe.Log.trace("SimpleDialogPanel - show() " + title,{ fileName : "SimpleDialogPanel.hx", lineNumber : 67, className : "filemanager.client.views.uis.SimpleDialogPanel", methodName : "show"});
 	}
 	,_parent: null
+	,_panel: null
+	,_background: null
 	,_confirm: null
 	,_cancel: null
 	,_input: null
@@ -14597,73 +14783,137 @@ filemanager.client.views.uis.buttons.CopyButton = function(label,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"CopyButton");
 	filemanager.client.views.base.LabelButton.call(this,label,SLPId);
 	this.rootElement.className = "buttons copyButton";
+	this.onclicked = $bind(this,this.handleClicked);
 	this.set_enabled(true);
 };
 $hxClasses["filemanager.client.views.uis.buttons.CopyButton"] = filemanager.client.views.uis.buttons.CopyButton;
 filemanager.client.views.uis.buttons.CopyButton.__name__ = ["filemanager","client","views","uis","buttons","CopyButton"];
 filemanager.client.views.uis.buttons.CopyButton.__super__ = filemanager.client.views.base.LabelButton;
 filemanager.client.views.uis.buttons.CopyButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
-	__class__: filemanager.client.views.uis.buttons.CopyButton
+	handleClicked: function(evt) {
+		if(this.onButtonClicked != null) this.onButtonClicked("CopyButton");
+	}
+	,onButtonClicked: null
+	,__class__: filemanager.client.views.uis.buttons.CopyButton
 });
 filemanager.client.views.uis.buttons.CreateFolderButton = function(label,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"CreateFolderButton");
 	filemanager.client.views.base.LabelButton.call(this,label,SLPId);
 	this.rootElement.className = "buttons createFolderButton";
+	this.onclicked = $bind(this,this.handleClicked);
 	this.set_enabled(true);
 };
 $hxClasses["filemanager.client.views.uis.buttons.CreateFolderButton"] = filemanager.client.views.uis.buttons.CreateFolderButton;
 filemanager.client.views.uis.buttons.CreateFolderButton.__name__ = ["filemanager","client","views","uis","buttons","CreateFolderButton"];
 filemanager.client.views.uis.buttons.CreateFolderButton.__super__ = filemanager.client.views.base.LabelButton;
 filemanager.client.views.uis.buttons.CreateFolderButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
-	__class__: filemanager.client.views.uis.buttons.CreateFolderButton
+	handleClicked: function(evt) {
+		if(this.onButtonClicked != null) this.onButtonClicked("CreateFolderButton");
+	}
+	,onButtonClicked: null
+	,__class__: filemanager.client.views.uis.buttons.CreateFolderButton
 });
 filemanager.client.views.uis.buttons.DeleteButton = function(label,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"DeleteButton");
 	filemanager.client.views.base.LabelButton.call(this,label,SLPId);
 	this.rootElement.className = "buttons deleteButton";
+	this.onclicked = $bind(this,this.handleClicked);
 	this.set_enabled(true);
 };
 $hxClasses["filemanager.client.views.uis.buttons.DeleteButton"] = filemanager.client.views.uis.buttons.DeleteButton;
 filemanager.client.views.uis.buttons.DeleteButton.__name__ = ["filemanager","client","views","uis","buttons","DeleteButton"];
 filemanager.client.views.uis.buttons.DeleteButton.__super__ = filemanager.client.views.base.LabelButton;
 filemanager.client.views.uis.buttons.DeleteButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
-	__class__: filemanager.client.views.uis.buttons.DeleteButton
+	handleClicked: function(evt) {
+		if(this.onButtonClicked != null) this.onButtonClicked("DeleteButton");
+	}
+	,onButtonClicked: null
+	,__class__: filemanager.client.views.uis.buttons.DeleteButton
 });
 filemanager.client.views.uis.buttons.DownloadButton = function(label,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"DownloadButton");
 	filemanager.client.views.base.LabelButton.call(this,label,SLPId);
 	this.rootElement.className = "buttons downloadButton";
+	this.onclicked = $bind(this,this.handleClicked);
 	this.set_enabled(true);
 };
 $hxClasses["filemanager.client.views.uis.buttons.DownloadButton"] = filemanager.client.views.uis.buttons.DownloadButton;
 filemanager.client.views.uis.buttons.DownloadButton.__name__ = ["filemanager","client","views","uis","buttons","DownloadButton"];
 filemanager.client.views.uis.buttons.DownloadButton.__super__ = filemanager.client.views.base.LabelButton;
 filemanager.client.views.uis.buttons.DownloadButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
-	__class__: filemanager.client.views.uis.buttons.DownloadButton
+	handleClicked: function(evt) {
+		if(this.onButtonClicked != null) this.onButtonClicked("DownloadButton");
+	}
+	,onButtonClicked: null
+	,__class__: filemanager.client.views.uis.buttons.DownloadButton
 });
 filemanager.client.views.uis.buttons.PasteButton = function(label,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"PasteButton");
 	filemanager.client.views.base.LabelButton.call(this,label,SLPId);
 	this.rootElement.className = "buttons pasteButton";
+	this.onclicked = $bind(this,this.handleClicked);
 	this.set_enabled(true);
 };
 $hxClasses["filemanager.client.views.uis.buttons.PasteButton"] = filemanager.client.views.uis.buttons.PasteButton;
 filemanager.client.views.uis.buttons.PasteButton.__name__ = ["filemanager","client","views","uis","buttons","PasteButton"];
 filemanager.client.views.uis.buttons.PasteButton.__super__ = filemanager.client.views.base.LabelButton;
 filemanager.client.views.uis.buttons.PasteButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
-	__class__: filemanager.client.views.uis.buttons.PasteButton
+	handleClicked: function(evt) {
+		if(this.onButtonClicked != null) this.onButtonClicked("PasteButton");
+	}
+	,onButtonClicked: null
+	,__class__: filemanager.client.views.uis.buttons.PasteButton
+});
+filemanager.client.views.uis.buttons.RefreshButton = function(label,SLPId) {
+	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"RefreshButton");
+	filemanager.client.views.base.LabelButton.call(this,label,SLPId);
+	this.rootElement.className = "buttons refreshButton";
+	this.onclicked = $bind(this,this.handleClicked);
+	this.set_enabled(true);
+};
+$hxClasses["filemanager.client.views.uis.buttons.RefreshButton"] = filemanager.client.views.uis.buttons.RefreshButton;
+filemanager.client.views.uis.buttons.RefreshButton.__name__ = ["filemanager","client","views","uis","buttons","RefreshButton"];
+filemanager.client.views.uis.buttons.RefreshButton.__super__ = filemanager.client.views.base.LabelButton;
+filemanager.client.views.uis.buttons.RefreshButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
+	handleClicked: function(evt) {
+		if(this.onRefreshClicked != null) this.onRefreshClicked("RefreshButton");
+	}
+	,onRefreshClicked: null
+	,__class__: filemanager.client.views.uis.buttons.RefreshButton
+});
+filemanager.client.views.uis.buttons.RenameButton = function(label,SLPId) {
+	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"RenameButton");
+	filemanager.client.views.base.LabelButton.call(this,label,SLPId);
+	this.rootElement.className = "buttons renameButton";
+	this.onclicked = $bind(this,this.handleClicked);
+	this.set_enabled(true);
+};
+$hxClasses["filemanager.client.views.uis.buttons.RenameButton"] = filemanager.client.views.uis.buttons.RenameButton;
+filemanager.client.views.uis.buttons.RenameButton.__name__ = ["filemanager","client","views","uis","buttons","RenameButton"];
+filemanager.client.views.uis.buttons.RenameButton.__super__ = filemanager.client.views.base.LabelButton;
+filemanager.client.views.uis.buttons.RenameButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
+	handleClicked: function(evt) {
+		if(this.onButtonClicked != null) this.onButtonClicked("RenameButton");
+	}
+	,onButtonClicked: null
+	,__class__: filemanager.client.views.uis.buttons.RenameButton
 });
 filemanager.client.views.uis.buttons.UploadButton = function(label,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"UploadButton");
 	filemanager.client.views.base.LabelButton.call(this,label,SLPId);
 	this.rootElement.className = "buttons uploadButton";
+	this.onclicked = $bind(this,this.handleClicked);
 	this.set_enabled(true);
 };
 $hxClasses["filemanager.client.views.uis.buttons.UploadButton"] = filemanager.client.views.uis.buttons.UploadButton;
 filemanager.client.views.uis.buttons.UploadButton.__name__ = ["filemanager","client","views","uis","buttons","UploadButton"];
 filemanager.client.views.uis.buttons.UploadButton.__super__ = filemanager.client.views.base.LabelButton;
 filemanager.client.views.uis.buttons.UploadButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
-	__class__: filemanager.client.views.uis.buttons.UploadButton
+	handleClicked: function(evt) {
+		if(this.onButtonClicked != null) this.onButtonClicked("UploadButton");
+	}
+	,onButtonClicked: null
+	,__class__: filemanager.client.views.uis.buttons.UploadButton
 });
 filemanager.cross = {}
 filemanager.cross.FileUpdatedVO = function() {
@@ -18821,6 +19071,30 @@ lib.hxtml.CssParser.prototype = {
 			default:
 			}
 			break;
+		case "transition-property":
+			var val = this.getIdent(v);
+			if(val != null) s.setTransitionProperty(this.d,val);
+			return true;
+		case "transition-duration":
+			var val = this.getIdent(v);
+			if(val != null) s.setTransitionDuration(this.d,val);
+			return true;
+		case "transition-timing-function":
+			var val = this.getIdent(v);
+			if(val != null) s.setTransitionTimingFunction(this.d,val);
+			return true;
+		case "transition-delay":
+			var val = this.getIdent(v);
+			if(val != null) s.setTransitionDelay(this.d,val);
+			return true;
+		case "transform-origin":
+			var val = this.getIdent(v);
+			if(val != null) s.setTransformOrigin(this.d,val);
+			return true;
+		case "transform":
+			var val = this.getIdent(v);
+			if(val != null) s.setTransform(this.d,val);
+			return true;
 		default:
 			throw "Not implemented '" + r + "' = " + Std.string(v);
 		}
@@ -18923,6 +19197,12 @@ lib.hxtml.IStyleProxy.prototype = {
 	,setMarginTopNum: null
 	,setMarginLeftKey: null
 	,setMarginLeftNum: null
+	,setTransitionDelay: null
+	,setTransitionTimingFunction: null
+	,setTransitionDuration: null
+	,setTransitionProperty: null
+	,setTransform: null
+	,setTransformOrigin: null
 	,setClear: null
 	,setCssFloat: null
 	,setPosition: null
@@ -18935,7 +19215,19 @@ $hxClasses["lib.hxtml.StyleProxy"] = lib.hxtml.StyleProxy;
 lib.hxtml.StyleProxy.__name__ = ["lib","hxtml","StyleProxy"];
 lib.hxtml.StyleProxy.__interfaces__ = [lib.hxtml.IStyleProxy];
 lib.hxtml.StyleProxy.prototype = {
-	setOverflowY: function(element,value) {
+	setTransitionTimingFunction: function(element,value) {
+		element.style.set_transitionTimingFunction(value);
+	}
+	,setTransitionProperty: function(element,value) {
+		element.style.set_transitionProperty(value);
+	}
+	,setTransitionDelay: function(element,value) {
+		element.style.set_transitionDelay(value);
+	}
+	,setTransitionDuration: function(element,value) {
+		element.style.set_transitionDuration(value);
+	}
+	,setOverflowY: function(element,value) {
 		element.style.set_overflowY(value);
 	}
 	,setOverflowX: function(element,value) {
@@ -19173,6 +19465,12 @@ lib.hxtml.StyleProxy.prototype = {
 	,setMarginLeftNum: function(element,value,unit) {
 		element.style.set_marginLeft(value + unit);
 	}
+	,setTransformOrigin: function(element,value) {
+		element.style.set_transformOrigin(value);
+	}
+	,setTransform: function(element,value) {
+		element.style.set_transform(value);
+	}
 	,setClear: function(element,value) {
 		element.style.set_clear(value);
 	}
@@ -19187,199 +19485,16 @@ lib.hxtml.StyleProxy.prototype = {
 	}
 	,__class__: lib.hxtml.StyleProxy
 }
-slplayer.core.Application = function(id,args) {
-	this.dataObject = args;
-	this.id = id;
-	this.registeredComponents = new Hash();
-	this.nodeToCmpInstances = new Hash();
-	this.metaParameters = new Hash();
-	haxe.Log.trace("new SLPlayer instance built",{ fileName : "Application.hx", lineNumber : 100, className : "slplayer.core.Application", methodName : "new"});
-};
-$hxClasses["slplayer.core.Application"] = slplayer.core.Application;
-$hxExpose(slplayer.core.Application, "FileManager");
-slplayer.core.Application.__name__ = ["slplayer","core","Application"];
-slplayer.core.Application.get = function(SLPId) {
-	return slplayer.core.Application.instances.get(SLPId);
-}
-slplayer.core.Application.generateUniqueId = function() {
-	return haxe.Md5.encode(HxOverrides.dateStr(new Date()) + Std.string(Std.random(new Date().getTime() | 0)));
-}
-slplayer.core.Application.init = function(appendTo,args) {
-	haxe.Log.trace("SLPlayer init() called with appendTo=" + Std.string(appendTo) + " and args=" + Std.string(args),{ fileName : "Application.hx", lineNumber : 188, className : "slplayer.core.Application", methodName : "init"});
-	var newId = slplayer.core.Application.generateUniqueId();
-	haxe.Log.trace("New SLPlayer id created : " + newId,{ fileName : "Application.hx", lineNumber : 195, className : "slplayer.core.Application", methodName : "init"});
-	var newInstance = new slplayer.core.Application(newId,args);
-	haxe.Log.trace("setting ref to SLPlayer instance " + newId,{ fileName : "Application.hx", lineNumber : 201, className : "slplayer.core.Application", methodName : "init"});
-	slplayer.core.Application.instances.set(newId,newInstance);
-	js.Lib.window.onload = function(e) {
-		newInstance.launch(appendTo);
-	};
-}
-slplayer.core.Application.main = function() {
-	haxe.Log.trace("noAutoStart not defined: calling init()...",{ fileName : "Application.hx", lineNumber : 214, className : "slplayer.core.Application", methodName : "main"});
-	slplayer.core.Application.init();
-}
-slplayer.core.Application.prototype = {
-	getAssociatedComponents: function(node) {
-		var nodeId = node.getAttribute("data-" + "slpid");
-		if(nodeId != null) return this.nodeToCmpInstances.get(nodeId);
-		return new List();
-	}
-	,addAssociatedComponent: function(node,cmp) {
-		var nodeId = node.getAttribute("data-" + "slpid");
-		var associatedCmps;
-		if(nodeId != null) associatedCmps = this.nodeToCmpInstances.get(nodeId); else {
-			nodeId = slplayer.core.Application.generateUniqueId();
-			node.setAttribute("data-" + "slpid",nodeId);
-			associatedCmps = new List();
-		}
-		associatedCmps.add(cmp);
-		this.nodeToCmpInstances.set(nodeId,associatedCmps);
-	}
-	,callInitOnComponents: function() {
-		haxe.Log.trace("call Init On Components",{ fileName : "Application.hx", lineNumber : 361, className : "slplayer.core.Application", methodName : "callInitOnComponents"});
-		var $it0 = this.nodeToCmpInstances.iterator();
-		while( $it0.hasNext() ) {
-			var l = $it0.next();
-			var $it1 = l.iterator();
-			while( $it1.hasNext() ) {
-				var c = $it1.next();
-				try {
-					c.init();
-				} catch( unknown ) {
-					haxe.Log.trace("ERROR while trying to call init() on a " + Type.getClassName(Type.getClass(c)) + ": " + Std.string(unknown),{ fileName : "Application.hx", lineNumber : 374, className : "slplayer.core.Application", methodName : "callInitOnComponents"});
-					haxe.Log.trace(haxe.Stack.toString(haxe.Stack.exceptionStack()),{ fileName : "Application.hx", lineNumber : 375, className : "slplayer.core.Application", methodName : "callInitOnComponents"});
-				}
-			}
-		}
-	}
-	,createComponentsOfType: function(componentClassName,args) {
-		haxe.Log.trace("Creating " + componentClassName + "...",{ fileName : "Application.hx", lineNumber : 264, className : "slplayer.core.Application", methodName : "createComponentsOfType"});
-		var componentClass = Type.resolveClass(componentClassName);
-		if(componentClass == null) {
-			haxe.Log.trace("ERROR cannot resolve " + componentClassName,{ fileName : "Application.hx", lineNumber : 271, className : "slplayer.core.Application", methodName : "createComponentsOfType"});
-			return;
-		}
-		haxe.Log.trace(componentClassName + " class resolved ",{ fileName : "Application.hx", lineNumber : 276, className : "slplayer.core.Application", methodName : "createComponentsOfType"});
-		if(slplayer.ui.DisplayObject.isDisplayObject(componentClass)) {
-			var classTag = slplayer.core.SLPlayerComponentTools.getUnconflictedClassTag(componentClassName,this.registeredComponents.keys());
-			haxe.Log.trace("searching now for class tag = " + classTag,{ fileName : "Application.hx", lineNumber : 284, className : "slplayer.core.Application", methodName : "createComponentsOfType"});
-			var taggedNodes = new Array();
-			var taggedNodesCollection = this.htmlRootElement.getElementsByClassName(classTag);
-			var _g1 = 0, _g = taggedNodesCollection.length;
-			while(_g1 < _g) {
-				var nodeCnt = _g1++;
-				taggedNodes.push(taggedNodesCollection[nodeCnt]);
-			}
-			if(componentClassName != classTag) {
-				haxe.Log.trace("searching now for class tag = " + componentClassName,{ fileName : "Application.hx", lineNumber : 297, className : "slplayer.core.Application", methodName : "createComponentsOfType"});
-				taggedNodesCollection = this.htmlRootElement.getElementsByClassName(componentClassName);
-				var _g1 = 0, _g = taggedNodesCollection.length;
-				while(_g1 < _g) {
-					var nodeCnt = _g1++;
-					taggedNodes.push(taggedNodesCollection[nodeCnt]);
-				}
-			}
-			haxe.Log.trace("taggedNodes = " + taggedNodes.length,{ fileName : "Application.hx", lineNumber : 308, className : "slplayer.core.Application", methodName : "createComponentsOfType"});
-			var _g = 0;
-			while(_g < taggedNodes.length) {
-				var node = taggedNodes[_g];
-				++_g;
-				var newDisplayObject;
-				try {
-					newDisplayObject = Type.createInstance(componentClass,[node,this.id]);
-				} catch( unknown ) {
-					haxe.Log.trace("ERROR while creating " + componentClassName + ": " + Std.string(unknown),{ fileName : "Application.hx", lineNumber : 321, className : "slplayer.core.Application", methodName : "createComponentsOfType"});
-					haxe.Log.trace(haxe.Stack.toString(haxe.Stack.exceptionStack()),{ fileName : "Application.hx", lineNumber : 322, className : "slplayer.core.Application", methodName : "createComponentsOfType"});
-				}
-			}
-		} else {
-			haxe.Log.trace("Try to create an instance of " + componentClassName + " non visual component",{ fileName : "Application.hx", lineNumber : 329, className : "slplayer.core.Application", methodName : "createComponentsOfType"});
-			var cmpInstance = null;
-			try {
-				if(args != null) cmpInstance = Type.createInstance(componentClass,[args]); else cmpInstance = Type.createInstance(componentClass,[]);
-			} catch( unknown ) {
-				haxe.Log.trace("ERROR while creating " + componentClassName + ": " + Std.string(unknown),{ fileName : "Application.hx", lineNumber : 343, className : "slplayer.core.Application", methodName : "createComponentsOfType"});
-				haxe.Log.trace(haxe.Stack.toString(haxe.Stack.exceptionStack()),{ fileName : "Application.hx", lineNumber : 344, className : "slplayer.core.Application", methodName : "createComponentsOfType"});
-			}
-			if(cmpInstance != null && js.Boot.__instanceof(cmpInstance,slplayer.core.ISLPlayerComponent)) cmpInstance.initSLPlayerComponent(this.id);
-		}
-	}
-	,initComponents: function() {
-		var registeredComponentsClassNames = this.registeredComponents.keys();
-		while(registeredComponentsClassNames.hasNext()) {
-			var registeredComponentsClassName = registeredComponentsClassNames.next();
-			this.createComponentsOfType(registeredComponentsClassName,this.registeredComponents.get(registeredComponentsClassName));
-		}
-		this.callInitOnComponents();
-	}
-	,registerComponent: function(componentClassName,args) {
-		this.registeredComponents.set(componentClassName,args);
-	}
-	,registerComponentsforInit: function() {
-		filemanager.client.views.UploadStatus;
-		this.registerComponent("filemanager.client.views.UploadStatus");
-		filemanager.client.views.FilesView;
-		this.registerComponent("filemanager.client.views.FilesView");
-		filemanager.client.views.FolderTreeView;
-		this.registerComponent("filemanager.client.views.FolderTreeView");
-		filemanager.client.views.FileDropper;
-		this.registerComponent("filemanager.client.views.FileDropper");
-		filemanager.client.FileManager;
-		this.registerComponent("filemanager.client.FileManager");
-		slplayer.ui.interaction.Draggable;
-		this.registerComponent("slplayer.ui.interaction.Draggable");
-		filemanager.client.views.ToolBox;
-		this.registerComponent("filemanager.client.views.ToolBox");
-	}
-	,initMetaParameters: function() {
-	}
-	,initHtmlRootElementContent: function() {
-	}
-	,launch: function(appendTo) {
-		haxe.Log.trace("Launching SLPlayer id " + this.id + " on " + Std.string(appendTo),{ fileName : "Application.hx", lineNumber : 112, className : "slplayer.core.Application", methodName : "launch"});
-		if(appendTo != null) {
-			haxe.Log.trace("setting htmlRootElement to " + Std.string(appendTo),{ fileName : "Application.hx", lineNumber : 118, className : "slplayer.core.Application", methodName : "launch"});
-			this.htmlRootElement = appendTo;
-		}
-		if(this.htmlRootElement == null || this.htmlRootElement.nodeType != js.Lib.document.body.nodeType) {
-			haxe.Log.trace("setting htmlRootElement to Lib.document.body",{ fileName : "Application.hx", lineNumber : 127, className : "slplayer.core.Application", methodName : "launch"});
-			this.htmlRootElement = js.Lib.document.body;
-		}
-		if(this.htmlRootElement == null) {
-			haxe.Log.trace("ERROR windows.document.body is null => You are trying to start your application while the document loading is probably not complete yet." + " To fix that, add the noAutoStart option to your slplayer application and control the application startup with: window.onload = function() { myApplication.init() };",{ fileName : "Application.hx", lineNumber : 135, className : "slplayer.core.Application", methodName : "launch"});
-			return;
-		}
-		this.initHtmlRootElementContent();
-		this.initMetaParameters();
-		this.registerComponentsforInit();
-		this.initComponents();
-		haxe.Log.trace("SLPlayer id " + this.id + " launched !",{ fileName : "Application.hx", lineNumber : 156, className : "slplayer.core.Application", methodName : "launch"});
-	}
-	,getMetaParameter: function(metaParamKey) {
-		return this.metaParameters.get(metaParamKey);
-	}
-	,metaParameters: null
-	,registeredComponents: null
-	,dataObject: null
-	,htmlRootElement: null
-	,nodeToCmpInstances: null
-	,id: null
-	,__class__: slplayer.core.Application
-}
-slplayer.core.SLPlayerComponent = function() { }
-$hxClasses["slplayer.core.SLPlayerComponent"] = slplayer.core.SLPlayerComponent;
-slplayer.core.SLPlayerComponent.__name__ = ["slplayer","core","SLPlayerComponent"];
-slplayer.core.SLPlayerComponent.initSLPlayerComponent = function(component,SLPlayerInstanceId) {
+org.slplayer.component.SLPlayerComponent = function() { }
+$hxClasses["org.slplayer.component.SLPlayerComponent"] = org.slplayer.component.SLPlayerComponent;
+org.slplayer.component.SLPlayerComponent.__name__ = ["org","slplayer","component","SLPlayerComponent"];
+org.slplayer.component.SLPlayerComponent.initSLPlayerComponent = function(component,SLPlayerInstanceId) {
 	component.SLPlayerInstanceId = SLPlayerInstanceId;
 }
-slplayer.core.SLPlayerComponent.getSLPlayer = function(component) {
-	return slplayer.core.Application.get(component.SLPlayerInstanceId);
+org.slplayer.component.SLPlayerComponent.getSLPlayer = function(component) {
+	return org.slplayer.core.Application.get(component.SLPlayerInstanceId);
 }
-slplayer.core.SLPlayerComponentTools = function() { }
-$hxClasses["slplayer.core.SLPlayerComponentTools"] = slplayer.core.SLPlayerComponentTools;
-slplayer.core.SLPlayerComponentTools.__name__ = ["slplayer","core","SLPlayerComponentTools"];
-slplayer.core.SLPlayerComponentTools.checkRequiredParameters = function(cmpClass,elt) {
+org.slplayer.component.SLPlayerComponent.checkRequiredParameters = function(cmpClass,elt) {
 	var requires = haxe.rtti.Meta.getType(cmpClass).requires;
 	if(requires == null) return;
 	var _g = 0;
@@ -19389,33 +19504,24 @@ slplayer.core.SLPlayerComponentTools.checkRequiredParameters = function(cmpClass
 		if(elt.getAttribute(Std.string(r)) == null || StringTools.trim(elt.getAttribute(Std.string(r))) == "") throw Std.string(r) + " parameter is required for " + Type.getClassName(cmpClass);
 	}
 }
-slplayer.core.SLPlayerComponentTools.getUnconflictedClassTag = function(displayObjectClassName,registeredComponentsClassNames) {
-	var classTag = displayObjectClassName;
-	if(classTag.indexOf(".") != -1) classTag = HxOverrides.substr(classTag,classTag.lastIndexOf(".") + 1,null);
-	while(registeredComponentsClassNames.hasNext()) {
-		var registeredComponentClassName = registeredComponentsClassNames.next();
-		if(registeredComponentClassName != displayObjectClassName && classTag == HxOverrides.substr(registeredComponentClassName,classTag.lastIndexOf(".") + 1,null)) return displayObjectClassName;
-	}
-	return classTag;
-}
-slplayer.ui.interaction = {}
-slplayer.ui.interaction.DraggableState = $hxClasses["slplayer.ui.interaction.DraggableState"] = { __ename__ : ["slplayer","ui","interaction","DraggableState"], __constructs__ : ["none","dragging"] }
-slplayer.ui.interaction.DraggableState.none = ["none",0];
-slplayer.ui.interaction.DraggableState.none.toString = $estr;
-slplayer.ui.interaction.DraggableState.none.__enum__ = slplayer.ui.interaction.DraggableState;
-slplayer.ui.interaction.DraggableState.dragging = ["dragging",1];
-slplayer.ui.interaction.DraggableState.dragging.toString = $estr;
-slplayer.ui.interaction.DraggableState.dragging.__enum__ = slplayer.ui.interaction.DraggableState;
-slplayer.ui.interaction.Draggable = function(rootElement,SLPId) {
-	slplayer.ui.DisplayObject.call(this,rootElement,SLPId);
-	this.state = slplayer.ui.interaction.DraggableState.none;
+org.slplayer.component.interaction = {}
+org.slplayer.component.interaction.DraggableState = $hxClasses["org.slplayer.component.interaction.DraggableState"] = { __ename__ : ["org","slplayer","component","interaction","DraggableState"], __constructs__ : ["none","dragging"] }
+org.slplayer.component.interaction.DraggableState.none = ["none",0];
+org.slplayer.component.interaction.DraggableState.none.toString = $estr;
+org.slplayer.component.interaction.DraggableState.none.__enum__ = org.slplayer.component.interaction.DraggableState;
+org.slplayer.component.interaction.DraggableState.dragging = ["dragging",1];
+org.slplayer.component.interaction.DraggableState.dragging.toString = $estr;
+org.slplayer.component.interaction.DraggableState.dragging.__enum__ = org.slplayer.component.interaction.DraggableState;
+org.slplayer.component.interaction.Draggable = function(rootElement,SLPId) {
+	org.slplayer.component.ui.DisplayObject.call(this,rootElement,SLPId);
+	this.state = org.slplayer.component.interaction.DraggableState.none;
 	this.dropZonesClassName = rootElement.getAttribute("data-dropzones-class-name");
 	if(this.dropZonesClassName == null || this.dropZonesClassName == "") this.dropZonesClassName = "draggable-dropzone";
 };
-$hxClasses["slplayer.ui.interaction.Draggable"] = slplayer.ui.interaction.Draggable;
-slplayer.ui.interaction.Draggable.__name__ = ["slplayer","ui","interaction","Draggable"];
-slplayer.ui.interaction.Draggable.__super__ = slplayer.ui.DisplayObject;
-slplayer.ui.interaction.Draggable.prototype = $extend(slplayer.ui.DisplayObject.prototype,{
+$hxClasses["org.slplayer.component.interaction.Draggable"] = org.slplayer.component.interaction.Draggable;
+org.slplayer.component.interaction.Draggable.__name__ = ["org","slplayer","component","interaction","Draggable"];
+org.slplayer.component.interaction.Draggable.__super__ = org.slplayer.component.ui.DisplayObject;
+org.slplayer.component.interaction.Draggable.prototype = $extend(org.slplayer.component.ui.DisplayObject.prototype,{
 	setAsBestDropZone: function(zone) {
 		if(zone == this.bestDropZone) return;
 		if(this.bestDropZone != null) this.bestDropZone.parent.removeChild(this.phantom);
@@ -19441,7 +19547,7 @@ slplayer.ui.interaction.Draggable.prototype = $extend(slplayer.ui.DisplayObject.
 		return null;
 	}
 	,move: function(e) {
-		if(this.state == slplayer.ui.interaction.DraggableState.dragging) {
+		if(this.state == org.slplayer.component.interaction.DraggableState.dragging) {
 			var x = e.clientX - this.initialMouseX + this.initialX;
 			var y = e.clientY - this.initialMouseY + this.initialY;
 			this.rootElement.style.left = x + "px";
@@ -19450,30 +19556,46 @@ slplayer.ui.interaction.Draggable.prototype = $extend(slplayer.ui.DisplayObject.
 		}
 	}
 	,stopDrag: function(e) {
-		if(this.state == slplayer.ui.interaction.DraggableState.dragging) {
+		if(this.state == org.slplayer.component.interaction.DraggableState.dragging) {
 			if(this.bestDropZone != null) {
 				this.rootElement.parentNode.removeChild(this.rootElement);
 				this.bestDropZone.parent.insertBefore(this.rootElement,this.bestDropZone.parent.childNodes[this.bestDropZone.position]);
-				haxe.Log.trace("Draggable stopDrag droped! " + Std.string(this.state),{ fileName : "Draggable.hx", lineNumber : 206, className : "slplayer.ui.interaction.Draggable", methodName : "stopDrag"});
+				haxe.Log.trace("Draggable stopDrag droped! " + Std.string(this.state),{ fileName : "Draggable.hx", lineNumber : 250, className : "org.slplayer.component.interaction.Draggable", methodName : "stopDrag"});
+				var event = js.Lib.document.createEvent("CustomEvent");
+				event.initCustomEvent("dragEventDropped",false,false,this.bestDropZone.parent);
+				this.bestDropZone.parent.dispatchEvent(event);
+				event = js.Lib.document.createEvent("CustomEvent");
+				event.initCustomEvent("dragEventDropped",false,false,this.rootElement);
+				this.rootElement.dispatchEvent(event);
 			}
-			this.state = slplayer.ui.interaction.DraggableState.none;
+			this.state = org.slplayer.component.interaction.DraggableState.none;
 			this.resetRootElementStyle();
 			js.Lib.document.body.onmousemove = null;
 			this.setAsBestDropZone(null);
+			return false;;
 		}
+		return true;;
 	}
 	,startDrag: function(e) {
-		haxe.Log.trace("Draggable startDrag " + Std.string(this.state),{ fileName : "Draggable.hx", lineNumber : 178, className : "slplayer.ui.interaction.Draggable", methodName : "startDrag"});
-		if(this.state == slplayer.ui.interaction.DraggableState.none) {
-			this.state = slplayer.ui.interaction.DraggableState.dragging;
+		var _g = this;
+		haxe.Log.trace("Draggable startDrag " + Std.string(this.state),{ fileName : "Draggable.hx", lineNumber : 209, className : "org.slplayer.component.interaction.Draggable", methodName : "startDrag"});
+		if(this.state == org.slplayer.component.interaction.DraggableState.none) {
+			this.state = org.slplayer.component.interaction.DraggableState.dragging;
 			this.initialX = this.rootElement.offsetLeft;
 			this.initialY = this.rootElement.offsetTop;
 			this.initialMouseX = e.clientX;
 			this.initialMouseY = e.clientY;
 			this.initPhantomStyle();
 			this.initRootElementStyle();
-			js.Lib.document.body.onmousemove = $bind(this,this.move);
+			js.Lib.document.onmousemove = function(e1) {
+				_g.move(e1);
+			};
+			this.move(e);
+			var event = js.Lib.document.createEvent("CustomEvent");
+			event.initCustomEvent("dragEventDrag",false,false,this.rootElement);
+			this.rootElement.dispatchEvent(event);
 		}
+		return false;;
 	}
 	,resetRootElementStyle: function() {
 		var _g = 0, _g1 = Reflect.fields(this.initialStyle);
@@ -19486,7 +19608,7 @@ slplayer.ui.interaction.Draggable.prototype = $extend(slplayer.ui.DisplayObject.
 	}
 	,initPhantomStyle: function() {
 		var computedStyle = window.getComputedStyle(this.rootElement, null);
-		haxe.Log.trace("initPhantomStyle " + Std.string(computedStyle),{ fileName : "Draggable.hx", lineNumber : 145, className : "slplayer.ui.interaction.Draggable", methodName : "initPhantomStyle"});
+		haxe.Log.trace("initPhantomStyle " + Std.string(computedStyle),{ fileName : "Draggable.hx", lineNumber : 174, className : "org.slplayer.component.interaction.Draggable", methodName : "initPhantomStyle"});
 		var _g = 0, _g1 = Reflect.fields(computedStyle);
 		while(_g < _g1.length) {
 			var styleName = _g1[_g];
@@ -19508,15 +19630,15 @@ slplayer.ui.interaction.Draggable.prototype = $extend(slplayer.ui.DisplayObject.
 		this.rootElement.style.position = "absolute";
 	}
 	,init: function() {
-		slplayer.ui.DisplayObject.prototype.init.call(this);
-		haxe.Log.trace("Draggable init",{ fileName : "Draggable.hx", lineNumber : 100, className : "slplayer.ui.interaction.Draggable", methodName : "init"});
+		org.slplayer.component.ui.DisplayObject.prototype.init.call(this);
+		haxe.Log.trace("Draggable init",{ fileName : "Draggable.hx", lineNumber : 124, className : "org.slplayer.component.interaction.Draggable", methodName : "init"});
 		this.phantom = js.Lib.document.createElement("div");
-		this.dragZone = slplayer.util.DomTools.getSingleElement(this.rootElement,"draggable-dragzone",false);
+		this.dragZone = org.slplayer.util.DomTools.getSingleElement(this.rootElement,"draggable-dragzone",false);
 		if(this.dragZone == null) this.dragZone = this.rootElement;
-		this.dropZones = slplayer.util.DomTools.getElementsByClassName(js.Lib.document.body,this.dropZonesClassName);
+		this.dropZones = js.Lib.document.body.getElementsByClassName(this.dropZonesClassName);
 		if(this.dropZones.length == 0) this.dropZones[0] = this.rootElement.parentNode;
 		this.dragZone.onmousedown = $bind(this,this.startDrag);
-		js.Lib.document.body.onmouseup = $bind(this,this.stopDrag);
+		this.dragZone.onmouseup = $bind(this,this.stopDrag);
 		this.dragZone.style.cursor = "move";
 	}
 	,initialY: null
@@ -19530,13 +19652,226 @@ slplayer.ui.interaction.Draggable.prototype = $extend(slplayer.ui.DisplayObject.
 	,dragZone: null
 	,state: null
 	,phantom: null
-	,__class__: slplayer.ui.interaction.Draggable
+	,__class__: org.slplayer.component.interaction.Draggable
 });
-slplayer.util = {}
-slplayer.util.DomTools = function() { }
-$hxClasses["slplayer.util.DomTools"] = slplayer.util.DomTools;
-slplayer.util.DomTools.__name__ = ["slplayer","util","DomTools"];
-slplayer.util.DomTools.getElementsByAttribute = function(elt,attr,value) {
+org.slplayer.core = {}
+org.slplayer.core.Application = function(id,args) {
+	this.dataObject = args;
+	this.id = id;
+	this.nodesIdSequence = 0;
+	this.registeredComponents = new Array();
+	this.nodeToCmpInstances = new Hash();
+	this.metaParameters = new Hash();
+	haxe.Log.trace("new SLPlayer instance built",{ fileName : "Application.hx", lineNumber : 106, className : "org.slplayer.core.Application", methodName : "new"});
+};
+$hxClasses["org.slplayer.core.Application"] = org.slplayer.core.Application;
+$hxExpose(org.slplayer.core.Application, "FileManager");
+org.slplayer.core.Application.__name__ = ["org","slplayer","core","Application"];
+org.slplayer.core.Application.get = function(SLPId) {
+	return org.slplayer.core.Application.instances.get(SLPId);
+}
+org.slplayer.core.Application.generateUniqueId = function() {
+	return haxe.Md5.encode(HxOverrides.dateStr(new Date()) + Std.string(Std.random(new Date().getTime() | 0)));
+}
+org.slplayer.core.Application.init = function(appendTo,args) {
+	haxe.Log.trace("SLPlayer init() called with appendTo=" + Std.string(appendTo) + " and args=" + Std.string(args),{ fileName : "Application.hx", lineNumber : 194, className : "org.slplayer.core.Application", methodName : "init"});
+	var newId = org.slplayer.core.Application.generateUniqueId();
+	haxe.Log.trace("New SLPlayer id created : " + newId,{ fileName : "Application.hx", lineNumber : 201, className : "org.slplayer.core.Application", methodName : "init"});
+	var newInstance = new org.slplayer.core.Application(newId,args);
+	haxe.Log.trace("setting ref to SLPlayer instance " + newId,{ fileName : "Application.hx", lineNumber : 207, className : "org.slplayer.core.Application", methodName : "init"});
+	org.slplayer.core.Application.instances.set(newId,newInstance);
+	js.Lib.window.onload = function(e) {
+		newInstance.launch(appendTo);
+	};
+}
+org.slplayer.core.Application.main = function() {
+	haxe.Log.trace("noAutoStart not defined: calling init()...",{ fileName : "Application.hx", lineNumber : 220, className : "org.slplayer.core.Application", methodName : "main"});
+	org.slplayer.core.Application.init();
+}
+org.slplayer.core.Application.prototype = {
+	getUnconflictedClassTag: function(displayObjectClassName) {
+		var classTag = displayObjectClassName;
+		if(classTag.indexOf(".") != -1) classTag = HxOverrides.substr(classTag,classTag.lastIndexOf(".") + 1,null);
+		var _g = 0, _g1 = this.registeredComponents;
+		while(_g < _g1.length) {
+			var rc = _g1[_g];
+			++_g;
+			if(rc.classname != displayObjectClassName && classTag == HxOverrides.substr(rc.classname,classTag.lastIndexOf(".") + 1,null)) return displayObjectClassName;
+		}
+		return classTag;
+	}
+	,getAssociatedComponents: function(node,typeFilter) {
+		var nodeId = node.getAttribute("data-" + "slpid");
+		if(nodeId != null) {
+			var l = new List();
+			var $it0 = this.nodeToCmpInstances.get(nodeId).iterator();
+			while( $it0.hasNext() ) {
+				var i = $it0.next();
+				if(js.Boot.__instanceof(i,typeFilter)) {
+					var inst = i;
+					l.add(inst);
+				}
+			}
+			return l;
+		}
+		return new List();
+	}
+	,addAssociatedComponent: function(node,cmp) {
+		var nodeId = node.getAttribute("data-" + "slpid");
+		var associatedCmps;
+		if(nodeId != null) associatedCmps = this.nodeToCmpInstances.get(nodeId); else {
+			this.nodesIdSequence++;
+			nodeId = Std.string(this.nodesIdSequence);
+			node.setAttribute("data-" + "slpid",nodeId);
+			associatedCmps = new List();
+		}
+		associatedCmps.add(cmp);
+		this.nodeToCmpInstances.set(nodeId,associatedCmps);
+	}
+	,callInitOnComponents: function() {
+		haxe.Log.trace("call Init On Components",{ fileName : "Application.hx", lineNumber : 396, className : "org.slplayer.core.Application", methodName : "callInitOnComponents"});
+		var $it0 = this.nodeToCmpInstances.iterator();
+		while( $it0.hasNext() ) {
+			var l = $it0.next();
+			var $it1 = l.iterator();
+			while( $it1.hasNext() ) {
+				var c = $it1.next();
+				try {
+					c.init();
+				} catch( unknown ) {
+					haxe.Log.trace("ERROR while trying to call init() on a " + Type.getClassName(Type.getClass(c)) + ": " + Std.string(unknown),{ fileName : "Application.hx", lineNumber : 414, className : "org.slplayer.core.Application", methodName : "callInitOnComponents"});
+					var excptArr = haxe.Stack.exceptionStack();
+					if(excptArr.length > 0) haxe.Log.trace(haxe.Stack.toString(haxe.Stack.exceptionStack()),{ fileName : "Application.hx", lineNumber : 418, className : "org.slplayer.core.Application", methodName : "callInitOnComponents"});
+				}
+			}
+		}
+	}
+	,createComponentsOfType: function(componentClassName,args) {
+		haxe.Log.trace("Creating " + componentClassName + "...",{ fileName : "Application.hx", lineNumber : 266, className : "org.slplayer.core.Application", methodName : "createComponentsOfType"});
+		var componentClass = Type.resolveClass(componentClassName);
+		if(componentClass == null) {
+			var rslErrMsg = "ERROR cannot resolve " + componentClassName;
+			haxe.Log.trace(rslErrMsg,{ fileName : "Application.hx", lineNumber : 277, className : "org.slplayer.core.Application", methodName : "createComponentsOfType"});
+			return;
+		}
+		haxe.Log.trace(componentClassName + " class resolved ",{ fileName : "Application.hx", lineNumber : 283, className : "org.slplayer.core.Application", methodName : "createComponentsOfType"});
+		if(org.slplayer.component.ui.DisplayObject.isDisplayObject(componentClass)) {
+			var classTag = this.getUnconflictedClassTag(componentClassName);
+			haxe.Log.trace("searching now for class tag = " + classTag,{ fileName : "Application.hx", lineNumber : 291, className : "org.slplayer.core.Application", methodName : "createComponentsOfType"});
+			var taggedNodes = new Array();
+			var taggedNodesCollection = this.htmlRootElement.getElementsByClassName(classTag);
+			var _g1 = 0, _g = taggedNodesCollection.length;
+			while(_g1 < _g) {
+				var nodeCnt = _g1++;
+				taggedNodes.push(taggedNodesCollection[nodeCnt]);
+			}
+			if(componentClassName != classTag) {
+				haxe.Log.trace("searching now for class tag = " + componentClassName,{ fileName : "Application.hx", lineNumber : 304, className : "org.slplayer.core.Application", methodName : "createComponentsOfType"});
+				taggedNodesCollection = this.htmlRootElement.getElementsByClassName(componentClassName);
+				var _g1 = 0, _g = taggedNodesCollection.length;
+				while(_g1 < _g) {
+					var nodeCnt = _g1++;
+					taggedNodes.push(taggedNodesCollection[nodeCnt]);
+				}
+			}
+			haxe.Log.trace("taggedNodes = " + taggedNodes.length,{ fileName : "Application.hx", lineNumber : 315, className : "org.slplayer.core.Application", methodName : "createComponentsOfType"});
+			var _g = 0;
+			while(_g < taggedNodes.length) {
+				var node = taggedNodes[_g];
+				++_g;
+				var newDisplayObject;
+				try {
+					newDisplayObject = Type.createInstance(componentClass,[node,this.id]);
+					haxe.Log.trace("Successfuly created instance of " + componentClassName,{ fileName : "Application.hx", lineNumber : 330, className : "org.slplayer.core.Application", methodName : "createComponentsOfType"});
+				} catch( unknown ) {
+					haxe.Log.trace("ERROR while creating " + componentClassName + ": " + Std.string(unknown),{ fileName : "Application.hx", lineNumber : 337, className : "org.slplayer.core.Application", methodName : "createComponentsOfType"});
+					var excptArr = haxe.Stack.exceptionStack();
+					if(excptArr.length > 0) haxe.Log.trace(haxe.Stack.toString(haxe.Stack.exceptionStack()),{ fileName : "Application.hx", lineNumber : 341, className : "org.slplayer.core.Application", methodName : "createComponentsOfType"});
+				}
+			}
+		} else {
+			haxe.Log.trace("Try to create an instance of " + componentClassName + " non visual component",{ fileName : "Application.hx", lineNumber : 350, className : "org.slplayer.core.Application", methodName : "createComponentsOfType"});
+			var cmpInstance = null;
+			try {
+				if(args != null) cmpInstance = Type.createInstance(componentClass,[args]); else cmpInstance = Type.createInstance(componentClass,[]);
+				haxe.Log.trace("Successfuly created instance of " + componentClassName,{ fileName : "Application.hx", lineNumber : 366, className : "org.slplayer.core.Application", methodName : "createComponentsOfType"});
+			} catch( unknown ) {
+				haxe.Log.trace("ERROR while creating " + componentClassName + ": " + Std.string(unknown),{ fileName : "Application.hx", lineNumber : 373, className : "org.slplayer.core.Application", methodName : "createComponentsOfType"});
+				var excptArr = haxe.Stack.exceptionStack();
+				if(excptArr.length > 0) haxe.Log.trace(haxe.Stack.toString(haxe.Stack.exceptionStack()),{ fileName : "Application.hx", lineNumber : 377, className : "org.slplayer.core.Application", methodName : "createComponentsOfType"});
+			}
+			if(cmpInstance != null && js.Boot.__instanceof(cmpInstance,org.slplayer.component.ISLPlayerComponent)) cmpInstance.initSLPlayerComponent(this.id);
+		}
+	}
+	,initComponents: function() {
+		var _g = 0, _g1 = this.registeredComponents;
+		while(_g < _g1.length) {
+			var rc = _g1[_g];
+			++_g;
+			this.createComponentsOfType(rc.classname,rc.args);
+		}
+		this.callInitOnComponents();
+	}
+	,registerComponent: function(componentClassName,args) {
+		this.registeredComponents.push({ classname : componentClassName, args : args});
+	}
+	,registerComponentsforInit: function() {
+		filemanager.client.views.UploadStatus;
+		this.registerComponent("filemanager.client.views.UploadStatus");
+		filemanager.client.views.FilesView;
+		this.registerComponent("filemanager.client.views.FilesView");
+		filemanager.client.views.FolderTreeView;
+		this.registerComponent("filemanager.client.views.FolderTreeView");
+		org.slplayer.component.interaction.Draggable;
+		this.registerComponent("org.slplayer.component.interaction.Draggable");
+		filemanager.client.views.FileDropper;
+		this.registerComponent("filemanager.client.views.FileDropper");
+		filemanager.client.FileManager;
+		this.registerComponent("filemanager.client.FileManager");
+		filemanager.client.views.ToolBox;
+		this.registerComponent("filemanager.client.views.ToolBox");
+	}
+	,initMetaParameters: function() {
+	}
+	,initHtmlRootElementContent: function() {
+	}
+	,launch: function(appendTo) {
+		haxe.Log.trace("Launching SLPlayer id " + this.id + " on " + Std.string(appendTo),{ fileName : "Application.hx", lineNumber : 118, className : "org.slplayer.core.Application", methodName : "launch"});
+		if(appendTo != null) {
+			haxe.Log.trace("setting htmlRootElement to " + Std.string(appendTo),{ fileName : "Application.hx", lineNumber : 124, className : "org.slplayer.core.Application", methodName : "launch"});
+			this.htmlRootElement = appendTo;
+		}
+		if(this.htmlRootElement == null || this.htmlRootElement.nodeType != js.Lib.document.body.nodeType) {
+			haxe.Log.trace("setting htmlRootElement to Lib.document.body",{ fileName : "Application.hx", lineNumber : 133, className : "org.slplayer.core.Application", methodName : "launch"});
+			this.htmlRootElement = js.Lib.document.body;
+		}
+		if(this.htmlRootElement == null) {
+			haxe.Log.trace("ERROR windows.document.body is null => You are trying to start your application while the document loading is probably not complete yet." + " To fix that, add the noAutoStart option to your slplayer application and control the application startup with: window.onload = function() { myApplication.init() };",{ fileName : "Application.hx", lineNumber : 141, className : "org.slplayer.core.Application", methodName : "launch"});
+			return;
+		}
+		this.initHtmlRootElementContent();
+		this.initMetaParameters();
+		this.registerComponentsforInit();
+		this.initComponents();
+		haxe.Log.trace("SLPlayer id " + this.id + " launched !",{ fileName : "Application.hx", lineNumber : 162, className : "org.slplayer.core.Application", methodName : "launch"});
+	}
+	,getMetaParameter: function(metaParamKey) {
+		return this.metaParameters.get(metaParamKey);
+	}
+	,metaParameters: null
+	,registeredComponents: null
+	,dataObject: null
+	,htmlRootElement: null
+	,nodeToCmpInstances: null
+	,nodesIdSequence: null
+	,id: null
+	,__class__: org.slplayer.core.Application
+}
+org.slplayer.util = {}
+org.slplayer.util.DomTools = function() { }
+$hxClasses["org.slplayer.util.DomTools"] = org.slplayer.util.DomTools;
+org.slplayer.util.DomTools.__name__ = ["org","slplayer","util","DomTools"];
+org.slplayer.util.DomTools.getElementsByAttribute = function(elt,attr,value) {
 	var childElts = elt.getElementsByTagName("*");
 	var filteredChildElts = new Array();
 	var _g1 = 0, _g = childElts.length;
@@ -19546,23 +19881,20 @@ slplayer.util.DomTools.getElementsByAttribute = function(elt,attr,value) {
 	}
 	return filteredChildElts;
 }
-slplayer.util.DomTools.getElementsByClassName = function(rootElement,className) {
-	return rootElement.getElementsByClassName(className);
-}
-slplayer.util.DomTools.getSingleElement = function(rootElement,className,required) {
+org.slplayer.util.DomTools.getSingleElement = function(rootElement,className,required) {
 	if(required == null) required = true;
-	var domElements = slplayer.util.DomTools.getElementsByClassName(rootElement,className);
+	var domElements = rootElement.getElementsByClassName(className);
 	if(domElements != null && domElements.length == 1) return domElements[0]; else {
 		if(required) throw "Error: search for the element with class name \"" + className + "\" gave " + domElements.length + " results";
 		return null;
 	}
 }
-slplayer.util.DomTools.inspectTrace = function(obj) {
+org.slplayer.util.DomTools.inspectTrace = function(obj) {
 	var _g = 0, _g1 = Reflect.fields(obj);
 	while(_g < _g1.length) {
 		var prop = _g1[_g];
 		++_g;
-		haxe.Log.trace("- " + prop + " = " + Std.string(Reflect.field(obj,prop)),{ fileName : "DomTools.hx", lineNumber : 77, className : "slplayer.util.DomTools", methodName : "inspectTrace"});
+		haxe.Log.trace("- " + prop + " = " + Std.string(Reflect.field(obj,prop)),{ fileName : "DomTools.hx", lineNumber : 80, className : "org.slplayer.util.DomTools", methodName : "inspectTrace"});
 	}
 }
 function $iterator(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? $bind(o,o.iterator) : o.iterator; };
@@ -19632,19 +19964,28 @@ js.XMLHttpRequest = window.XMLHttpRequest?XMLHttpRequest:window.ActiveXObject?fu
 	throw "Unable to create XMLHttpRequest object.";
 	return $r;
 }(this));
-cocktail.core.dom.Node.ELEMENT_NODE = 1;
-cocktail.core.dom.Node.ATTRIBUTE_NODE = 2;
-cocktail.core.dom.Node.TEXT_NODE = 3;
-cocktail.core.dom.Node.CDATA_SECTION_NODE = 4;
-cocktail.core.dom.Node.ENTITY_REFERENCE_NODE = 5;
-cocktail.core.dom.Node.ENTITY_NODE = 6;
-cocktail.core.dom.Node.PROCESSING_INSTRUCTION_NODE = 7;
-cocktail.core.dom.Node.COMMENT_NODE = 8;
-cocktail.core.dom.Node.DOCUMENT_NODE = 9;
-cocktail.core.dom.Node.DOCUMENT_TYPE_NODE = 10;
-cocktail.core.dom.Node.DOCUMENT_FRAGMENT_NODE = 11;
-cocktail.core.dom.Node.NOTATION_NODE = 11;
-cocktail.core.dom.Element.MATCH_ALL_TAG_NAME = "*";
+cocktail.core.dom.DOMConstants.ELEMENT_NODE = 1;
+cocktail.core.dom.DOMConstants.ATTRIBUTE_NODE = 2;
+cocktail.core.dom.DOMConstants.TEXT_NODE = 3;
+cocktail.core.dom.DOMConstants.CDATA_SECTION_NODE = 4;
+cocktail.core.dom.DOMConstants.ENTITY_REFERENCE_NODE = 5;
+cocktail.core.dom.DOMConstants.ENTITY_NODE = 6;
+cocktail.core.dom.DOMConstants.PROCESSING_INSTRUCTION_NODE = 7;
+cocktail.core.dom.DOMConstants.COMMENT_NODE = 8;
+cocktail.core.dom.DOMConstants.DOCUMENT_NODE = 9;
+cocktail.core.dom.DOMConstants.DOCUMENT_TYPE_NODE = 10;
+cocktail.core.dom.DOMConstants.DOCUMENT_FRAGMENT_NODE = 11;
+cocktail.core.dom.DOMConstants.NOTATION_NODE = 11;
+cocktail.core.dom.DOMConstants.EVENT_INTERFACE = "Event";
+cocktail.core.dom.DOMConstants.UI_EVENT_INTERFACE = "UIEvent";
+cocktail.core.dom.DOMConstants.MOUSE_EVENT_INTERFACE = "MouseEvent";
+cocktail.core.dom.DOMConstants.FOCUS_EVENT_INTERFACE = "FocusEvent";
+cocktail.core.dom.DOMConstants.KEYBOARD_EVENT_INTERFACE = "KeyboardEvent";
+cocktail.core.dom.DOMConstants.WHEEL_EVENT_INTERFACE = "WheelEvent";
+cocktail.core.dom.DOMConstants.CUSTOM_EVENT_INTERFACE = "CustomEvent";
+cocktail.core.dom.DOMConstants.TRANSITION_EVENT_INTERFACE = "TransitionEvent";
+cocktail.core.dom.DOMConstants.MATCH_ALL_TAG_NAME = "*";
+cocktail.core.dom.DOMConstants.TEXT_NODE_NAME = "#text";
 cocktail.core.dom.DOMException.INDEX_SIZE_ERR = 1;
 cocktail.core.dom.DOMException.DOMSTRING_SIZE_ERR = 2;
 cocktail.core.dom.DOMException.HIERARCHY_REQUEST_ERR = 3;
@@ -19662,14 +20003,6 @@ cocktail.core.dom.DOMException.NAMESPACE_ERR = 14;
 cocktail.core.dom.DOMException.INVALID_ACCESS_ERR = 15;
 cocktail.core.dom.DOMException.VALIDATION_ERR = 16;
 cocktail.core.dom.DOMException.TYPE_MISMATCH_ERR = 19;
-cocktail.core.dom.Document.EVENT_INTERFACE = "Event";
-cocktail.core.dom.Document.UI_EVENT_INTERFACE = "UIEvent";
-cocktail.core.dom.Document.MOUSE_EVENT_INTERFACE = "MouseEvent";
-cocktail.core.dom.Document.FOCUS_EVENT_INTERFACE = "FocusEvent";
-cocktail.core.dom.Document.KEYBOARD_EVENT_INTERFACE = "KeyboardEvent";
-cocktail.core.dom.Document.WHEEL_EVENT_INTERFACE = "WheelEvent";
-cocktail.core.dom.Document.CUSTOM_EVENT_INTERFACE = "CustomEvent";
-cocktail.core.dom.Document.TRANSITION_EVENT_INTERFACE = "TransitionEvent";
 cocktail.core.event.Event.PLAY = "play";
 cocktail.core.event.Event.PLAYING = "playing";
 cocktail.core.event.Event.PAUSE = "pause";
@@ -19733,6 +20066,43 @@ cocktail.core.html.HTMLConstants.HTML_VIDEO_TAG_NAME = "VIDEO";
 cocktail.core.html.HTMLConstants.HTML_SOURCE_TAG_NAME = "SOURCE";
 cocktail.core.html.HTMLConstants.HTML_DIV_TAG_NAME = "DIV";
 cocktail.core.html.HTMLConstants.HTML_OBJECT_TAG_NAME = "OBJECT";
+cocktail.core.html.HTMLConstants.HTML_PARAM_TAG_NAME = "PARAM";
+cocktail.core.html.HTMLConstants.HTML_ADRESS_TAG_NAME = "ADRESS";
+cocktail.core.html.HTMLConstants.HTML_DD_TAG_NAME = "DD";
+cocktail.core.html.HTMLConstants.HTML_DL_TAG_NAME = "DL";
+cocktail.core.html.HTMLConstants.HTML_DT_TAG_NAME = "DT";
+cocktail.core.html.HTMLConstants.HTML_FIELDSET_TAG_NAME = "FIELDSET";
+cocktail.core.html.HTMLConstants.HTML_FORM_TAG_NAME = "FORM";
+cocktail.core.html.HTMLConstants.HTML_FRAME_TAG_NAME = "FRAME";
+cocktail.core.html.HTMLConstants.HTML_FRAMESET_TAG_NAME = "FRAMESET";
+cocktail.core.html.HTMLConstants.HTML_NOFRAMES_TAG_NAME = "NOFRAMES";
+cocktail.core.html.HTMLConstants.HTML_OL_TAG_NAME = "OL";
+cocktail.core.html.HTMLConstants.HTML_CENTER_TAG_NAME = "CENTER";
+cocktail.core.html.HTMLConstants.HTML_DIR_TAG_NAME = "DIR";
+cocktail.core.html.HTMLConstants.HTML_HR_TAG_NAME = "HR";
+cocktail.core.html.HTMLConstants.HTML_MENU_TAG_NAME = "MENU";
+cocktail.core.html.HTMLConstants.HTML_LI_TAG_NAME = "LI";
+cocktail.core.html.HTMLConstants.HTML_UL_TAG_NAME = "UL";
+cocktail.core.html.HTMLConstants.HTML_HEAD_TAG_NAME = "HEAD";
+cocktail.core.html.HTMLConstants.HTML_H1_TAG_NAME = "H1";
+cocktail.core.html.HTMLConstants.HTML_H2_TAG_NAME = "H2";
+cocktail.core.html.HTMLConstants.HTML_H3_TAG_NAME = "H3";
+cocktail.core.html.HTMLConstants.HTML_H4_TAG_NAME = "H4";
+cocktail.core.html.HTMLConstants.HTML_H5_TAG_NAME = "H5";
+cocktail.core.html.HTMLConstants.HTML_H6_TAG_NAME = "H6";
+cocktail.core.html.HTMLConstants.HTML_P_TAG_NAME = "P";
+cocktail.core.html.HTMLConstants.HTML_PRE_TAG_NAME = "PRE";
+cocktail.core.html.HTMLConstants.HTML_CODE_TAG_NAME = "CODE";
+cocktail.core.html.HTMLConstants.HTML_I_TAG_NAME = "I";
+cocktail.core.html.HTMLConstants.HTML_CITE_TAG_NAME = "CITE";
+cocktail.core.html.HTMLConstants.HTML_EM_TAG_NAME = "EM";
+cocktail.core.html.HTMLConstants.HTML_VAR_TAG_NAME = "VAR";
+cocktail.core.html.HTMLConstants.HTML_BLOCKQUOTE_TAG_NAME = "BLOCKQUOTE";
+cocktail.core.html.HTMLConstants.HTML_STRONG_TAG_NAME = "STRONG";
+cocktail.core.html.HTMLConstants.HTML_BIG_TAG_NAME = "BIG";
+cocktail.core.html.HTMLConstants.HTML_SMALL_TAG_NAME = "SMALL";
+cocktail.core.html.HTMLConstants.HTML_SUB_TAG_NAME = "SUB";
+cocktail.core.html.HTMLConstants.HTML_SUP_TAG_NAME = "SUP";
 cocktail.core.html.HTMLConstants.HTML_ID_ATTRIBUTE_NAME = "id";
 cocktail.core.html.HTMLConstants.HTML_CLASS_ATTRIBUTE_NAME = "class";
 cocktail.core.html.HTMLConstants.HTML_HIDDEN_ATTRIBUTE_NAME = "hidden";
@@ -19750,6 +20120,7 @@ cocktail.core.html.HTMLConstants.HTML_DATA_ATTRIBUTE_NAME = "data";
 cocktail.core.html.HTMLConstants.HTML_HEIGHT_ATTRIBUTE_NAME = "height";
 cocktail.core.html.HTMLConstants.HTML_WIDTH_ATTRIBUTE_NAME = "width";
 cocktail.core.html.HTMLConstants.HTML_POSTER_ATTRIBUTE_NAME = "poster";
+cocktail.core.html.HTMLConstants.HTML_NAME_ATTRIBUTE_NAME = "name";
 cocktail.core.html.HTMLConstants.TARGET_BLANK = "_blank";
 cocktail.core.html.HTMLConstants.TARGET_SELF = "_self";
 cocktail.core.html.HTMLConstants.TARGET_PARENT = "_parent";
@@ -19766,7 +20137,7 @@ cocktail.core.html.HTMLInputElement.HTML_INPUT_TEXT_INTRINSIC_WIDTH = 150;
 cocktail.core.html.HTMLInputElement.HTML_INPUT_TEXT_INTRINSIC_RATIO = 0.15;
 cocktail.core.html.HTMLMediaElement.RESOURCE_SELECTION_ATTRIBUTE_MODE = 0;
 cocktail.core.html.HTMLMediaElement.RESOURCE_SELECTION_CHILDREN_MODE = 1;
-cocktail.core.html.HTMLMediaElement.TIME_UPDATE_FREQUENCY = 350;
+cocktail.core.html.HTMLMediaElement.TIME_UPDATE_FREQUENCY = 15;
 cocktail.core.html.HTMLMediaElement.PROGRESS_FREQUENCY = 350;
 cocktail.core.html.HTMLMediaElement.PLAYBACK_END_DELTA = 0.2;
 cocktail.core.html.HTMLMediaElement.NETWORK_EMPTY = 0;
@@ -19780,6 +20151,8 @@ cocktail.core.html.HTMLMediaElement.HAVE_METADATA = 1;
 cocktail.core.html.HTMLMediaElement.HAVE_CURRENT_DATA = 2;
 cocktail.core.html.HTMLMediaElement.HAVE_FUTURE_DATA = 3;
 cocktail.core.html.HTMLMediaElement.HAVE_ENOUGH_DATA = 4;
+cocktail.core.html.HTMLObjectElement.HTML_OBJECT_INTRISIC_WIDTH = 300;
+cocktail.core.html.HTMLObjectElement.HTML_OBJECT_INTRINSIC_HEIGHT = 150;
 cocktail.core.html.HTMLVideoElement.HTML_VIDEO_DEFAULT_WIDTH = 300;
 cocktail.core.html.HTMLVideoElement.HTML_VIDEO_DEFAULT_HEIGHT = 150;
 cocktail.core.html.ScrollBar.ARROW_SCROLL_OFFSET = 10;
@@ -19787,6 +20160,8 @@ cocktail.core.html.ScrollBar.TRACK_SCROLL_OFFSET = 50;
 cocktail.core.html.ScrollBar.THUMB_DEFAULT_DIMENSION = 16;
 cocktail.core.html.ScrollBar.ARROW_DEFAULT_DIMENSION = 16;
 cocktail.core.html.ScrollBar.TRACK_DEFAULT_DIMENSION = 16;
+cocktail.core.renderer.ObjectRenderer.NO_SCALE = "noscale";
+cocktail.core.renderer.ObjectRenderer.SHOW_ALL = "showall";
 cocktail.core.renderer.TextInputRenderer.SERIF_GENERIC_FONT_NAME = "serif";
 cocktail.core.renderer.TextInputRenderer.SERIF_FLASH_FONT_NAME = "_serif";
 cocktail.core.renderer.TextInputRenderer.SANS_SERIF_GENERIC_FONT_NAME = "sans";
@@ -19851,11 +20226,26 @@ cocktail.core.style.CSSConstants.TRANSITION_DURATION_STYLE_NAME = "transition-du
 cocktail.core.style.CSSConstants.TRANSITION_DELAY_STYLE_NAME = "transition-delay";
 cocktail.core.style.CSSConstants.TRANSITION_PROPERTY_STYLE_NAME = "transition-property";
 cocktail.core.style.CSSConstants.TRANSITION_TIMING_FUNCTION_STYLE_NAME = "transition-timing-function";
+cocktail.core.style.CSSConstants.TRANSFORM_ORIGIN_STYLE_NAME = "transform-origin";
+cocktail.core.style.CSSConstants.TRANSFORM_STYLE_NAME = "transform";
 cocktail.core.style.transition.TransitionManager.TRANSITION_UPDATE_SPEED = 20;
 filemanager.client.services.Api.GATEWAY_URL = "server/index.php";
+filemanager.client.views.FilesView.DRAGGING_FILE = "startedToDragFile";
+filemanager.client.views.FolderTreeView.DROPPED_FILE = "droppedFile";
 filemanager.client.views.uis.FileUploadStatus.PENDING = "Pending";
 filemanager.client.views.uis.FileUploadStatus.PROGRESS = "Progress";
 filemanager.client.views.uis.FileUploadStatus.COMPLETE = "Complete";
+filemanager.client.views.uis.buttons.CancelButton.VIEW_ID = "CancelButton";
+filemanager.client.views.uis.buttons.CancelUploadButton.VIEW_ID = "CancelUploadButton";
+filemanager.client.views.uis.buttons.ConfirmButton.VIEW_ID = "ConfirmButton";
+filemanager.client.views.uis.buttons.CopyButton.VIEW_ID = "CopyButton";
+filemanager.client.views.uis.buttons.CreateFolderButton.VIEW_ID = "CreateFolderButton";
+filemanager.client.views.uis.buttons.DeleteButton.VIEW_ID = "DeleteButton";
+filemanager.client.views.uis.buttons.DownloadButton.VIEW_ID = "DownloadButton";
+filemanager.client.views.uis.buttons.PasteButton.VIEW_ID = "PasteButton";
+filemanager.client.views.uis.buttons.RefreshButton.VIEW_ID = "RefreshButton";
+filemanager.client.views.uis.buttons.RenameButton.VIEW_ID = "RenameButton";
+filemanager.client.views.uis.buttons.UploadButton.VIEW_ID = "UploadButton";
 haxe.Serializer.USE_CACHE = false;
 haxe.Serializer.USE_ENUM_INDEX = false;
 haxe.Serializer.BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";
@@ -19869,13 +20259,15 @@ haxe.Unserializer.DEFAULT_RESOLVER = Type;
 haxe.Unserializer.BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";
 haxe.Unserializer.CODES = null;
 js.Lib.onerror = null;
-slplayer.core.Application.SLPID_ATTR_NAME = "slpid";
-slplayer.core.Application.instances = new Hash();
-slplayer.ui.interaction.Draggable.CSS_CLASS_DRAGZONE = "draggable-dragzone";
-slplayer.ui.interaction.Draggable.CSS_CLASS_DROPZONE = "draggable-dropzone";
-slplayer.ui.interaction.Draggable.CSS_CLASS_PHANTOM = "draggable-phantom";
-slplayer.ui.interaction.Draggable.ATTR_DROPZONE = "data-dropzones-class-name";
-slplayer.core.Application.main();
+org.slplayer.component.interaction.Draggable.CSS_CLASS_DRAGZONE = "draggable-dragzone";
+org.slplayer.component.interaction.Draggable.CSS_CLASS_DROPZONE = "draggable-dropzone";
+org.slplayer.component.interaction.Draggable.CSS_CLASS_PHANTOM = "draggable-phantom";
+org.slplayer.component.interaction.Draggable.ATTR_DROPZONE = "data-dropzones-class-name";
+org.slplayer.component.interaction.Draggable.EVENT_DRAG = "dragEventDrag";
+org.slplayer.component.interaction.Draggable.EVENT_DROPPED = "dragEventDropped";
+org.slplayer.core.Application.SLPID_ATTR_NAME = "slpid";
+org.slplayer.core.Application.instances = new Hash();
+org.slplayer.core.Application.main();
 function $hxExpose(src, path) {
 	var o = window;
 	var parts = path.split(".");

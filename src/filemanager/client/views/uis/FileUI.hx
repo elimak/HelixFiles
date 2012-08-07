@@ -4,7 +4,7 @@ import filemanager.client.views.base.View;
 import cocktail.core.unit.UnitManager;
 import filemanager.cross.FileVO;
 import cocktail.core.style.StyleData;
-import slplayer.ui.interaction.Draggable;
+import org.slplayer.component.interaction.Draggable;
 
 import js.Dom;
 import js.Lib;
@@ -19,10 +19,9 @@ import js.Lib;
 class FileUI extends View
 {
 
-	public function new( data: FileVO, SLPId:String ) 
-	{
-		Locator.registerSLDisplay(SLPId, this, "FileUI");
+	public function new( data: FileVO, SLPId:String ) {
 		
+		Locator.registerSLDisplay(SLPId, this, "FileUI");
 		var viewDom = Lib.document.createElement("div");
 		var nameFile = Lib.document.createTextNode(data.name);
 		
@@ -34,15 +33,13 @@ class FileUI extends View
 		setStyle(data);
 		makeDraggable();
 	}
-	
-	private function makeDraggable() 
-	{
+
+	private function makeDraggable() {
 		var draggable : Draggable = new Draggable(this.rootElement, SLPlayerInstanceId);
 		draggable.init();
 	}
 	
-	private function setStyle(data:FileVO) 
-	{
+	private function setStyle(data:FileVO) {
 		rootElement.style.cursor = UnitManager.getCSSCursor(Cursor.pointer);
 		rootElement.style.backgroundImage = "url('imgs/icons/" + data.extension + ".png')";
 	}

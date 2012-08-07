@@ -11,11 +11,12 @@ import js.Dom;
 
 class ConfirmButton extends LabelButton 
 {
+	public static inline var VIEW_ID : String = "ConfirmButton";
 	// public var requestCancelUpload : String->Void;
 	
 	public function new(label: String, SLPId:String) 
 	{
-		Locator.registerSLDisplay(SLPId, this, "ConfirmButton");
+		Locator.registerSLDisplay(SLPId, this, VIEW_ID);
 		super(label, SLPId);
 		
 		rootElement.className = "buttons confirmButton";

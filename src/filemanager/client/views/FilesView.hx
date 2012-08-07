@@ -6,6 +6,7 @@ import filemanager.cross.FileVO;
 import filemanager.cross.FolderVO;
 import haxe.Log;
 import js.Dom;
+import js.Lib;
 
 /**
  * ...
@@ -14,6 +15,9 @@ import js.Dom;
 
 class FilesView extends View
 {
+
+	public static inline var DRAGGING_FILE : String = "startedToDragFile";
+	public var currentDraggedFile : FileVO;
 	
 	public function new(rootElement:HtmlDom, SLPId:String) {
 		Locator.registerSLDisplay(SLPId, this, "FilesView");
@@ -25,14 +29,20 @@ class FilesView extends View
  * @param	data
  */
 	public function setList( data: Array<FileVO>) {
-		
-		// remove all children
-		clear(); 
-		
+		clear(); // remove all children
 		// and recreate the list 
 		for (i in 0...data.length) {
 			var file : FileUI = new FileUI(data[i], SLPlayerInstanceId);
 			rootElement.appendChild(file.rootElement);
+			var draggedCallBack = callback(handleFileDragged, data[i]);
+			file.rootElement.addEventListener("dragEventDrag", draggedCallBack, false);
 		}
+	}
+	
+	private function handleFileDragged( file: FileVO, evt: Event ) : Void {
+		currentDraggedFile = file;
+		var event : CustomEvent = cast Lib.document.createEvent("CustomEvent");
+		event.initCustomEvent(DRAGGING_FILE, false, false, rootElement);
+		rootElement.dispatchEvent(event);
 	}
 } 

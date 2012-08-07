@@ -17,7 +17,7 @@
   <classpaths>
     <class path="src" />
     <class path="..\haxe_libs\Cocktail\src" />
-    <class path="..\SLPlayer\SLPlayer\src" />
+    <class path="..\SLPlayer\src" />
     <class path="..\..\..\..\..\..\..\Motion-Twin\haxe\std" />
   </classpaths>
   <!-- Build options -->

@@ -1,6 +1,6 @@
 package filemanager.client.views.base;
 import js.Dom;
-import slplayer.ui.DisplayObject;
+import org.slplayer.component.ui.DisplayObject;
 
 /**
  * ...

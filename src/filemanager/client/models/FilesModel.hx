@@ -48,6 +48,9 @@ class FilesModel
 	private var _uploadsQueue 	: Hash<FileToUpload>;
 	public var onUploadUpdate 	: FileToUpload->Void;
 	
+	private var _selectedFolderOrFile : String;
+	public var selectedFolderOrFile(get_selectedFolderOrFile, set_selectedFolderOrFile):String;
+	
 	public function new() {
 		_api = new Api();
 		_uploadsQueue = new Hash<FileToUpload>();
@@ -84,7 +87,6 @@ class FilesModel
 	}
 	
 	public function browseFiles( evt: MouseEvent) : Void {
-		
 	}
 	
 // ------------------------ // 
@@ -102,7 +104,7 @@ class FilesModel
 		
 		for ( file in files ) {
 			var fileToUpload : FileToUpload = { file : file, validateFileName:validateFileName(file.name), initialized : false, progressPercent : 0, completed : false, started: false };
-			Log.trace("FilesModel - uploadSelectedFiles() "+validateFileName(file.name));
+			// Log.trace("FilesModel - uploadSelectedFiles() "+validateFileName(file.name));
 			_uploadsQueue.set(validateFileName(file.name), fileToUpload);
 		}
 		for (key in _uploadsQueue.keys()) 
@@ -214,5 +216,25 @@ class FilesModel
 		// update the uis when the upload was cancelled
 		
 		Log.trace("FilesModel - onCancelUpload() "+trackID);
+	}
+	
+// ------------------------ // 
+// GETTER / SETTER
+// ------------------------ //
+
+	private function get_selectedFolderOrFile():String {
+		return _selectedFolderOrFile;
+	}
+	
+	private function set_selectedFolderOrFile(value:String):String {
+		return _selectedFolderOrFile = value;
+	}
+	
+	public function setDraggedFile( file: FileVO) {
+		Log.trace("FileModel - setDraggedFile() "+file.path);
+	}
+	
+	public function setFolderOfDroppedFile( folder:FolderVO) {
+		Log.trace("FileModel - setFolderOfDroppedFile() "+folder.path);
 	}
 }

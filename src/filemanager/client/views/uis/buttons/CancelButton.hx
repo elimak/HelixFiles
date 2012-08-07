@@ -11,10 +11,11 @@ import js.Dom;
 
 class CancelButton extends LabelButton 
 {
+	public static inline var VIEW_ID : String = "CancelButton";
 	
 	public function new(label: String, SLPId:String ) 
 	{
-		Locator.registerSLDisplay(SLPId, this, "CancelButton");
+		Locator.registerSLDisplay(SLPId, this, VIEW_ID);
 		super(label, SLPId);
 		
 		rootElement.className = "buttons cancelButton";

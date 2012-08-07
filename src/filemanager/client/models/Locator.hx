@@ -1,6 +1,6 @@
 package filemanager.client.models;
 import haxe.Log;
-import slplayer.ui.DisplayObject;
+import org.slplayer.component.ui.DisplayObject;
 
 /**
  * ...

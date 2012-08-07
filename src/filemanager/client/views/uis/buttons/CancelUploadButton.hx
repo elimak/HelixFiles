@@ -11,13 +11,14 @@ import js.Dom;
 
 class CancelUploadButton extends LabelButton 
 {
+	public static inline var VIEW_ID : String = "CancelUploadButton";
 	public var requestCancelUpload : String->Void;
 	private var _fileName : String;
 	
 	public function new(label: String, SLPId:String, fileName: String ) 
 	{
 		_fileName = fileName;
-		Locator.registerSLDisplay(SLPId, this, "CancelUploadButton");
+		Locator.registerSLDisplay(SLPId, this, VIEW_ID);
 		super(label, SLPId);
 		
 		rootElement.className = "buttons cancelButton";

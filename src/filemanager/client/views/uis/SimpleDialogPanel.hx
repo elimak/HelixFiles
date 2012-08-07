@@ -19,6 +19,9 @@ class SimpleDialogPanel extends View
 	private var _cancel 	: CancelButton;
 	private var _confirm 	: ConfirmButton;
 	
+	private var _background 	: HtmlDom;
+	private var _panel		 	: HtmlDom;
+	
 	private var _parent 	: HtmlDom;
 	
 	public function new(SLPId:String, parent: HtmlDom) {
@@ -29,28 +32,29 @@ class SimpleDialogPanel extends View
 		var root = Lib.document.createElement("div");
 		root.className = "simpleDialogPanel smallFont";
 		
-		var background = Lib.document.createElement("div");
-		background.className = "overlayBackground";		
+		_background = Lib.document.createElement("div");
+		_background.className = "overlayBackground";		
 		
-		var panel = Lib.document.createElement("div");
-		panel.className = "panel";
+		_panel = Lib.document.createElement("div");
+		_panel.className = "panel";
 
 		_title = Lib.document.createElement("span");
-		panel.appendChild (_title);
+		_panel.appendChild (_title);
 		
 		_input = Lib.document.createElement("input");
-		panel.appendChild (_input);
+		_panel.appendChild (_input);
 		
 		_cancel = new CancelButton( "Cancel", SLPId);
-		panel.appendChild(_cancel.rootElement);		
+		_panel.appendChild(_cancel.rootElement);		
 		_cancel.enabled = true;
+		_cancel.onclicked = hide;
 		
 		_confirm = new ConfirmButton( "Confirm", SLPId);
-		panel.appendChild(_confirm.rootElement);
+		_panel.appendChild(_confirm.rootElement);
 		_confirm.enabled = true;
 		
-		root.appendChild(background);
-		root.appendChild(panel);
+		root.appendChild(_background);
+		root.appendChild(_panel);
 		
 		super(root, SLPId);	
 	}
@@ -63,8 +67,9 @@ class SimpleDialogPanel extends View
 		Log.trace("SimpleDialogPanel - show() "+title);
 	}
 	
-	public function hide () {
+	public function hide ( ?evt: Event ) {
 		_parent.removeChild(rootElement);
+		
 		Log.trace("SimpleDialogPanel - hide() ");
 	}
 }

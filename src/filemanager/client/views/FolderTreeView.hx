@@ -6,6 +6,7 @@ import filemanager.cross.FolderVO;
 import haxe.Log;
 import js.Dom;
 import js.Lib;
+import org.slplayer.component.interaction.Draggable;
 
 /**
  * ...
@@ -14,12 +15,15 @@ import js.Lib;
 
 class FolderTreeView extends View
 {
+	public static inline var DROPPED_FILE : String = "droppedFile";
+	
 	private var _rootFolder 	: FolderUI;		// top folder
 	private var _data			: FolderVO;		// store the data loaded (full tree in Json/Dynamic)
 	private var _folderStatus	: Hash<Bool>;	// stores only the status open/closed of the folders based on their path (path is unique)
 	
 	public var onSelectFolder 	: String->Void;
-	
+	public var currentDroppedInFolder : FolderVO;
+
 	private var _currentFolderUISelected : FolderUI;
 	
 	public function new(rootElement:HtmlDom, SLPId:String) {
@@ -40,18 +44,21 @@ class FolderTreeView extends View
 	 */
 	private function buildView() {
 		
+		var isOpen : Bool = true;
+		
 		// create the top folder
 		_rootFolder = new FolderUI((_data.children.length > 0), 0, _data.name, SLPlayerInstanceId);
-		_rootFolder.isOpen = _data.open;
 		
 		// Store the status (open/closed) based on the unique path
 		var folderPath	: String = _data.path + "/" + _data.name;
-		_folderStatus.set(folderPath, _data.open);
+		_folderStatus.set(folderPath, isOpen);
 
 		makeInteractive(_rootFolder, _data);
 		rootElement.appendChild(_rootFolder.rootElement);
 		
-		createSubFolders(_data, _rootFolder, 1);		
+		createSubFolders(_data, _rootFolder, 1);
+		
+		handleOnFolderClick(_rootFolder, _data, null);
 	}
 	
 	/**
@@ -75,26 +82,10 @@ class FolderTreeView extends View
 			rootElement.appendChild(folderChild.rootElement);
 			folderChild.isVisible = target.isOpen;
 			
-			folderChild.refresh();
-			
 			folderChild.isOpen = child.open;
 			makeInteractive(folderChild, child);
 			
 			createSubFolders(child, folderChild, (inDescendant + 1));
-		}
-	}
-		
-	/**
-	 * Check according to the state of the parent folder
-	 * if the folders children must be visible or not
-	 * @param	target
-	 */
-	private function updateSubFolders( target: FolderUI ) {
-		
-		for (i in 0...target.subFolders.length) {
-			var folderChild : FolderUI = target.subFolders[i];
-			folderChild.isVisible = target.isOpen;
-			folderChild.refresh();
 		}
 	}
 	
@@ -106,6 +97,9 @@ class FolderTreeView extends View
 	private function makeInteractive(folder:FolderUI, data: FolderVO) {
 		var handelClickCallback = callback(handleOnFolderClick, folder, data);
 		folder.rootElement.onclick = handelClickCallback;
+		var droppedCallBack = callback(handleFileDropped, data);
+		
+		folder.rootElement.addEventListener("dragEventDropped", droppedCallBack, false);
 	}
 		
 // ----------------------------------- // 
@@ -127,16 +121,20 @@ class FolderTreeView extends View
 		target.isSelected = true;			// stores the current folder as the one being selected
 		_currentFolderUISelected = target;
 		
-		
 		var folderPath	: String = folderData.path;	// stores the value isOpen based on the unique path of the folder
 		_folderStatus.set(folderPath, target.isOpen);
 
-		
 		folderData.open = target.isOpen;	// updates the full data tree
-		updateSubFolders(target);			// updates the visuals	
 		target.refresh();
 		
 		onSelectFolder(folderPath);			// requests the list of files from the selected folder
+	}
+	
+	private function handleFileDropped( folder: FolderVO, evt: Event ) : Void {
+		currentDroppedInFolder = folder;
+		var event : CustomEvent = cast Lib.document.createEvent("CustomEvent");
+		event.initCustomEvent(DROPPED_FILE, false, false, rootElement);
+		rootElement.dispatchEvent(event);
 	}
 		
 // ------------------------ // 
@@ -145,7 +143,7 @@ class FolderTreeView extends View
 
 // PUBLIC
 
-	public function initialize ( data: FolderVO ){
+	public function initialize ( data: FolderVO ) {
 		_data = data;
 		buildView();
 	}

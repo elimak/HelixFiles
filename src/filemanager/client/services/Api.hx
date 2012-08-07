@@ -2,6 +2,7 @@ package filemanager.client.services;
 import filemanager.cross.FileUpdatedVO;
 import filemanager.cross.FileVO;
 import filemanager.cross.FolderVO;
+import haxe.Log;
 import haxe.remoting.HttpAsyncConnection;
 
 /**
@@ -25,10 +26,10 @@ class Api
  * @param	onSuccess
  * @param	?onError
  */
-	public function getTreeFolder ( folderpath : String, onSuccess: FolderVO->Void, ?onError: Dynamic->Void ) : Void
-	{
-		var cnx = HttpAsyncConnection.urlConnect(GATEWAY_URL);
+	public function getTreeFolder ( folderpath : String, onSuccess: FolderVO->Void, ?onError: Dynamic->Void ) : Void {
 		
+		Log.trace("Api - getTreeFolder() "+folderpath);
+		var cnx = HttpAsyncConnection.urlConnect(GATEWAY_URL);
 		if (onError != null) cnx.setErrorHandler( onError );
 		else cnx.setErrorHandler( defaultOnError );
 			
@@ -41,10 +42,9 @@ class Api
  * @param	onSuccess
  * @param	?onError
  */
-	public function getFiles (folderpath: String, onSuccess: Array<FileVO>->Void, ?onError: Dynamic->Void) : Void
-	{
-		var cnx = HttpAsyncConnection.urlConnect(GATEWAY_URL);
+	public function getFiles (folderpath: String, onSuccess: Array<FileVO>->Void, ?onError: Dynamic->Void) : Void {
 		
+		var cnx = HttpAsyncConnection.urlConnect(GATEWAY_URL);
 		if (onError != null) cnx.setErrorHandler( onError );
 		else cnx.setErrorHandler( defaultOnError );
 			
@@ -57,26 +57,24 @@ class Api
  * @param	onSuccess
  * @param	?onError
  */
-	public function backupAsTemporary (fullpath: String, onSuccess: FileUpdatedVO->Void, ?onError: Dynamic->Void) : Void
-	{
-		var cnx = HttpAsyncConnection.urlConnect(GATEWAY_URL);
+	public function backupAsTemporary (fullpath: String, onSuccess: FileUpdatedVO->Void, ?onError: Dynamic->Void) : Void {
 		
+		var cnx = HttpAsyncConnection.urlConnect(GATEWAY_URL);
 		if (onError != null) cnx.setErrorHandler( onError );
 		else cnx.setErrorHandler( defaultOnError );
 			
 		cnx.api.backupAsTemporary.call([fullpath], onSuccess);
 	}	
-	
+	 
 /**
  * Remoting call to server to delete a file
  * @param	fullpath
  * @param	onSuccess
  * @param	?onError
  */
-	public function deleteTempFile (fullpath: String, onSuccess: FileUpdatedVO->Void, ?onError: Dynamic->Void) : Void
-	{
-		var cnx = HttpAsyncConnection.urlConnect(GATEWAY_URL);
+	public function deleteTempFile (fullpath: String, onSuccess: FileUpdatedVO->Void, ?onError: Dynamic->Void) : Void {
 		
+		var cnx = HttpAsyncConnection.urlConnect(GATEWAY_URL);
 		if (onError != null) cnx.setErrorHandler( onError );
 		else cnx.setErrorHandler( defaultOnError );
 			
@@ -87,7 +85,7 @@ class Api
  * Error callback 
  * @param	err
  */
-	private function defaultOnError(err){
+	private function defaultOnError(err) : Void {
 		trace("Error (API default error handler) : "+Std.string(err));
 	}
 }

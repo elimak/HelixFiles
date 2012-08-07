@@ -1,9 +1,8 @@
 -cp src
 -cp ../haxe_libs/Cocktail/src/
--cp ../SLPlayer/SLPlayer/src/
--cp ../SLPlayer/SLPlayer/src/
--main slplayer.core.Application
---macro slplayer.core.Builder.create('./src/filemanager/client/index.html')
+-cp ../SLPlayer/src/
+-main org.slplayer.core.Application
+--macro org.slplayer.core.Builder.create('./src/filemanager/client/index.html')
 -swf bin/fileManager.swf
 --remap js:cocktail
 -swf-version 11

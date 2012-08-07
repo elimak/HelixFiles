@@ -15,8 +15,8 @@ class FileManager
 		var api:Api;
 		try{
 			api = new Api();
-		}catch(e:Dynamic)
-		{
+		}
+		catch(e:Dynamic){
  			Lib.print("fail");
 			return;
 		}
@@ -27,8 +27,8 @@ class FileManager
 			if (HttpConnection.handleRequest(context)) {
 			    return;
 			}
-		}catch(e:Dynamic)
-		{
+		}
+		catch(e:Dynamic){
 			trace( "error: "+e);
 		}
 	}
