@@ -82,6 +82,19 @@ class Api
 	}
 	
 /**
+ * Remoting call to server to move the location of a file
+ * @param	path
+ * @param	path1
+ */
+	public function moveFileToFolder( filePath:String, fileName: String, folderPath:String, onSuccess: Bool->Void, ?onError: Dynamic->Void ) : Void {
+		var cnx = HttpAsyncConnection.urlConnect(GATEWAY_URL);
+		if (onError != null) cnx.setErrorHandler( onError );
+		else cnx.setErrorHandler( defaultOnError );
+			
+		cnx.api.moveFileToFolder.call([filePath, fileName, folderPath], onSuccess);
+	}
+	
+/**
  * Error callback 
  * @param	err
  */

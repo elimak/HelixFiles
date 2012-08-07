@@ -9,6 +9,9 @@ import sys.io.File;
 /**
  * ...
  * @author valerie.elimak - blog.elimak.com
+ * 
+ * Is used in association with FileExplorer to help formating the file and folder resources into 
+ * the casted FileVO and FolderVO object in order to send them to the client side.
  */
  
 class FileInfoHelper
@@ -19,16 +22,14 @@ class FileInfoHelper
 	public var isDir : Bool;
 	public var subList : Array<FileInfoHelper>;
 	
-	public function new( inName: String, inFullPath:String, inIsDir: Bool ) 
-	{
+	public function new( inName: String, inFullPath:String, inIsDir: Bool ) {
 		subList = new Array<FileInfoHelper>();
 		name = inName;
 		path = inFullPath + "/" + name;
 		isDir = inIsDir;
 	}
 
-	private function createFolderTree(data: FolderVO, inSublist : Array<FileInfoHelper>) : FolderVO
-	{
+	private function createFolderTree(data: FolderVO, inSublist : Array<FileInfoHelper>) : FolderVO {
 		if ( inSublist.length > 0 ) {
 			for ( i in 0...inSublist.length) {
 				var subFolder = new FolderVO();
@@ -41,17 +42,15 @@ class FileInfoHelper
 		return data;
 	}
 	
-	public function writeDirectoryObject( ) : FolderVO
-	{
+	public function writeDirectoryObject( ) : FolderVO{
 		var data = new FolderVO();
 		data.name = this.name;
 		data.path = this.path;
 		data.children = new Array<FolderVO>();
-		return /*Json.stringify(*/ createFolderTree(data, subList)/*)*/;
+		return createFolderTree(data, subList);
 	}
 	
-	public function getFileInfo() : FileVO
-	{
+	public function getFileInfo() : FileVO {
 		var extension = name.split(".");
 		var info : FileVO = new FileVO();
 		info.name = this.name;

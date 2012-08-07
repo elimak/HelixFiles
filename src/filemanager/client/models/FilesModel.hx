@@ -51,6 +51,9 @@ class FilesModel
 	private var _selectedFolderOrFile : String;
 	public var selectedFolderOrFile(get_selectedFolderOrFile, set_selectedFolderOrFile):String;
 	
+	private var _manipulatedFile : FileVO;
+	private var _targetFolder	 : FolderVO;
+	
 	public function new() {
 		_api = new Api();
 		_uploadsQueue = new Hash<FileToUpload>();
@@ -131,7 +134,6 @@ class FilesModel
 	private function handleUploadInitialized(response: FileUpdatedVO): Void {
 		
 		if( _uploadsQueue.exists(response.filepath)) {
-			
 			var uploadWorker = new Worker('fileupload.js');
 			uploadWorker.onmessage = handleUploadProgress;
 			uploadWorker.onerror = handleError;
@@ -230,11 +232,22 @@ class FilesModel
 		return _selectedFolderOrFile = value;
 	}
 	
-	public function setDraggedFile( file: FileVO) {
-		Log.trace("FileModel - setDraggedFile() "+file.path);
+	
+// ------------------------------------------------- // 
+// DRAG & DROP of FILES -> Move to new Folder path
+// ------------------------------------------------- //
+
+	public function setDraggedFile( file: FileVO ) {
+		_manipulatedFile = file;
 	}
 	
 	public function setFolderOfDroppedFile( folder:FolderVO) {
-		Log.trace("FileModel - setFolderOfDroppedFile() "+folder.path);
+		_targetFolder = folder;
+		var result = _api.moveFileToFolder(_manipulatedFile.path, _manipulatedFile.name, _targetFolder.path, onMovedFile );
+		
+	}
+	
+	private function onMovedFile( success : Bool ) {
+		Log.trace("FilesModel - onMovedFile() "+success);
 	}
 }

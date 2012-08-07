@@ -15,8 +15,8 @@ typedef FileHelper = {
 	var filename	: String;
 }
 
-class Api 
-{
+class Api {
+	
 	private var _explorer : FileExplorer;
 	private static inline var FILES_FOLDER : String = "../largefiles/";
 	
@@ -24,18 +24,15 @@ class Api
 		_explorer = new FileExplorer();
 	}
 	
-	public function getTreeFolder ( folderpath : String) : Null<FolderVO>
-	{
+	public function getTreeFolder ( folderpath : String) : Null<FolderVO> {
 		return _explorer.getFolders(folderpath);
 	}	
 	
-	public function getFiles ( folderpath : String) : Null<Array<FileVO>>
-	{
+	public function getFiles ( folderpath : String) : Null<Array<FileVO>> {
 		return _explorer.getFiles(folderpath);
 	}
 	
-	public function backupAsTemporary ( filepath : String ) : FileUpdatedVO
-	{
+	public function backupAsTemporary ( filepath : String ) : FileUpdatedVO {
 		var response	: FileUpdatedVO = new FileUpdatedVO();
 		response.filepath = filepath;
 		
@@ -55,8 +52,7 @@ class Api
 		return response;
 	}
 	
-	public function deleteTempFile ( filepath : String ) : FileUpdatedVO
-	{
+	public function deleteTempFile ( filepath : String ) : FileUpdatedVO {
 		var response	: FileUpdatedVO = new FileUpdatedVO();
 		var file		: FileHelper = getFileHelper (filepath);
 		var tempFile 	: String = FILES_FOLDER + file.filename + "_temp." + file.extension;
@@ -66,7 +62,7 @@ class Api
 			FileSystem.deleteFile(tempFile);
 			response.success = FileSystem.exists(tempFile);
 		}
-		else{
+		else {
 			response.success = true;
 		}
 		if ( !response.success ) response.error = "the file could not be deleted";
@@ -74,10 +70,19 @@ class Api
 		return response;
 	}
 	
-	private function getFileHelper(filepath:String) : FileHelper
-	{
-		var result 			: FileHelper = {extension: "", filename: ""};
-		var splitted 		: Array<String> = filepath.split(".");
+	private function moveFileToFolder (filePath: String, fileName: String, folderPath: String ) : Bool {
+		if ( filePath == (folderPath + "/" + fileName) ) return true;
+		File.copy(filePath, folderPath + "/" + fileName);
+		if ( FileSystem.exists(folderPath + "/" + fileName)) {
+			FileSystem.deleteFile(filePath);
+			return true;
+		}
+		return false;
+	}
+	
+	private function getFileHelper(filepath:String) : FileHelper {
+		var result 		: FileHelper = {extension: "", filename: ""};
+		var splitted 	: Array<String> = filepath.split(".");
 		result.extension  	= splitted.pop();
 		splitted = splitted.join(".").split("/");
 		result.filename  	= splitted.pop();

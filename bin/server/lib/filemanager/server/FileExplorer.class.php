@@ -4,6 +4,14 @@ class filemanager_server_FileExplorer {
 	public function __construct() {
 		;
 	}
+	public function getFiles($folderRoot) {
+		$this->createTheCurrentFilesList($folderRoot);
+		return $this->_fileListing;
+	}
+	public function getFolders($folderRoot) {
+		$this->createTheFolderTree($folderRoot);
+		return _hx_array_get($this->_dirListing, 0)->writeDirectoryObject();
+	}
 	public function listFiles($dirPath, $fileListing) {
 		$listing = sys_FileSystem::readDirectory($dirPath);
 		{
@@ -60,14 +68,6 @@ class filemanager_server_FileExplorer {
 		$this->_fileListing = new _hx_array(array());
 		$this->listFiles($folderRoot, $this->_fileListing);
 		return haxe_Json::stringify($this->_fileListing);
-	}
-	public function getFiles($folderRoot) {
-		$this->createTheCurrentFilesList($folderRoot);
-		return $this->_fileListing;
-	}
-	public function getFolders($folderRoot) {
-		$this->createTheFolderTree($folderRoot);
-		return _hx_array_get($this->_dirListing, 0)->writeDirectoryObject();
 	}
 	public $_dirListing;
 	public $_fileListing;

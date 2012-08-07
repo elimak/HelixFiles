@@ -151,7 +151,7 @@ class FileManager extends DisplayObject
 		var folderTreeViews : Array<DisplayObject> = Locator.getSLDisplay( SLPlayerInstanceId, "FolderTreeView");
 		_foldersView = cast folderTreeViews[0];
 		_foldersView.onSelectFolder = requestFiles;
-		_foldersView.rootElement.addEventListener(FolderTreeView.DROPPED_FILE, handleDropingOfFiles, false); 
+		_foldersView.rootElement.addEventListener(FolderTreeView.DROPPED_FILE, handleDroppingOfFiles, false); 
 
 		data.open = true;
 		_foldersView.initialize(data);
@@ -170,7 +170,7 @@ class FileManager extends DisplayObject
 	 * and passes the result value to the filesView
 	 * @param	folderPath
 	 */
-	private function requestFiles( folderPath: String ) {
+	private function requestFiles( folderPath: String ) : Void {
 		_filesModel.selectedFolderOrFile = folderPath;
 		_filesModel.getFiles(folderPath, function(inData: Array<FileVO>){
 											_filesView.setList(inData);
@@ -185,7 +185,7 @@ class FileManager extends DisplayObject
 		//Log.trace("FileManager - showFolders() "+data.toString());
 	}
 	
-	private function handleDropingOfFiles( evt: Event ) : Void {
+	private function handleDroppingOfFiles( evt: Event ) : Void {
 		_filesModel.setFolderOfDroppedFile(_foldersView.currentDroppedInFolder);
 	}
 }

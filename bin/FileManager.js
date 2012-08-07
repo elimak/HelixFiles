@@ -14034,11 +14034,15 @@ filemanager.client.models.FilesModel = function() {
 $hxClasses["filemanager.client.models.FilesModel"] = filemanager.client.models.FilesModel;
 filemanager.client.models.FilesModel.__name__ = ["filemanager","client","models","FilesModel"];
 filemanager.client.models.FilesModel.prototype = {
-	setFolderOfDroppedFile: function(folder) {
-		haxe.Log.trace("FileModel - setFolderOfDroppedFile() " + folder.path,{ fileName : "FilesModel.hx", lineNumber : 238, className : "filemanager.client.models.FilesModel", methodName : "setFolderOfDroppedFile"});
+	onMovedFile: function(success) {
+		haxe.Log.trace("FilesModel - onMovedFile() " + Std.string(success),{ fileName : "FilesModel.hx", lineNumber : 251, className : "filemanager.client.models.FilesModel", methodName : "onMovedFile"});
+	}
+	,setFolderOfDroppedFile: function(folder) {
+		this._targetFolder = folder;
+		var result = this._api.moveFileToFolder(this._manipulatedFile.path,this._manipulatedFile.name,this._targetFolder.path,$bind(this,this.onMovedFile));
 	}
 	,setDraggedFile: function(file) {
-		haxe.Log.trace("FileModel - setDraggedFile() " + file.path,{ fileName : "FilesModel.hx", lineNumber : 234, className : "filemanager.client.models.FilesModel", methodName : "setDraggedFile"});
+		this._manipulatedFile = file;
 	}
 	,set_selectedFolderOrFile: function(value) {
 		return this._selectedFolderOrFile = value;
@@ -14047,7 +14051,7 @@ filemanager.client.models.FilesModel.prototype = {
 		return this._selectedFolderOrFile;
 	}
 	,onCancelUpload: function(trackID) {
-		haxe.Log.trace("FilesModel - onCancelUpload() " + trackID,{ fileName : "FilesModel.hx", lineNumber : 218, className : "filemanager.client.models.FilesModel", methodName : "onCancelUpload"});
+		haxe.Log.trace("FilesModel - onCancelUpload() " + trackID,{ fileName : "FilesModel.hx", lineNumber : 220, className : "filemanager.client.models.FilesModel", methodName : "onCancelUpload"});
 	}
 	,createNewFolder: function(folderName) {
 	}
@@ -14088,7 +14092,7 @@ filemanager.client.models.FilesModel.prototype = {
 			this.onUploadUpdate(this._uploadsQueue.get(response.result.filename));
 			break;
 		case "error":
-			haxe.Log.trace("FilesModel - handleUploadProgress() - response: error " + Std.string(response.error),{ fileName : "FilesModel.hx", lineNumber : 171, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
+			haxe.Log.trace("FilesModel - handleUploadProgress() - response: error " + Std.string(response.error),{ fileName : "FilesModel.hx", lineNumber : 173, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
 			break;
 		}
 	}
@@ -14129,8 +14133,10 @@ filemanager.client.models.FilesModel.prototype = {
 		this._api.getTreeFolder(folderpath,onSuccess);
 	}
 	,handleError: function(e) {
-		haxe.Log.trace("FilesModel - handleError() ERROR: Line " + Std.string(e.lineno) + " in " + Std.string(e.filename) + ": " + Std.string(e.message),{ fileName : "FilesModel.hx", lineNumber : 67, className : "filemanager.client.models.FilesModel", methodName : "handleError"});
+		haxe.Log.trace("FilesModel - handleError() ERROR: Line " + Std.string(e.lineno) + " in " + Std.string(e.filename) + ": " + Std.string(e.message),{ fileName : "FilesModel.hx", lineNumber : 70, className : "filemanager.client.models.FilesModel", methodName : "handleError"});
 	}
+	,_targetFolder: null
+	,_manipulatedFile: null
 	,selectedFolderOrFile: null
 	,_selectedFolderOrFile: null
 	,onUploadUpdate: null
@@ -14165,7 +14171,12 @@ $hxClasses["filemanager.client.services.Api"] = filemanager.client.services.Api;
 filemanager.client.services.Api.__name__ = ["filemanager","client","services","Api"];
 filemanager.client.services.Api.prototype = {
 	defaultOnError: function(err) {
-		haxe.Log.trace("Error (API default error handler) : " + Std.string(err),{ fileName : "Api.hx", lineNumber : 89, className : "filemanager.client.services.Api", methodName : "defaultOnError"});
+		haxe.Log.trace("Error (API default error handler) : " + Std.string(err),{ fileName : "Api.hx", lineNumber : 102, className : "filemanager.client.services.Api", methodName : "defaultOnError"});
+	}
+	,moveFileToFolder: function(filePath,fileName,folderPath,onSuccess,onError) {
+		var cnx = haxe.remoting.HttpAsyncConnection.urlConnect("server/index.php");
+		if(onError != null) cnx.setErrorHandler(onError); else cnx.setErrorHandler($bind(this,this.defaultOnError));
+		cnx.resolve("api").resolve("moveFileToFolder").call([filePath,fileName,folderPath],onSuccess);
 	}
 	,deleteTempFile: function(fullpath,onSuccess,onError) {
 		var cnx = haxe.remoting.HttpAsyncConnection.urlConnect("server/index.php");

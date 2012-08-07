@@ -8,6 +8,9 @@ import php.FileSystem;
 /**
  * ...
  * @author valerie.elimak - blog.elimak.com
+ * 
+ * This classe provides an API to explore the folder's tree and the files contained into each folder.
+ * It retrieves the folders's list and files's list for a requested location.
  */
 
 class FileExplorer 
@@ -15,25 +18,18 @@ class FileExplorer
 	private var _fileListing 	: Array<FileVO>;
 	private var _dirListing 	: Array<FileInfoHelper>;
 
-	public function new() {}
+	public function new() { }
 	
-	public function getFolders(folderRoot : String) : FolderVO
-	{
-		createTheFolderTree(folderRoot);
-		return _dirListing[0].writeDirectoryObject();
-	}
-	
-	public function getFiles(folderRoot : String) : Array<FileVO>
-	{
-		createTheCurrentFilesList(folderRoot);
-		return _fileListing;
-	}
-	
+// ----------------------------------------- // 
+// CREATE AND RETURN FOLDERS / FILES LISTS
+// ----------------------------------------- //
+
+// PRIVATE
+
 	/**
 	 * Lists the files within the selected folder
 	 */
-	private function createTheCurrentFilesList(folderRoot : String) 
-	{
+	private function createTheCurrentFilesList(folderRoot : String) {
 		_fileListing = new Array<FileVO>();
 		listFiles(folderRoot, _fileListing);
 		return Json.stringify(_fileListing);
@@ -43,8 +39,7 @@ class FileExplorer
 	 * Create the listing of all the folder's tree starting by the root folder.
 	 * The data is encoded in JSON
 	 */
-	private function createTheFolderTree(folderRoot : String) 
-	{
+	private function createTheFolderTree(folderRoot : String) {
 		_dirListing = new Array<FileInfoHelper>();
 		
 		// find the name of the root folder
@@ -61,18 +56,20 @@ class FileExplorer
 		listDirectories(folderRoot, _dirListing[0].subList);
 	}
 	
+// ----------------------------------------- // 
+// READ PHYSICAL FOLDERS / FILES
+// ----------------------------------------- //
+
 	/**
 	 * Loops through the folder's descendants and
 	 * create a new FileInfoFolder to be pushed in the folder's listing
 	 * @param	path
 	 * @param	dirListing
 	 */
-	private function listDirectories ( path: String, dirListing: Array<FileInfoHelper> ) 
-	{
+	private function listDirectories ( path: String, dirListing: Array<FileInfoHelper> ) {
 		var listing: Array<String> = FileSystem.readDirectory( path );
 		
-		for (dir in listing)
-		{
+		for (dir in listing){
 			var dirPath = path + "/" + dir;
 
 			if ( FileSystem.exists( dirPath )) {
@@ -92,12 +89,11 @@ class FileExplorer
 	 * @param	path
 	 * @param	dirListing
 	 */
-	private function listFiles( dirPath: String, fileListing: Array<FileVO>) 
-	{
+	private function listFiles( dirPath: String, fileListing: Array<FileVO>) {
 		var listing: Array<String> = FileSystem.readDirectory( dirPath );
 
-		for (file in listing)
-		{
+		for (file in listing) {
+			
 			var filePath = dirPath + "/" + file;
 
 			if ( FileSystem.exists( filePath )) {
@@ -109,5 +105,21 @@ class FileExplorer
 				}
 			}
 		}
+	}
+	
+// ------------------------------- // 
+// GET FOLDER / GET FILES 
+// ------------------------------- //
+
+// PUBLIC API
+
+	public function getFolders(folderRoot : String) : FolderVO{
+		createTheFolderTree(folderRoot);
+		return _dirListing[0].writeDirectoryObject();
+	}
+	
+	public function getFiles(folderRoot : String) : Array<FileVO> {
+		createTheCurrentFilesList(folderRoot);
+		return _fileListing;
 	}
 }

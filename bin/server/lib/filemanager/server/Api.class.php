@@ -13,6 +13,17 @@ class filemanager_server_Api {
 		$result->filename = $splitted->pop();
 		return $result;
 	}
+	public function moveFileToFolder($filePath, $fileName, $folderPath) {
+		if($filePath === $folderPath . "/" . $fileName) {
+			return true;
+		}
+		sys_io_File::copy($filePath, $folderPath . "/" . $fileName);
+		if(file_exists($folderPath . "/" . $fileName)) {
+			@unlink($filePath);
+			return true;
+		}
+		return false;
+	}
 	public function deleteTempFile($filepath) {
 		$response = new filemanager_cross_FileUpdatedVO();
 		$file = $this->getFileHelper($filepath);
