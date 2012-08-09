@@ -1,4 +1,5 @@
 package filemanager.client.views;
+import filemanager.client.models.FilesModel;
 import filemanager.client.models.Locator;
 import filemanager.client.views.base.View;
 import haxe.Log;
@@ -13,7 +14,8 @@ class FileDropper extends View
 {
 	
 	public var onFileDropped : Array<Dynamic>->Void;
-
+	private var _filesModel	 : FilesModel;
+	
 	public function new (rootElement:HtmlDom, SLPId:String) {
 		
 		Locator.registerSLDisplay(SLPId, this, "FileDropper");
@@ -24,8 +26,6 @@ class FileDropper extends View
 		var txtInstruc = Lib.document.createTextNode("Drop your files here");
 		rootElement.appendChild(instruction);
 		instruction.appendChild(txtInstruc);
-		
-		Log.trace("FileDropper - FileDropper() "+instruction);
 		
 		rootElement.addEventListener('dragover', handleDragOver, false);
 		rootElement.addEventListener('drop', handleFileSelect, false);
@@ -49,6 +49,9 @@ class FileDropper extends View
 			onFileDropped( untyped evt.dataTransfer.files );
 			evt.dataTransfer.files = null;
 		}
-		
+	}
+	
+	public function injectAppModel( filesModel:FilesModel) {
+		_filesModel = filesModel;
 	}
 }

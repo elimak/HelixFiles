@@ -52,7 +52,7 @@ class FileExplorer
 		var rootFolder : FileInfoHelper = new FileInfoHelper(rootName, pathSplited.join("/"), true);
 		_dirListing.push(rootFolder);
 		
-		// list the children folders 
+		// list the children's folders 
 		listDirectories(folderRoot, _dirListing[0].subList);
 	}
 	

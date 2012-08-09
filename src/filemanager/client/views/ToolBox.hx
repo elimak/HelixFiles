@@ -1,4 +1,6 @@
 package filemanager.client.views;
+import filemanager.client.FileManager;
+import filemanager.client.models.FilesModel;
 import filemanager.client.models.Locator;
 import filemanager.client.views.base.View;
 import filemanager.client.views.uis.buttons.CopyButton;
@@ -17,24 +19,8 @@ import js.Dom;
  * 
  */
 
-class ToolBox extends View
-{
-	private var _onClickedDownload	: String->Void;
-	private var _onClickedCopy		: String->Void;
-	private var _onClickedPaste	 	: String->Void;
-	private var _onClickedDelete	: String->Void;
-	private var _onClickedUpload	: String->Void;
-	private var _onClickedCreate	: String->Void;
-	private var _onClickedRename	: String->Void;
-	
-	public var onClickedPaste(null, set_onClickedPaste)			: String->Void;
-	public var onClickedDownload(null, set_onClickedDownload)	: String->Void;
-	public var onClickedCopy(null, set_onClickedCopy)			: String->Void;
-	public var onClickedDelete(null, set_onClickedDelete)		: String->Void;
-	public var onClickedUpload(null, set_onClickedUpload)		: String->Void;
-	public var onClickedCreate(null, set_onClickedCreate)		: String->Void;
-	public var onClickedRename(null, set_onClickedRename)		: String->Void;
-	
+class ToolBox extends View {
+
 	private var _download		: DownloadButton;
 	private var _copy			: CopyButton;
 	private var _paste			: PasteButton;
@@ -43,19 +29,28 @@ class ToolBox extends View
 	private var _createFolder	: CreateFolderButton;
 	private var _rename			: RenameButton;
 	
+	private var _filesModel		: FilesModel; 	// Data Model
+	private var _filesManager	: FileManager; 	// Controller
+	
 	public function new (rootElement:HtmlDom, SLPId:String) {
-		
 		Locator.registerSLDisplay(SLPId, this, "ToolBox");
-		
-		_download 		= new DownloadButton( "Download", SLPId);
-		_copy 			= new CopyButton( "Copy", SLPId);
-		_paste 			= new PasteButton( "Paste", SLPId);
-		_delete 		= new DeleteButton( "Delete", SLPId);
-		_upload 		= new UploadButton( "Upload", SLPId);
-		_createFolder 	= new CreateFolderButton( "Create New Folder", SLPId);
-		_rename 		= new RenameButton( "Rename", SLPId);
-
 		rootElement.className = "toolBox smallFont";
+		
+		super(rootElement, SLPId);
+	}
+
+// ------------------------ // 
+// INITIALIZE
+// ------------------------ //
+
+	override public function init() : Void {
+		_download 	= new DownloadButton( "Download", SLPlayerInstanceId);
+		_copy 		= new CopyButton( "Copy", SLPlayerInstanceId);
+		_paste 		= new PasteButton( "Paste", SLPlayerInstanceId);
+		_delete 	= new DeleteButton( "Delete", SLPlayerInstanceId);
+		_upload 	= new UploadButton( "Upload", SLPlayerInstanceId);
+		_rename 	= new RenameButton( "Rename", SLPlayerInstanceId);
+		_createFolder 	= new CreateFolderButton( "Create New Folder", SLPlayerInstanceId);
 		
 		rootElement.appendChild(_download.rootElement);
 		rootElement.appendChild(_copy.rootElement);
@@ -65,40 +60,42 @@ class ToolBox extends View
 		rootElement.appendChild(_createFolder.rootElement);
 		rootElement.appendChild(_rename.rootElement);
 		
-		super(rootElement, SLPId);
+		_download.onButtonClicked = onClickedToolBox;
+		_copy.onButtonClicked = onClickedToolBox;
+		_paste.onButtonClicked = onClickedToolBox;
+		_delete.onButtonClicked = onClickedToolBox;
+		_upload.onButtonClicked = onClickedToolBox;
+		_createFolder.onButtonClicked = onClickedToolBox;
+		_rename.onButtonClicked = onClickedToolBox;
+	}
+
+// ------------------------ // 
+// MANAGE USER INPUTS
+// ------------------------ //
+
+	private function onClickedToolBox( buttonId: String ) : Void {
+		switch(buttonId) {
+			case CreateFolderButton.VIEW_ID :
+				_filesManager.showInputOverlay( true, "Folder's name" );
+			case DownloadButton.VIEW_ID	:
+			case CopyButton.VIEW_ID		:
+			case DeleteButton.VIEW_ID	:
+			case PasteButton.VIEW_ID	:
+			case UploadButton.VIEW_ID	:
+			case RenameButton.VIEW_ID	:
+				_filesManager.showInputOverlay( true, "New name:" );
+		}
+	}
+
+// ------------------------------ // 
+// INJECTION MODEL / MANAGER
+// ------------------------------ //
+
+	public function injectAppModel( filesModel:FilesModel) : Void {
+		_filesModel = filesModel;
 	}
 	
-	private function set_onClickedDownload(value:String -> Void):String -> Void {
-		_download.onButtonClicked = value;
-		return _onClickedDownload = value;
-	}	
-	
-	private function set_onClickedCopy(value:String -> Void):String -> Void {
-		_copy.onButtonClicked = value;
-		return _onClickedCopy = value;
-	}
-	
-	private function set_onClickedPaste(value:String -> Void):String -> Void {
-		_paste.onButtonClicked = value;
-		return _onClickedPaste = value;
-	}
-	
-	private function set_onClickedDelete(value:String -> Void):String -> Void {
-		_delete.onButtonClicked = value;
-		return _onClickedDelete = value;
-	}
-	
-	private function set_onClickedUpload(value:String -> Void):String -> Void {
-		_upload.onButtonClicked = value;
-		return _onClickedUpload = value;
-	}
-	
-	private function set_onClickedCreate(value:String -> Void):String -> Void {
-		_createFolder.onButtonClicked = value;
-		return _onClickedCreate = value;
-	}	
-	private function set_onClickedRename(value:String -> Void):String -> Void {
-		_rename.onButtonClicked = value;
-		return _onClickedRename = value;
+	public function injectAppManager( filesManager:FileManager) : Void {
+		_filesManager = filesManager;
 	}
 }

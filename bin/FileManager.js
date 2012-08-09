@@ -13927,32 +13927,24 @@ $hxClasses["filemanager.client.FileManager"] = filemanager.client.FileManager;
 filemanager.client.FileManager.__name__ = ["filemanager","client","FileManager"];
 filemanager.client.FileManager.__super__ = org.slplayer.component.ui.DisplayObject;
 filemanager.client.FileManager.prototype = $extend(org.slplayer.component.ui.DisplayObject.prototype,{
-	handleDropingOfFiles: function(evt) {
-		this._filesModel.setFolderOfDroppedFile(this._foldersView.currentDroppedInFolder);
-	}
-	,showFiles: function(data) {
-	}
-	,handleDraggingFile: function(evt) {
-		this._filesModel.setDraggedFile(this._filesView.currentDraggedFile);
-	}
-	,requestFiles: function(folderPath) {
+	getListOfFiles: function(folderPath) {
 		var _g = this;
-		this._filesModel.set_selectedFolderOrFile(folderPath);
 		this._filesModel.getFiles(folderPath,function(inData) {
 			_g._filesView.setList(inData);
 		});
 	}
-	,showFolders: function(data) {
+	,showFiles: function(data) {
+	}
+	,initializeFolders: function(data) {
 		var folderTreeViews = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"FolderTreeView");
 		this._foldersView = folderTreeViews[0];
-		this._foldersView.onSelectFolder = $bind(this,this.requestFiles);
-		this._foldersView.rootElement.addEventListener("droppedFile",$bind(this,this.handleDropingOfFiles),false);
-		data.open = true;
-		this._foldersView.initialize(data);
+		this._foldersView.injectAppModel(this._filesModel);
+		this._foldersView.injectAppManager(this);
 		var filesViews = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"FilesView");
 		this._filesView = filesViews[0];
-		this._filesView.rootElement.addEventListener("startedToDragFile",$bind(this,this.handleDraggingFile),false);
-		this.requestFiles("../files");
+		this._filesView.injectAppModel(this._filesModel);
+		data.open = true;
+		this._foldersView.initialize(data);
 	}
 	,showConfirmation: function(b) {
 	}
@@ -13960,60 +13952,33 @@ filemanager.client.FileManager.prototype = $extend(org.slplayer.component.ui.Dis
 		if(this._dialogPanel == null) this._dialogPanel = new filemanager.client.views.uis.SimpleDialogPanel(this.SLPlayerInstanceId,js.Lib.document.body);
 		if(b) this._dialogPanel.show(title); else this._dialogPanel.hide();
 	}
-	,updateUserInputsStates: function() {
-	}
-	,onClickedToolBox: function(buttonId) {
-		switch(buttonId) {
-		case "CreateFolderButton":
-			this.showInputOverlay(true,"Folder's name");
-			break;
-		case "DownloadButton":
-			break;
-		case "CopyButton":
-			break;
-		case "DeleteButton":
-			break;
-		case "PasteButton":
-			break;
-		case "UploadButton":
-			break;
-		case "RenameButton":
-			this.showInputOverlay(true,"New name:");
-			break;
-		}
+	,initializeAppModel: function() {
+		this._filesModel.getTreeFolder("../files",$bind(this,this.initializeFolders));
+		this._filesModel.getFiles("../files",$bind(this,this.showFiles));
 	}
 	,initializeFileDropper: function() {
 		var fileDroppers = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"FileDropper");
 		this._fileDropper = fileDroppers[0];
+		this._fileDropper.injectAppModel(this._filesModel);
 		this._fileDropper.onFileDropped = ($_=this._filesModel,$bind($_,$_.uploadSelectedFiles));
-	}
-	,initializeAppModel: function() {
-		this._filesModel = new filemanager.client.models.FilesModel();
-		this._filesModel.getTreeFolder("../files",$bind(this,this.showFolders));
-		this._filesModel.getFiles("../files",$bind(this,this.showFiles));
 	}
 	,initializeUploadStatus: function() {
 		var uploadStatus = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"UploadStatus");
 		this._uploadStatus = uploadStatus[0];
-		this._uploadStatus.onCancelUpload = ($_=this._filesModel,$bind($_,$_.onCancelUpload));
-		this._filesModel.onUploadUpdate = ($_=this._uploadStatus,$bind($_,$_.onUpdate));
+		this._uploadStatus.injectAppModel(this._filesModel);
 	}
 	,initializeToolBox: function() {
 		var toolBoxes = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"ToolBox");
 		this._toolBox = toolBoxes[0];
-		this._toolBox.set_onClickedDownload($bind(this,this.onClickedToolBox));
-		this._toolBox.set_onClickedCopy($bind(this,this.onClickedToolBox));
-		this._toolBox.set_onClickedCreate($bind(this,this.onClickedToolBox));
-		this._toolBox.set_onClickedDelete($bind(this,this.onClickedToolBox));
-		this._toolBox.set_onClickedPaste($bind(this,this.onClickedToolBox));
-		this._toolBox.set_onClickedUpload($bind(this,this.onClickedToolBox));
-		this._toolBox.set_onClickedRename($bind(this,this.onClickedToolBox));
+		this._toolBox.injectAppModel(this._filesModel);
+		this._toolBox.injectAppManager(this);
 	}
 	,init: function() {
-		this.initializeAppModel();
+		this._filesModel = new filemanager.client.models.FilesModel();
 		this.initializeFileDropper();
 		this.initializeUploadStatus();
 		this.initializeToolBox();
+		this.initializeAppModel();
 	}
 	,_application: null
 	,_foldersView: null
@@ -14034,12 +13999,12 @@ filemanager.client.models.FilesModel = function() {
 $hxClasses["filemanager.client.models.FilesModel"] = filemanager.client.models.FilesModel;
 filemanager.client.models.FilesModel.__name__ = ["filemanager","client","models","FilesModel"];
 filemanager.client.models.FilesModel.prototype = {
-	onMovedFile: function(success) {
-		haxe.Log.trace("FilesModel - onMovedFile() " + Std.string(success),{ fileName : "FilesModel.hx", lineNumber : 251, className : "filemanager.client.models.FilesModel", methodName : "onMovedFile"});
-	}
-	,setFolderOfDroppedFile: function(folder) {
+	setFolderOfDroppedFile: function(folder,onUpdateFoldersStates) {
+		var _g = this;
 		this._targetFolder = folder;
-		var result = this._api.moveFileToFolder(this._manipulatedFile.path,this._manipulatedFile.name,this._targetFolder.path,$bind(this,this.onMovedFile));
+		var result = this._api.moveFileToFolder(this._manipulatedFile.path,this._manipulatedFile.name,this._targetFolder.path,function(sucess) {
+			_g.getTreeFolder("../files",onUpdateFoldersStates);
+		});
 	}
 	,setDraggedFile: function(file) {
 		this._manipulatedFile = file;
@@ -14051,7 +14016,7 @@ filemanager.client.models.FilesModel.prototype = {
 		return this._selectedFolderOrFile;
 	}
 	,onCancelUpload: function(trackID) {
-		haxe.Log.trace("FilesModel - onCancelUpload() " + trackID,{ fileName : "FilesModel.hx", lineNumber : 220, className : "filemanager.client.models.FilesModel", methodName : "onCancelUpload"});
+		haxe.Log.trace("FilesModel - onCancelUpload() " + trackID,{ fileName : "FilesModel.hx", lineNumber : 218, className : "filemanager.client.models.FilesModel", methodName : "onCancelUpload"});
 	}
 	,createNewFolder: function(folderName) {
 	}
@@ -14092,7 +14057,7 @@ filemanager.client.models.FilesModel.prototype = {
 			this.onUploadUpdate(this._uploadsQueue.get(response.result.filename));
 			break;
 		case "error":
-			haxe.Log.trace("FilesModel - handleUploadProgress() - response: error " + Std.string(response.error),{ fileName : "FilesModel.hx", lineNumber : 173, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
+			haxe.Log.trace("FilesModel - handleUploadProgress() - response: error " + Std.string(response.error),{ fileName : "FilesModel.hx", lineNumber : 171, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
 			break;
 		}
 	}
@@ -14227,7 +14192,6 @@ filemanager.client.views.FileDropper = function(rootElement,SLPId) {
 	var txtInstruc = js.Lib.document.createTextNode("Drop your files here");
 	rootElement.appendChild(instruction);
 	instruction.appendChild(txtInstruc);
-	haxe.Log.trace("FileDropper - FileDropper() " + Std.string(instruction),{ fileName : "FileDropper.hx", lineNumber : 28, className : "filemanager.client.views.FileDropper", methodName : "new"});
 	rootElement.addEventListener("dragover",$bind(this,this.handleDragOver),false);
 	rootElement.addEventListener("drop",$bind(this,this.handleFileSelect),false);
 	filemanager.client.views.base.View.call(this,rootElement,SLPId);
@@ -14236,7 +14200,10 @@ $hxClasses["filemanager.client.views.FileDropper"] = filemanager.client.views.Fi
 filemanager.client.views.FileDropper.__name__ = ["filemanager","client","views","FileDropper"];
 filemanager.client.views.FileDropper.__super__ = filemanager.client.views.base.View;
 filemanager.client.views.FileDropper.prototype = $extend(filemanager.client.views.base.View.prototype,{
-	handleFileSelect: function(evt) {
+	injectAppModel: function(filesModel) {
+		this._filesModel = filesModel;
+	}
+	,handleFileSelect: function(evt) {
 		evt.stopPropagation();
 		evt.preventDefault();
 		if(this.onFileDropped != null) {
@@ -14249,6 +14216,7 @@ filemanager.client.views.FileDropper.prototype = $extend(filemanager.client.view
 		evt.preventDefault();
 		evt.dataTransfer.dropEffect = "copy";
 	}
+	,_filesModel: null
 	,onFileDropped: null
 	,__class__: filemanager.client.views.FileDropper
 });
@@ -14260,11 +14228,13 @@ $hxClasses["filemanager.client.views.FilesView"] = filemanager.client.views.File
 filemanager.client.views.FilesView.__name__ = ["filemanager","client","views","FilesView"];
 filemanager.client.views.FilesView.__super__ = filemanager.client.views.base.View;
 filemanager.client.views.FilesView.prototype = $extend(filemanager.client.views.base.View.prototype,{
-	handleFileDragged: function(file,evt) {
-		this.currentDraggedFile = file;
-		var event = js.Lib.document.createEvent("CustomEvent");
-		event.initCustomEvent("startedToDragFile",false,false,this.rootElement);
-		this.rootElement.dispatchEvent(event);
+	injectAppModel: function(filesModel) {
+		this._filesModel = filesModel;
+	}
+	,handleFileDragged: function(file,evt) {
+		haxe.Log.trace("FilesView - handleFileDragged() " + Std.string(file),{ fileName : "FilesView.hx", lineNumber : 49, className : "filemanager.client.views.FilesView", methodName : "handleFileDragged"});
+		haxe.Log.trace("FilesView - handleFileDragged() " + Std.string(this._filesModel),{ fileName : "FilesView.hx", lineNumber : 50, className : "filemanager.client.views.FilesView", methodName : "handleFileDragged"});
+		this._filesModel.setDraggedFile(file);
 	}
 	,setList: function(data) {
 		this.clear();
@@ -14281,7 +14251,7 @@ filemanager.client.views.FilesView.prototype = $extend(filemanager.client.views.
 			file.rootElement.addEventListener("dragEventDrag",draggedCallBack,false);
 		}
 	}
-	,currentDraggedFile: null
+	,_filesModel: null
 	,__class__: filemanager.client.views.FilesView
 });
 filemanager.client.views.FolderTreeView = function(rootElement,SLPId) {
@@ -14293,15 +14263,28 @@ $hxClasses["filemanager.client.views.FolderTreeView"] = filemanager.client.views
 filemanager.client.views.FolderTreeView.__name__ = ["filemanager","client","views","FolderTreeView"];
 filemanager.client.views.FolderTreeView.__super__ = filemanager.client.views.base.View;
 filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.views.base.View.prototype,{
-	initialize: function(data) {
+	injectAppManager: function(fileManager) {
+		this._fileManager = fileManager;
+	}
+	,injectAppModel: function(filesModel) {
+		this._filesModel = filesModel;
+	}
+	,update: function(data) {
 		this._data = data;
+		this._rootFolder.refresh();
+	}
+	,init: function() {
+	}
+	,initialize: function(data) {
+		this._data = data;
+		this._filesModel.set_selectedFolderOrFile(data.path);
+		this._fileManager.getListOfFiles(data.path);
 		this.buildView();
 	}
-	,handleFileDropped: function(folder,evt) {
-		this.currentDroppedInFolder = folder;
-		var event = js.Lib.document.createEvent("CustomEvent");
-		event.initCustomEvent("droppedFile",false,false,this.rootElement);
-		this.rootElement.dispatchEvent(event);
+	,handleFileDropped: function(folderData,folderUI,evt) {
+		this._filesModel.setFolderOfDroppedFile(folderData,$bind(this,this.update));
+		folderUI.clear();
+		folderUI.refresh(true);
 	}
 	,handleOnFolderClick: function(target,folderData,evt) {
 		target.isOpen = !target.isOpen;
@@ -14315,7 +14298,10 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 		this._folderStatus.set(folderPath,target.isOpen);
 		folderData.open = target.isOpen;
 		target.refresh();
-		this.onSelectFolder(folderPath);
+		this._filesModel.set_selectedFolderOrFile(folderPath);
+		this._fileManager.getListOfFiles(folderPath);
+	}
+	,updateEmptiness: function(currentFolder,target,inDescendant) {
 	}
 	,makeInteractive: function(folder,data) {
 		var handelClickCallback = (function(f,a1,a2) {
@@ -14324,11 +14310,11 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 			};
 		})($bind(this,this.handleOnFolderClick),folder,data);
 		folder.rootElement.onclick = handelClickCallback;
-		var droppedCallBack = (function(f,a1) {
-			return function(a2) {
-				return f(a1,a2);
+		var droppedCallBack = (function(f,a1,a2) {
+			return function(a3) {
+				return f(a1,a2,a3);
 			};
-		})($bind(this,this.handleFileDropped),data);
+		})($bind(this,this.handleFileDropped),data,folder);
 		folder.rootElement.addEventListener("dragEventDropped",droppedCallBack,false);
 	}
 	,createSubFolders: function(currentFolder,target,inDescendant) {
@@ -14357,9 +14343,9 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 		this.createSubFolders(this._data,this._rootFolder,1);
 		this.handleOnFolderClick(this._rootFolder,this._data,null);
 	}
+	,_fileManager: null
+	,_filesModel: null
 	,_currentFolderUISelected: null
-	,currentDroppedInFolder: null
-	,onSelectFolder: null
 	,_folderStatus: null
 	,_data: null
 	,_rootFolder: null
@@ -14367,55 +14353,64 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 });
 filemanager.client.views.ToolBox = function(rootElement,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"ToolBox");
-	this._download = new filemanager.client.views.uis.buttons.DownloadButton("Download",SLPId);
-	this._copy = new filemanager.client.views.uis.buttons.CopyButton("Copy",SLPId);
-	this._paste = new filemanager.client.views.uis.buttons.PasteButton("Paste",SLPId);
-	this._delete = new filemanager.client.views.uis.buttons.DeleteButton("Delete",SLPId);
-	this._upload = new filemanager.client.views.uis.buttons.UploadButton("Upload",SLPId);
-	this._createFolder = new filemanager.client.views.uis.buttons.CreateFolderButton("Create New Folder",SLPId);
-	this._rename = new filemanager.client.views.uis.buttons.RenameButton("Rename",SLPId);
 	rootElement.className = "toolBox smallFont";
-	rootElement.appendChild(this._download.rootElement);
-	rootElement.appendChild(this._copy.rootElement);
-	rootElement.appendChild(this._paste.rootElement);
-	rootElement.appendChild(this._delete.rootElement);
-	rootElement.appendChild(this._upload.rootElement);
-	rootElement.appendChild(this._createFolder.rootElement);
-	rootElement.appendChild(this._rename.rootElement);
 	filemanager.client.views.base.View.call(this,rootElement,SLPId);
 };
 $hxClasses["filemanager.client.views.ToolBox"] = filemanager.client.views.ToolBox;
 filemanager.client.views.ToolBox.__name__ = ["filemanager","client","views","ToolBox"];
 filemanager.client.views.ToolBox.__super__ = filemanager.client.views.base.View;
 filemanager.client.views.ToolBox.prototype = $extend(filemanager.client.views.base.View.prototype,{
-	set_onClickedRename: function(value) {
-		this._rename.onButtonClicked = value;
-		return this._onClickedRename = value;
+	injectAppManager: function(filesManager) {
+		this._filesManager = filesManager;
 	}
-	,set_onClickedCreate: function(value) {
-		this._createFolder.onButtonClicked = value;
-		return this._onClickedCreate = value;
+	,injectAppModel: function(filesModel) {
+		this._filesModel = filesModel;
 	}
-	,set_onClickedUpload: function(value) {
-		this._upload.onButtonClicked = value;
-		return this._onClickedUpload = value;
+	,onClickedToolBox: function(buttonId) {
+		switch(buttonId) {
+		case "CreateFolderButton":
+			this._filesManager.showInputOverlay(true,"Folder's name");
+			break;
+		case "DownloadButton":
+			break;
+		case "CopyButton":
+			break;
+		case "DeleteButton":
+			break;
+		case "PasteButton":
+			break;
+		case "UploadButton":
+			break;
+		case "RenameButton":
+			this._filesManager.showInputOverlay(true,"New name:");
+			break;
+		}
 	}
-	,set_onClickedDelete: function(value) {
-		this._delete.onButtonClicked = value;
-		return this._onClickedDelete = value;
+	,init: function() {
+		this._download = new filemanager.client.views.uis.buttons.DownloadButton("Download",this.SLPlayerInstanceId);
+		this._copy = new filemanager.client.views.uis.buttons.CopyButton("Copy",this.SLPlayerInstanceId);
+		this._paste = new filemanager.client.views.uis.buttons.PasteButton("Paste",this.SLPlayerInstanceId);
+		this._delete = new filemanager.client.views.uis.buttons.DeleteButton("Delete",this.SLPlayerInstanceId);
+		this._upload = new filemanager.client.views.uis.buttons.UploadButton("Upload",this.SLPlayerInstanceId);
+		this._rename = new filemanager.client.views.uis.buttons.RenameButton("Rename",this.SLPlayerInstanceId);
+		this._createFolder = new filemanager.client.views.uis.buttons.CreateFolderButton("Create New Folder",this.SLPlayerInstanceId);
+		this.rootElement.appendChild(this._download.rootElement);
+		this.rootElement.appendChild(this._copy.rootElement);
+		this.rootElement.appendChild(this._paste.rootElement);
+		this.rootElement.appendChild(this._delete.rootElement);
+		this.rootElement.appendChild(this._upload.rootElement);
+		this.rootElement.appendChild(this._createFolder.rootElement);
+		this.rootElement.appendChild(this._rename.rootElement);
+		this._download.onButtonClicked = $bind(this,this.onClickedToolBox);
+		this._copy.onButtonClicked = $bind(this,this.onClickedToolBox);
+		this._paste.onButtonClicked = $bind(this,this.onClickedToolBox);
+		this._delete.onButtonClicked = $bind(this,this.onClickedToolBox);
+		this._upload.onButtonClicked = $bind(this,this.onClickedToolBox);
+		this._createFolder.onButtonClicked = $bind(this,this.onClickedToolBox);
+		this._rename.onButtonClicked = $bind(this,this.onClickedToolBox);
 	}
-	,set_onClickedPaste: function(value) {
-		this._paste.onButtonClicked = value;
-		return this._onClickedPaste = value;
-	}
-	,set_onClickedCopy: function(value) {
-		this._copy.onButtonClicked = value;
-		return this._onClickedCopy = value;
-	}
-	,set_onClickedDownload: function(value) {
-		this._download.onButtonClicked = value;
-		return this._onClickedDownload = value;
-	}
+	,_filesManager: null
+	,_filesModel: null
 	,_rename: null
 	,_createFolder: null
 	,_upload: null
@@ -14423,22 +14418,7 @@ filemanager.client.views.ToolBox.prototype = $extend(filemanager.client.views.ba
 	,_paste: null
 	,_copy: null
 	,_download: null
-	,onClickedRename: null
-	,onClickedCreate: null
-	,onClickedUpload: null
-	,onClickedDelete: null
-	,onClickedCopy: null
-	,onClickedDownload: null
-	,onClickedPaste: null
-	,_onClickedRename: null
-	,_onClickedCreate: null
-	,_onClickedUpload: null
-	,_onClickedDelete: null
-	,_onClickedPaste: null
-	,_onClickedCopy: null
-	,_onClickedDownload: null
 	,__class__: filemanager.client.views.ToolBox
-	,__properties__: {set_onClickedPaste:"set_onClickedPaste",set_onClickedDownload:"set_onClickedDownload",set_onClickedCopy:"set_onClickedCopy",set_onClickedDelete:"set_onClickedDelete",set_onClickedUpload:"set_onClickedUpload",set_onClickedCreate:"set_onClickedCreate",set_onClickedRename:"set_onClickedRename"}
 });
 filemanager.client.views.UploadStatus = function(rootElement,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"UploadStatus");
@@ -14450,18 +14430,24 @@ $hxClasses["filemanager.client.views.UploadStatus"] = filemanager.client.views.U
 filemanager.client.views.UploadStatus.__name__ = ["filemanager","client","views","UploadStatus"];
 filemanager.client.views.UploadStatus.__super__ = filemanager.client.views.base.View;
 filemanager.client.views.UploadStatus.prototype = $extend(filemanager.client.views.base.View.prototype,{
-	onUpdate: function(uploadUpdate) {
+	injectAppModel: function(filesModel) {
+		this._filesModel = filesModel;
+		this._filesModel.onUploadUpdate = $bind(this,this.onUpdate);
+	}
+	,onUpdate: function(uploadUpdate) {
 		if(!this._currentQueueUIs.exists(uploadUpdate.file.name)) {
 			var fileUploadStatus = new filemanager.client.views.uis.FileUploadStatus(uploadUpdate,this.SLPlayerInstanceId);
 			this._currentQueueUIs.set(uploadUpdate.file.name,fileUploadStatus);
-			if(this.onCancelUpload != null) fileUploadStatus.set_onCancelUpload(this.onCancelUpload);
+			fileUploadStatus.set_onCancelUpload(($_=this._filesModel,$bind($_,$_.onCancelUpload)));
 			this.rootElement.appendChild(fileUploadStatus.rootElement);
 		}
 		var fileName = uploadUpdate.file.name;
 		this._currentQueueUIs.get(fileName).update(uploadUpdate);
 	}
+	,init: function() {
+	}
 	,_currentQueueUIs: null
-	,onCancelUpload: null
+	,_filesModel: null
 	,__class__: filemanager.client.views.UploadStatus
 });
 filemanager.client.views.base.LabelButton = function(label,SLPId) {
@@ -14605,7 +14591,8 @@ $hxClasses["filemanager.client.views.uis.FolderUI"] = filemanager.client.views.u
 filemanager.client.views.uis.FolderUI.__name__ = ["filemanager","client","views","uis","FolderUI"];
 filemanager.client.views.uis.FolderUI.__super__ = filemanager.client.views.base.View;
 filemanager.client.views.uis.FolderUI.prototype = $extend(filemanager.client.views.base.View.prototype,{
-	refresh: function() {
+	refresh: function(isFull) {
+		if(isFull != null) this._isFull = isFull;
 		this.setStyle();
 	}
 	,setStyle: function() {
@@ -14874,23 +14861,6 @@ filemanager.client.views.uis.buttons.PasteButton.prototype = $extend(filemanager
 	}
 	,onButtonClicked: null
 	,__class__: filemanager.client.views.uis.buttons.PasteButton
-});
-filemanager.client.views.uis.buttons.RefreshButton = function(label,SLPId) {
-	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"RefreshButton");
-	filemanager.client.views.base.LabelButton.call(this,label,SLPId);
-	this.rootElement.className = "buttons refreshButton";
-	this.onclicked = $bind(this,this.handleClicked);
-	this.set_enabled(true);
-};
-$hxClasses["filemanager.client.views.uis.buttons.RefreshButton"] = filemanager.client.views.uis.buttons.RefreshButton;
-filemanager.client.views.uis.buttons.RefreshButton.__name__ = ["filemanager","client","views","uis","buttons","RefreshButton"];
-filemanager.client.views.uis.buttons.RefreshButton.__super__ = filemanager.client.views.base.LabelButton;
-filemanager.client.views.uis.buttons.RefreshButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
-	handleClicked: function(evt) {
-		if(this.onRefreshClicked != null) this.onRefreshClicked("RefreshButton");
-	}
-	,onRefreshClicked: null
-	,__class__: filemanager.client.views.uis.buttons.RefreshButton
 });
 filemanager.client.views.uis.buttons.RenameButton = function(label,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"RenameButton");
@@ -20241,8 +20211,6 @@ cocktail.core.style.CSSConstants.TRANSFORM_ORIGIN_STYLE_NAME = "transform-origin
 cocktail.core.style.CSSConstants.TRANSFORM_STYLE_NAME = "transform";
 cocktail.core.style.transition.TransitionManager.TRANSITION_UPDATE_SPEED = 20;
 filemanager.client.services.Api.GATEWAY_URL = "server/index.php";
-filemanager.client.views.FilesView.DRAGGING_FILE = "startedToDragFile";
-filemanager.client.views.FolderTreeView.DROPPED_FILE = "droppedFile";
 filemanager.client.views.uis.FileUploadStatus.PENDING = "Pending";
 filemanager.client.views.uis.FileUploadStatus.PROGRESS = "Progress";
 filemanager.client.views.uis.FileUploadStatus.COMPLETE = "Complete";
@@ -20254,7 +20222,6 @@ filemanager.client.views.uis.buttons.CreateFolderButton.VIEW_ID = "CreateFolderB
 filemanager.client.views.uis.buttons.DeleteButton.VIEW_ID = "DeleteButton";
 filemanager.client.views.uis.buttons.DownloadButton.VIEW_ID = "DownloadButton";
 filemanager.client.views.uis.buttons.PasteButton.VIEW_ID = "PasteButton";
-filemanager.client.views.uis.buttons.RefreshButton.VIEW_ID = "RefreshButton";
 filemanager.client.views.uis.buttons.RenameButton.VIEW_ID = "RenameButton";
 filemanager.client.views.uis.buttons.UploadButton.VIEW_ID = "UploadButton";
 haxe.Serializer.USE_CACHE = false;

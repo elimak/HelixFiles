@@ -85,7 +85,9 @@ class FolderUI extends View
 		rootElement.style.marginLeft = Std.string( _isDescendant * 20 +"px");
 	}
 
-	public function refresh () : Void {
+	public function refresh ( ?isFull : Bool) : Void {
+		if (isFull != null) 
+			_isFull = isFull;
 		setStyle();
 	}
 }

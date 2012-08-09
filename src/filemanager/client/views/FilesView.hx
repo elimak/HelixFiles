@@ -1,4 +1,5 @@
 package filemanager.client.views;
+import filemanager.client.models.FilesModel;
 import filemanager.client.models.Locator;
 import filemanager.client.views.base.View;
 import filemanager.client.views.uis.FileUI;
@@ -16,8 +17,9 @@ import js.Lib;
 class FilesView extends View
 {
 
-	public static inline var DRAGGING_FILE : String = "startedToDragFile";
-	public var currentDraggedFile : FileVO;
+	//public static inline var DRAGGING_FILE : String = "startedToDragFile";
+	//public var currentDraggedFile	: FileVO;
+	private var _filesModel			: FilesModel;
 	
 	public function new(rootElement:HtmlDom, SLPId:String) {
 		Locator.registerSLDisplay(SLPId, this, "FilesView");
@@ -40,9 +42,16 @@ class FilesView extends View
 	}
 	
 	private function handleFileDragged( file: FileVO, evt: Event ) : Void {
-		currentDraggedFile = file;
+		/*currentDraggedFile = file;
 		var event : CustomEvent = cast Lib.document.createEvent("CustomEvent");
 		event.initCustomEvent(DRAGGING_FILE, false, false, rootElement);
-		rootElement.dispatchEvent(event);
+		rootElement.dispatchEvent(event);*/
+		Log.trace("FilesView - handleFileDragged() "+file);
+		Log.trace("FilesView - handleFileDragged() "+_filesModel);
+		_filesModel.setDraggedFile(file);
+	}
+	
+	public function injectAppModel( filesModel:FilesModel) {
+		_filesModel = filesModel;
 	}
 } 

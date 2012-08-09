@@ -17,7 +17,7 @@ typedef FileHelper = {
 
 class Api {
 	
-	private var _explorer : FileExplorer;
+	private var _explorer 	: FileExplorer;
 	private static inline var FILES_FOLDER : String = "../largefiles/";
 	
 	public function new() {
@@ -48,7 +48,6 @@ class Api {
 			response.success = false; 
 			response.error = oldFile + " was not found";
 		}
-	
 		return response;
 	}
 	
@@ -73,7 +72,7 @@ class Api {
 	private function moveFileToFolder (filePath: String, fileName: String, folderPath: String ) : Bool {
 		if ( filePath == (folderPath + "/" + fileName) ) return true;
 		File.copy(filePath, folderPath + "/" + fileName);
-		if ( FileSystem.exists(folderPath + "/" + fileName)) {
+		if ( FileSystem.exists(folderPath + "/" + fileName)){
 			FileSystem.deleteFile(filePath);
 			return true;
 		}
@@ -83,9 +82,9 @@ class Api {
 	private function getFileHelper(filepath:String) : FileHelper {
 		var result 		: FileHelper = {extension: "", filename: ""};
 		var splitted 	: Array<String> = filepath.split(".");
-		result.extension  	= splitted.pop();
+		result.extension  = splitted.pop();
 		splitted = splitted.join(".").split("/");
-		result.filename  	= splitted.pop();
+		result.filename  = splitted.pop();
 
 		return result;
 	}

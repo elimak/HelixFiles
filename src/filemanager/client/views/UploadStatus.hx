@@ -13,8 +13,9 @@ import js.Lib;
 
 class UploadStatus extends View
 {
-	public var onCancelUpload		: String->Void;
-	private var _currentQueueUIs 	:  Hash<FileUploadStatus>;
+	private var _filesModel			: FilesModel;
+	//public var onCancelUpload		: String->Void;
+	private var _currentQueueUIs 	: Hash<FileUploadStatus>;
 	
 	public function new (rootElement:HtmlDom, SLPId:String) {
 		
@@ -23,31 +24,38 @@ class UploadStatus extends View
 		rootElement.className = "uploadStatus smallFont";
 		_currentQueueUIs = new Hash<FileUploadStatus>();
 	
-		super(rootElement, SLPId);	
+		super(rootElement, SLPId);
 	}
-
+	
+	override public function init() : Void {
+	}	
+	
 // ----------------------------------- // 
 // HANDLES ALL UPDATE of the UPLOADS
 // ----------------------------------- //
+
+	
 /**
  * When a queue of files is uploaded, the updates for each files can be "started, progress, complete, error"
  * all updates are handled here and routed to their specific uis in order to be visually monitored.
  * @param	uploadUpdate
  */
 
-	public function onUpdate( uploadUpdate : FileToUpload ): Void
-	{
+	public function onUpdate( uploadUpdate : FileToUpload ) : Void {
+		
 		if ( !_currentQueueUIs.exists(uploadUpdate.file.name)) {
 			var fileUploadStatus : FileUploadStatus = new FileUploadStatus(uploadUpdate, SLPlayerInstanceId);
 			_currentQueueUIs.set(uploadUpdate.file.name, fileUploadStatus);
-			
-			if( this.onCancelUpload != null ){
-				fileUploadStatus.onCancelUpload = this.onCancelUpload;
-			}
-			
+
+			fileUploadStatus.onCancelUpload = _filesModel.onCancelUpload;
 			rootElement.appendChild(fileUploadStatus.rootElement);
 		}
 		var fileName : String = cast uploadUpdate.file.name;
 		_currentQueueUIs.get(fileName).update (uploadUpdate);
+	}
+	
+	public function injectAppModel( filesModel:FilesModel) {
+		_filesModel = filesModel;
+		_filesModel.onUploadUpdate = onUpdate;
 	}
 }

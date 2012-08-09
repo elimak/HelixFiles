@@ -1,4 +1,5 @@
 package filemanager.client.views.base;
+import haxe.Log;
 import js.Dom;
 import org.slplayer.component.ui.DisplayObject;
 
@@ -20,7 +21,6 @@ class View extends DisplayObject
 	private function clear() 
 	{
 		var childNodes = rootElement.childNodes.length;
-		
 		while (rootElement.hasChildNodes()) {
 			var child: HtmlDom = rootElement.childNodes[0];
 			rootElement.removeChild(child);

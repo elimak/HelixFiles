@@ -107,11 +107,9 @@ class FilesModel
 		
 		for ( file in files ) {
 			var fileToUpload : FileToUpload = { file : file, validateFileName:validateFileName(file.name), initialized : false, progressPercent : 0, completed : false, started: false };
-			// Log.trace("FilesModel - uploadSelectedFiles() "+validateFileName(file.name));
 			_uploadsQueue.set(validateFileName(file.name), fileToUpload);
 		}
-		for (key in _uploadsQueue.keys()) 
-		{
+		for (key in _uploadsQueue.keys()) {
 			var filehelper : FileToUpload = cast _uploadsQueue.get(key);
 			if ( !filehelper.initialized ) {
 				_api.backupAsTemporary(filehelper.validateFileName, handleUploadInitialized);
@@ -241,13 +239,11 @@ class FilesModel
 		_manipulatedFile = file;
 	}
 	
-	public function setFolderOfDroppedFile( folder:FolderVO) {
+	public function setFolderOfDroppedFile( folder:FolderVO, onUpdateFoldersStates: FolderVO->Void ) {
 		_targetFolder = folder;
-		var result = _api.moveFileToFolder(_manipulatedFile.path, _manipulatedFile.name, _targetFolder.path, onMovedFile );
-		
-	}
-	
-	private function onMovedFile( success : Bool ) {
-		Log.trace("FilesModel - onMovedFile() "+success);
+		var result = _api.moveFileToFolder(_manipulatedFile.path, _manipulatedFile.name, _targetFolder.path,
+															function( sucess: Bool ) : Void {
+																getTreeFolder("../files", onUpdateFoldersStates);
+															});
 	}
 }
