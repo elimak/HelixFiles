@@ -72,7 +72,6 @@ class FileManager extends DisplayObject
 		var fileDroppers : Array<DisplayObject> = Locator.getSLDisplay( SLPlayerInstanceId, "FileDropper");
 		_fileDropper = cast fileDroppers[0];
 		_fileDropper.injectAppModel(_filesModel);
-		_fileDropper.onFileDropped = _filesModel.uploadSelectedFiles;
 	}	
 	
 	private function initializeAppModel() {

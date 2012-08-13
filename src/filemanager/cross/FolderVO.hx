@@ -10,7 +10,8 @@ class FolderVO implements Dynamic
 	public var name: String;
 	public var path: String;
 	public var open: Bool;
-	public var children:Array<FolderVO>;
+	public var childFolders	: Array<FolderVO>;
+	public var children	: Int;
 	
 	public function new()
 	{
@@ -21,7 +22,8 @@ class FolderVO implements Dynamic
 		var l_result = "FileVO {\n";
 		l_result += "\t name: " + name + "\n"; 
 		l_result += "\t path: " + path + "\n"; 
-		l_result += "\t children: " + children.join(",") + "\n"; 
+		l_result += "\t childFolders: " + childFolders.join(",") + "\n"; 
+		l_result += "\t children: " +children + "\n"; 
 		return l_result;
 	}
 }

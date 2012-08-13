@@ -42,19 +42,21 @@ class filemanager_server_FileInfoHelper {
 		$data = new filemanager_cross_FolderVO();
 		$data->name = $this->name;
 		$data->path = $this->path;
-		$data->children = new _hx_array(array());
+		$data->childFolders = new _hx_array(array());
+		$data->children = sys_FileSystem::readDirectory($this->path)->length;
 		return $this->createFolderTree($data, $this->subList);
 	}
-	public function createFolderTree($data, $inSublist) {
-		if($inSublist->length > 0) {
-			$_g1 = 0; $_g = $inSublist->length;
+	public function createFolderTree($data, $inFolderSublist) {
+		if($inFolderSublist->length > 0) {
+			$_g1 = 0; $_g = $inFolderSublist->length;
 			while($_g1 < $_g) {
 				$i = $_g1++;
 				$subFolder = new filemanager_cross_FolderVO();
-				$subFolder->name = _hx_array_get($inSublist, $i)->name;
-				$subFolder->path = _hx_array_get($inSublist, $i)->path;
-				$subFolder->children = new _hx_array(array());
-				$data->children->push($this->createFolderTree($subFolder, _hx_array_get($inSublist, $i)->subList));
+				$subFolder->name = _hx_array_get($inFolderSublist, $i)->name;
+				$subFolder->path = _hx_array_get($inFolderSublist, $i)->path;
+				$subFolder->childFolders = new _hx_array(array());
+				$subFolder->children = sys_FileSystem::readDirectory($subFolder->path)->length;
+				$data->childFolders->push($this->createFolderTree($subFolder, _hx_array_get($inFolderSublist, $i)->subList));
 				unset($subFolder,$i);
 			}
 		}

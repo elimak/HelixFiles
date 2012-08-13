@@ -13960,7 +13960,6 @@ filemanager.client.FileManager.prototype = $extend(org.slplayer.component.ui.Dis
 		var fileDroppers = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"FileDropper");
 		this._fileDropper = fileDroppers[0];
 		this._fileDropper.injectAppModel(this._filesModel);
-		this._fileDropper.onFileDropped = ($_=this._filesModel,$bind($_,$_.uploadSelectedFiles));
 	}
 	,initializeUploadStatus: function() {
 		var uploadStatus = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"UploadStatus");
@@ -14009,14 +14008,17 @@ filemanager.client.models.FilesModel.prototype = {
 	,setDraggedFile: function(file) {
 		this._manipulatedFile = file;
 	}
-	,set_selectedFolderOrFile: function(value) {
-		return this._selectedFolderOrFile = value;
+	,set_selectedFolder: function(value) {
+		var lastCharacter = HxOverrides.substr(value,value.length - 1,1);
+		this._selectedFolder = value;
+		if(lastCharacter != "/") this._selectedFolder += "/";
+		return this._selectedFolder;
 	}
-	,get_selectedFolderOrFile: function() {
-		return this._selectedFolderOrFile;
+	,get_selectedFolder: function() {
+		return this._selectedFolder;
 	}
 	,onCancelUpload: function(trackID) {
-		haxe.Log.trace("FilesModel - onCancelUpload() " + trackID,{ fileName : "FilesModel.hx", lineNumber : 218, className : "filemanager.client.models.FilesModel", methodName : "onCancelUpload"});
+		haxe.Log.trace("FilesModel - onCancelUpload() " + trackID,{ fileName : "FilesModel.hx", lineNumber : 226, className : "filemanager.client.models.FilesModel", methodName : "onCancelUpload"});
 	}
 	,createNewFolder: function(folderName) {
 	}
@@ -14039,6 +14041,7 @@ filemanager.client.models.FilesModel.prototype = {
 	,handleUploadProgress: function(msg) {
 		var _g = this;
 		var response = haxe.Json.parse(msg.data);
+		haxe.Log.trace("FilesModel - handleUploadProgress() " + Std.string(response.destination) + " // " + Std.string(response.result.filename),{ fileName : "FilesModel.hx", lineNumber : 158, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
 		switch(response.type) {
 		case "progress":
 			this._uploadsQueue.get(response.result.filename).progressPercent = response.result.percentuploaded;
@@ -14057,7 +14060,7 @@ filemanager.client.models.FilesModel.prototype = {
 			this.onUploadUpdate(this._uploadsQueue.get(response.result.filename));
 			break;
 		case "error":
-			haxe.Log.trace("FilesModel - handleUploadProgress() - response: error " + Std.string(response.error),{ fileName : "FilesModel.hx", lineNumber : 171, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
+			haxe.Log.trace("FilesModel - handleUploadProgress() - response: error " + Std.string(response.error),{ fileName : "FilesModel.hx", lineNumber : 179, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
 			break;
 		}
 	}
@@ -14066,7 +14069,7 @@ filemanager.client.models.FilesModel.prototype = {
 			var uploadWorker = new Worker("fileupload.js");
 			uploadWorker.onmessage = $bind(this,this.handleUploadProgress);
 			uploadWorker.onerror = $bind(this,this.handleError);
-			var dataMsg = { file : this._uploadsQueue.get(response.filepath).file, validName : this.validateFileName(this._uploadsQueue.get(response.filepath).file.name)};
+			var dataMsg = { file : this._uploadsQueue.get(response.filepath).file, validName : this.validateFileName(this._uploadsQueue.get(response.filepath).file.name), destination : this._selectedFolder};
 			uploadWorker.postMessage(dataMsg);
 		}
 	}
@@ -14098,17 +14101,17 @@ filemanager.client.models.FilesModel.prototype = {
 		this._api.getTreeFolder(folderpath,onSuccess);
 	}
 	,handleError: function(e) {
-		haxe.Log.trace("FilesModel - handleError() ERROR: Line " + Std.string(e.lineno) + " in " + Std.string(e.filename) + ": " + Std.string(e.message),{ fileName : "FilesModel.hx", lineNumber : 70, className : "filemanager.client.models.FilesModel", methodName : "handleError"});
+		haxe.Log.trace("FilesModel - handleError() ERROR: Line " + Std.string(e.lineno) + " in " + Std.string(e.filename) + ": " + Std.string(e.message),{ fileName : "FilesModel.hx", lineNumber : 73, className : "filemanager.client.models.FilesModel", methodName : "handleError"});
 	}
 	,_targetFolder: null
 	,_manipulatedFile: null
-	,selectedFolderOrFile: null
-	,_selectedFolderOrFile: null
+	,selectedFolder: null
+	,_selectedFolder: null
 	,onUploadUpdate: null
 	,_uploadsQueue: null
 	,_api: null
 	,__class__: filemanager.client.models.FilesModel
-	,__properties__: {set_selectedFolderOrFile:"set_selectedFolderOrFile",get_selectedFolderOrFile:"get_selectedFolderOrFile"}
+	,__properties__: {set_selectedFolder:"set_selectedFolder",get_selectedFolder:"get_selectedFolder"}
 }
 filemanager.client.models.Locator = function() { }
 $hxClasses["filemanager.client.models.Locator"] = filemanager.client.models.Locator;
@@ -14136,7 +14139,7 @@ $hxClasses["filemanager.client.services.Api"] = filemanager.client.services.Api;
 filemanager.client.services.Api.__name__ = ["filemanager","client","services","Api"];
 filemanager.client.services.Api.prototype = {
 	defaultOnError: function(err) {
-		haxe.Log.trace("Error (API default error handler) : " + Std.string(err),{ fileName : "Api.hx", lineNumber : 102, className : "filemanager.client.services.Api", methodName : "defaultOnError"});
+		haxe.Log.trace("Error (API default error handler) : " + Std.string(err),{ fileName : "Api.hx", lineNumber : 100, className : "filemanager.client.services.Api", methodName : "defaultOnError"});
 	}
 	,moveFileToFolder: function(filePath,fileName,folderPath,onSuccess,onError) {
 		var cnx = haxe.remoting.HttpAsyncConnection.urlConnect("server/index.php");
@@ -14159,7 +14162,6 @@ filemanager.client.services.Api.prototype = {
 		cnx.resolve("api").resolve("getFiles").call([folderpath],onSuccess);
 	}
 	,getTreeFolder: function(folderpath,onSuccess,onError) {
-		haxe.Log.trace("Api - getTreeFolder() " + folderpath,{ fileName : "Api.hx", lineNumber : 31, className : "filemanager.client.services.Api", methodName : "getTreeFolder"});
 		var cnx = haxe.remoting.HttpAsyncConnection.urlConnect("server/index.php");
 		if(onError != null) cnx.setErrorHandler(onError); else cnx.setErrorHandler($bind(this,this.defaultOnError));
 		cnx.resolve("api").resolve("getTreeFolder").call([folderpath],onSuccess);
@@ -14206,10 +14208,7 @@ filemanager.client.views.FileDropper.prototype = $extend(filemanager.client.view
 	,handleFileSelect: function(evt) {
 		evt.stopPropagation();
 		evt.preventDefault();
-		if(this.onFileDropped != null) {
-			this.onFileDropped(evt.dataTransfer.files);
-			evt.dataTransfer.files = null;
-		}
+		this._filesModel.uploadSelectedFiles(evt.dataTransfer.files);
 	}
 	,handleDragOver: function(evt) {
 		evt.stopPropagation();
@@ -14217,7 +14216,6 @@ filemanager.client.views.FileDropper.prototype = $extend(filemanager.client.view
 		evt.dataTransfer.dropEffect = "copy";
 	}
 	,_filesModel: null
-	,onFileDropped: null
 	,__class__: filemanager.client.views.FileDropper
 });
 filemanager.client.views.FilesView = function(rootElement,SLPId) {
@@ -14277,7 +14275,7 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 	}
 	,initialize: function(data) {
 		this._data = data;
-		this._filesModel.set_selectedFolderOrFile(data.path);
+		this._filesModel.set_selectedFolder(data.path);
 		this._fileManager.getListOfFiles(data.path);
 		this.buildView();
 	}
@@ -14298,7 +14296,7 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 		this._folderStatus.set(folderPath,target.isOpen);
 		folderData.open = target.isOpen;
 		target.refresh();
-		this._filesModel.set_selectedFolderOrFile(folderPath);
+		this._filesModel.set_selectedFolder(folderPath);
 		this._fileManager.getListOfFiles(folderPath);
 	}
 	,updateEmptiness: function(currentFolder,target,inDescendant) {
@@ -14318,13 +14316,13 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 		folder.rootElement.addEventListener("dragEventDropped",droppedCallBack,false);
 	}
 	,createSubFolders: function(currentFolder,target,inDescendant) {
-		var _g1 = 0, _g = currentFolder.children.length;
+		var _g1 = 0, _g = currentFolder.childFolders.length;
 		while(_g1 < _g) {
 			var i = _g1++;
-			var child = currentFolder.children[i];
+			var child = currentFolder.childFolders[i];
 			var childPath = child.path + "/" + child.name;
 			target.isOpen = this._folderStatus.exists(childPath)?this._folderStatus.get(childPath):target.isOpen;
-			var folderChild = new filemanager.client.views.uis.FolderUI(child.children.length > 0,inDescendant,child.name,this.SLPlayerInstanceId);
+			var folderChild = new filemanager.client.views.uis.FolderUI(child.children > 0,inDescendant,child.name,this.SLPlayerInstanceId);
 			target.subFolders.push(folderChild);
 			this.rootElement.appendChild(folderChild.rootElement);
 			folderChild.isVisible = target.isOpen;
@@ -14335,7 +14333,7 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 	}
 	,buildView: function() {
 		var isOpen = true;
-		this._rootFolder = new filemanager.client.views.uis.FolderUI(this._data.children.length > 0,0,this._data.name,this.SLPlayerInstanceId);
+		this._rootFolder = new filemanager.client.views.uis.FolderUI(this._data.children > 0,0,this._data.name,this.SLPlayerInstanceId);
 		var folderPath = this._data.path + "/" + this._data.name;
 		this._folderStatus.set(folderPath,isOpen);
 		this.makeInteractive(this._rootFolder,this._data);
@@ -14951,10 +14949,12 @@ filemanager.cross.FolderVO.prototype = {
 		var l_result = "FileVO {\n";
 		l_result += "\t name: " + this.name + "\n";
 		l_result += "\t path: " + this.path + "\n";
-		l_result += "\t children: " + this.children.join(",") + "\n";
+		l_result += "\t childFolders: " + this.childFolders.join(",") + "\n";
+		l_result += "\t children: " + this.children + "\n";
 		return l_result;
 	}
 	,children: null
+	,childFolders: null
 	,open: null
 	,path: null
 	,name: null

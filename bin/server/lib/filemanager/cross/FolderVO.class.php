@@ -9,10 +9,12 @@ class filemanager_cross_FolderVO {
 		$l_result = "FileVO {\x0A";
 		$l_result .= "\x09 name: " . $this->name . "\x0A";
 		$l_result .= "\x09 path: " . $this->path . "\x0A";
-		$l_result .= "\x09 children: " . $this->children->join(",") . "\x0A";
+		$l_result .= "\x09 childFolders: " . $this->childFolders->join(",") . "\x0A";
+		$l_result .= "\x09 children: " . _hx_string_rec($this->children, "") . "\x0A";
 		return $l_result;
 	}
 	public $children;
+	public $childFolders;
 	public $open;
 	public $path;
 	public $name;

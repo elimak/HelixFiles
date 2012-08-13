@@ -24,18 +24,21 @@ typedef FileToUpload = {
 }
 
 typedef UploadProgress = {
-	var result 	: Dynamic<{filename: String,filesize: Int, percentuploaded: Float, chunksize: Float}>;
-	var type	: String;
+	var result 		: Dynamic<{filename: String,filesize: Int, percentuploaded: Float, chunksize: Float}>;
+	var type		: String;
+	var destination	: String;
 }
 
 typedef UploadComplete = {
-	var result 	: Dynamic<{filename: String,filesize: Int}>;
-	var type	: String;
+	var result 		: Dynamic<{filename: String,filesize: Int}>;
+	var type		: String;
+	var destination	: String;
 }
 
 typedef UploadStarted = {
-	var result 	: Dynamic<{filename: String}>;
-	var type	: String;
+	var result 		: Dynamic<{filename: String}>;
+	var type		: String;
+	var destination	: String;
 }
 
 typedef UploadError = {
@@ -48,8 +51,8 @@ class FilesModel
 	private var _uploadsQueue 	: Hash<FileToUpload>;
 	public var onUploadUpdate 	: FileToUpload->Void;
 	
-	private var _selectedFolderOrFile : String;
-	public var selectedFolderOrFile(get_selectedFolderOrFile, set_selectedFolderOrFile):String;
+	private var _selectedFolder : String;
+	public var selectedFolder(get_selectedFolder, set_selectedFolder):String;
 	
 	private var _manipulatedFile : FileVO;
 	private var _targetFolder	 : FolderVO;
@@ -135,7 +138,10 @@ class FilesModel
 			var uploadWorker = new Worker('fileupload.js');
 			uploadWorker.onmessage = handleUploadProgress;
 			uploadWorker.onerror = handleError;
-			var dataMsg = { file: _uploadsQueue.get(response.filepath).file, validName:  validateFileName(_uploadsQueue.get(response.filepath).file.name) };
+			var dataMsg = { file: _uploadsQueue.get(response.filepath).file,
+							validName:  validateFileName(_uploadsQueue.get(response.filepath).file.name),
+							destination: _selectedFolder
+							};
 			uploadWorker.postMessage( dataMsg);
 		}
 	}
@@ -148,6 +154,8 @@ class FilesModel
 	private function handleUploadProgress( msg: Dynamic ) : Void {
 		
 		var response: Dynamic = Json.parse(msg.data);
+		
+		Log.trace("FilesModel - handleUploadProgress() "+response.destination+" // "+response.result.filename);
 		
 		switch (response.type) {
 			case "progress"	: 
@@ -222,14 +230,19 @@ class FilesModel
 // GETTER / SETTER
 // ------------------------ //
 
-	private function get_selectedFolderOrFile():String {
-		return _selectedFolderOrFile;
+	private function get_selectedFolder():String {
+		return _selectedFolder;
 	}
 	
-	private function set_selectedFolderOrFile(value:String):String {
-		return _selectedFolderOrFile = value;
+	private function set_selectedFolder(value:String):String {
+		var lastCharacter = value.substr(value.length - 1, 1);
+
+		_selectedFolder = value;
+		if (lastCharacter != "/") {
+			_selectedFolder += "/";
+		}
+		return _selectedFolder;
 	}
-	
 	
 // ------------------------------------------------- // 
 // DRAG & DROP of FILES -> Move to new Folder path

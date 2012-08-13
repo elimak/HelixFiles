@@ -50,7 +50,7 @@ class FolderTreeView extends View
 		var isOpen : Bool = true;
 		
 		// create the top folder
-		_rootFolder = new FolderUI((_data.children.length > 0), 0, _data.name, SLPlayerInstanceId);
+		_rootFolder = new FolderUI((_data.children > 0), 0, _data.name, SLPlayerInstanceId);
 		
 		// Store the status (open/closed) based on the unique path
 		var folderPath	: String = _data.path + "/" + _data.name;
@@ -72,14 +72,14 @@ class FolderTreeView extends View
 	 */
 	private function createSubFolders( currentFolder: FolderVO, target: FolderUI , inDescendant: Int)  {
 		
-		for (i in 0...currentFolder.children.length) {
-			var child 		: FolderVO 	= currentFolder.children[i];
+		for (i in 0...currentFolder.childFolders.length) {
+			var child 		: FolderVO 	= currentFolder.childFolders[i];
 			var childPath	: String 	= child.path + "/" + child.name;
 			
 			// if we already recorded a value, use it, else use the default value set in FolderUI's constructor
 			target.isOpen = _folderStatus.exists(childPath)? _folderStatus.get(childPath) : target.isOpen;
 			
-			var folderChild : FolderUI = new FolderUI ((child.children.length > 0 ), inDescendant, child.name, SLPlayerInstanceId);
+			var folderChild : FolderUI = new FolderUI ((child.children > 0 ), inDescendant, child.name, SLPlayerInstanceId);
 			target.subFolders.push(folderChild);
 			
 			rootElement.appendChild(folderChild.rootElement);
@@ -152,7 +152,7 @@ class FolderTreeView extends View
 		folderData.open = target.isOpen;	// updates the full data tree
 		target.refresh();
 		
-		_filesModel.selectedFolderOrFile = folderPath;
+		_filesModel.selectedFolder = folderPath;
 		_fileManager.getListOfFiles(folderPath);
 	}
 	
@@ -171,7 +171,7 @@ class FolderTreeView extends View
 	public function initialize ( data: FolderVO ) {
 		_data = data;
 		
-		_filesModel.selectedFolderOrFile = data.path;
+		_filesModel.selectedFolder = data.path;
 		_fileManager.getListOfFiles(data.path);
 		
 		buildView();

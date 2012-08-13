@@ -13,7 +13,8 @@ import js.Lib;
 class FileDropper extends View
 {
 	
-	public var onFileDropped : Array<Dynamic>->Void;
+	//public var onFileDropped : Array<Dynamic>->Void;
+	
 	private var _filesModel	 : FilesModel;
 	
 	public function new (rootElement:HtmlDom, SLPId:String) {
@@ -45,10 +46,7 @@ class FileDropper extends View
 		untyped evt.stopPropagation();
 		untyped evt.preventDefault(); 
 		
-		if ( onFileDropped != null ) {
-			onFileDropped( untyped evt.dataTransfer.files );
-			evt.dataTransfer.files = null;
-		}
+		_filesModel.uploadSelectedFiles( untyped evt.dataTransfer.files );
 	}
 	
 	public function injectAppModel( filesModel:FilesModel) {

@@ -27,8 +27,6 @@ class Api
  * @param	?onError
  */
 	public function getTreeFolder ( folderpath : String, onSuccess: FolderVO->Void, ?onError: Dynamic->Void ) : Void {
-		
-		Log.trace("Api - getTreeFolder() "+folderpath);
 		var cnx = HttpAsyncConnection.urlConnect(GATEWAY_URL);
 		if (onError != null) cnx.setErrorHandler( onError );
 		else cnx.setErrorHandler( defaultOnError );

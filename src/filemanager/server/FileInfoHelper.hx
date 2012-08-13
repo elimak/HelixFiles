@@ -29,24 +29,26 @@ class FileInfoHelper
 		isDir = inIsDir;
 	}
 
-	private function createFolderTree(data: FolderVO, inSublist : Array<FileInfoHelper>) : FolderVO {
-		if ( inSublist.length > 0 ) {
-			for ( i in 0...inSublist.length) {
-				var subFolder = new FolderVO();
-				subFolder.name = inSublist[i].name;
-				subFolder.path = inSublist[i].path;
-				subFolder.children = new Array<FolderVO>();
-				data.children.push(createFolderTree(subFolder, inSublist[i].subList));
+	private function createFolderTree(data: FolderVO, inFolderSublist : Array<FileInfoHelper>) : FolderVO {
+		if ( inFolderSublist.length > 0 ) {
+			for ( i in 0...inFolderSublist.length) {
+				var subFolder : FolderVO= new FolderVO();
+				subFolder.name = inFolderSublist[i].name;
+				subFolder.path = inFolderSublist[i].path;
+				subFolder.childFolders = new Array<FolderVO>();
+				subFolder.children = FileSystem.readDirectory( subFolder.path ).length;
+				data.childFolders.push(createFolderTree(subFolder, inFolderSublist[i].subList));
 			}
 		}
 		return data;
 	}
 	
 	public function writeDirectoryObject( ) : FolderVO{
-		var data = new FolderVO();
+		var data : FolderVO = new FolderVO();
 		data.name = this.name;
 		data.path = this.path;
-		data.children = new Array<FolderVO>();
+		data.childFolders = new Array<FolderVO>();
+		data.children = FileSystem.readDirectory( this.path ).length;
 		return createFolderTree(data, subList);
 	}
 	

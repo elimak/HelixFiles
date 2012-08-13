@@ -1,7 +1,7 @@
 <?php
 
 $rawPost = file_get_contents('php://input'); 	// Read the PHP input stream and save the contents to $rawPost.
-$targetFolder = '../largefiles/'; 				// Set the folder where the movie should be saved.
+$targetFolder = $_GET['destination']; 			//'../largefiles/'; 				// Set the folder where the movie should be saved.
 $fullFileName = $_GET['name']; 					// Get the filename from the url parameter.
 $fileSize = $_GET['filesize'];					// Get the file size in order to calculate the progression and the finished 
 $chunkSize = $_GET['chunksize'];				// Get the chunk size in order to calculate the progression and the finished 
@@ -37,8 +37,7 @@ function uploadChunk() {
 	if ( file_put_contents($targetFile, $rawPost, FILE_APPEND) ) {
 		$percentProgress = filesize($targetFile) / $fileSize;
 		
-		die('{"result":{"filename":"' . $fullFileName. '", "filesize":' . filesize($targetFile) . ',"percentuploaded":' . $percentProgress . ',"chunksize":' . $chunkSize . '}, "type":"progress"}');
-		//die('<result><filename>' . $fullFileName. '</filename><currentsize>' . filesize($targetFile) . '</currentsize><percentuploaded>' . $percentProgress . '</percentuploaded><chunksize>' . $chunkSize . '</chunksize></result>');
+		die('{"result":{"filename":"' . $fullFileName. '", "filesize":' . filesize($targetFile) . ',"percentuploaded":' . $percentProgress . ',"chunksize":' . $chunkSize . '}, "type":"progress", "destination":"'.$targetFile.'"}');
 	}
 	else {
 		die('{"error":"Something went wrong"}');
