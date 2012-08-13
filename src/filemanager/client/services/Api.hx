@@ -92,6 +92,9 @@ class Api
 		cnx.api.moveFileToFolder.call([filePath, fileName, folderPath], onSuccess);
 	}
 	
+	public function renameFile ( filePath: String, newName: String, onSuccess: Bool->Void, ?onError: Dynamic->Void ) : Void {
+		Log.trace("Api - renameFile() "+filePath+" // "+newName);
+	}
 /**
  * Error callback 
  * @param	err
@@ -99,4 +102,6 @@ class Api
 	private function defaultOnError(err) : Void {
 		trace("Error (API default error handler) : "+Std.string(err));
 	}
+	
+	
 }

@@ -12,7 +12,6 @@ import js.Dom;
 class ConfirmButton extends LabelButton 
 {
 	public static inline var VIEW_ID : String = "ConfirmButton";
-	// public var requestCancelUpload : String->Void;
 	
 	public function new(label: String, SLPId:String) 
 	{
@@ -21,9 +20,4 @@ class ConfirmButton extends LabelButton
 		
 		rootElement.className = "buttons confirmButton";
 	}
-	
-	private override function handleClick( e: Event) {
-		/*if ( requestCancelUpload != null && enabled == true )
-			requestCancelUpload(_fileName);*/
-	}	
 }

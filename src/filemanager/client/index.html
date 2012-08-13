@@ -8,17 +8,27 @@
 		<script data-slp-use="filemanager.client.views.ToolBox"></script> 
 		<script data-slp-use="filemanager.client.views.FileDropper"></script> 
 		<script data-slp-use="filemanager.client.views.UploadStatus"></script> 
+		<script data-slp-use="filemanager.client.views.SelectedPath"></script> 
+		<script data-slp-use="filemanager.client.views.TitleTopBar"></script> 
+		<script data-slp-use="filemanager.client.views.DetailView"></script> 
 		<!--<script data-slp-use="filemanager.client.views.BrowseFiles"></script>-->
 	</head>
 	<body>
 		<div class="fileManager FileManager">
-			<div class="folderTreeView FolderTreeView"></div>
-			<div class="filesView FilesView draggable-dropzone"></div>
-			
+			<div class="titleTopBar TitleTopBar"></div>
+			<div class="toolBox ToolBox"></div>
+			<div class="selectedPath SelectedPath"></div>
+			<div class="explorer">
+				<div class="folderTreeView FolderTreeView"></div>
+				<div class="filesView FilesView draggable-dropzone"></div>
+				<div class="detailView DetailView"></div>
+			</div>
+			<hr class='hrGray'/>
+			<div class="fileDropper FileDropper"></div>
+			<div class="uploadStatus UploadStatus"></div>
+			<hr class='hrGray'/>
 		</div>
-		<div class="toolBox ToolBox"></div>
-		<div class="fileDropper FileDropper"></div>
-		<div class="uploadStatus UploadStatus"></div>
+
 		<!--<div class="button BrowseFiles"></div>
 		<div class="components draggable-dropzone">
 			<div class="Pannel Draggable Resizable">

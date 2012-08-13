@@ -3,6 +3,7 @@ import filemanager.client.models.Locator;
 import filemanager.client.views.base.View;
 import cocktail.core.unit.UnitManager;
 import cocktail.core.style.StyleData;
+import haxe.Log;
 import js.Lib;
 import js.Dom;
 /**
@@ -33,7 +34,7 @@ class LabelButton extends View
 	}
 	
 	private function handleClick( e: Event) {
-		if ( onclicked != null )
+		if ( onclicked != null && _enabled )
 			onclicked(e);
 	}	
 	
@@ -59,9 +60,7 @@ class LabelButton extends View
 		_enabled = value;
 		rootElement.style.border = (_enabled == true)? "1px solid #61c4ea" : "1px solid #888888";
 		rootElement.style.backgroundColor = (_enabled == true)? "#7cceee" : "#aaaaaa";
-		if (_enabled) {
-			rootElement.style.cursor = UnitManager.getCSSCursor(Cursor.pointer);
-		}
+		rootElement.style.cursor = _enabled? UnitManager.getCSSCursor(Cursor.pointer) : null;
 		return _enabled = value;
 	}
 }

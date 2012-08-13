@@ -14,7 +14,6 @@ import js.Lib;
 class UploadStatus extends View
 {
 	private var _filesModel			: FilesModel;
-	//public var onCancelUpload		: String->Void;
 	private var _currentQueueUIs 	: Hash<FileUploadStatus>;
 	
 	public function new (rootElement:HtmlDom, SLPId:String) {

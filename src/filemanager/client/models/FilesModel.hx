@@ -6,6 +6,7 @@ import filemanager.cross.FileUpdatedVO;
 import haxe.Json;
 import haxe.Log;
 import js.Dom;
+import js.Lib;
 import js.Worker;
 
 /**
@@ -51,14 +52,26 @@ class FilesModel
 	private var _uploadsQueue 	: Hash<FileToUpload>;
 	public var onUploadUpdate 	: FileToUpload->Void;
 	
-	private var _selectedFolder : String;
+	private var _selectedFolderPath : String;
 	public var selectedFolder(get_selectedFolder, set_selectedFolder):String;
 	
-	private var _manipulatedFile : FileVO;
+	public var appDispatcher(get_appDispatcher, null):HtmlDom;
+	public var selectedFile(get_selectedFile, null):FileVO;
+	
+	private var _selectedFile 	 : FileVO;
 	private var _targetFolder	 : FolderVO;
 	
-	public function new() {
+	private var _appDispatcher	 : HtmlDom; // used as a dispatch
+	
+	public static inline var PATH_UPDTATE : String = "pathUpdate";
+	
+/**
+ * we pass the rootElement of FileManager to the model in order to dispatch event (only HtmlDom can dispatch)
+ * @param	appRootElement
+ */
+	public function new( appRootElement : HtmlDom ) {
 		_api = new Api();
+		_appDispatcher = appRootElement;
 		_uploadsQueue = new Hash<FileToUpload>();
 	}
 	
@@ -140,7 +153,7 @@ class FilesModel
 			uploadWorker.onerror = handleError;
 			var dataMsg = { file: _uploadsQueue.get(response.filepath).file,
 							validName:  validateFileName(_uploadsQueue.get(response.filepath).file.name),
-							destination: _selectedFolder
+							destination: _selectedFolderPath
 							};
 			uploadWorker.postMessage( dataMsg);
 		}
@@ -208,7 +221,9 @@ class FilesModel
 	public function pasteFile ( newPath: String ) { }
 	
 	// TODO: we need a dialog panel to implement this
-	public function renameFile ( filePath: String, newName: String) { }
+	public function renameFile ( filePath: String, newName: String) { 
+		_api.renameFile( filePath, newName, function( success: Bool ){ Log.trace("FilesModel - renameFile() -- on  successfully renamed a file or folder "+success);});
+	}
 	
 	// TODO: we need a dialog panel to implement this
 	public function createNewFolder ( folderName : String ) {}
@@ -231,30 +246,51 @@ class FilesModel
 // ------------------------ //
 
 	private function get_selectedFolder():String {
-		return _selectedFolder;
+		return _selectedFolderPath;
 	}
 	
 	private function set_selectedFolder(value:String):String {
 		var lastCharacter = value.substr(value.length - 1, 1);
-
-		_selectedFolder = value;
+		_selectedFile = null;
+		_selectedFolderPath = value;
 		if (lastCharacter != "/") {
-			_selectedFolder += "/";
+			_selectedFolderPath += "/";
 		}
-		return _selectedFolder;
+		dispatchUpdate();
+		return _selectedFolderPath;
 	}
+	
+	private function get_selectedFile():FileVO {
+		return _selectedFile;
+	}
+	
+	private function get_appDispatcher():HtmlDom {
+		return _appDispatcher;
+	}
+	
+// ------------------------------------------------------ // 
+// CUSTOM DISPATCH (file/folder selected is updated)
+// ------------------------------------------------------ //
+
+	private function dispatchUpdate() {
+		var event : CustomEvent = cast Lib.document.createEvent("CustomEvent");
+		event.initCustomEvent(PATH_UPDTATE, false, false, _appDispatcher);
+		_appDispatcher.dispatchEvent(event);
+	}	
 	
 // ------------------------------------------------- // 
 // DRAG & DROP of FILES -> Move to new Folder path
 // ------------------------------------------------- //
 
 	public function setDraggedFile( file: FileVO ) {
-		_manipulatedFile = file;
+		_selectedFile = file;
+		dispatchUpdate();
 	}
-	
+
 	public function setFolderOfDroppedFile( folder:FolderVO, onUpdateFoldersStates: FolderVO->Void ) {
 		_targetFolder = folder;
-		var result = _api.moveFileToFolder(_manipulatedFile.path, _manipulatedFile.name, _targetFolder.path,
+		// reload the list of folder after a file was dropped
+		var result = _api.moveFileToFolder(_selectedFile.path, _selectedFile.name, _targetFolder.path,
 															function( sucess: Bool ) : Void {
 																getTreeFolder("../files", onUpdateFoldersStates);
 															});

@@ -13949,7 +13949,10 @@ filemanager.client.FileManager.prototype = $extend(org.slplayer.component.ui.Dis
 	,showConfirmation: function(b) {
 	}
 	,showInputOverlay: function(b,title) {
-		if(this._dialogPanel == null) this._dialogPanel = new filemanager.client.views.uis.SimpleDialogPanel(this.SLPlayerInstanceId,js.Lib.document.body);
+		if(this._dialogPanel == null) {
+			this._dialogPanel = new filemanager.client.views.uis.SimpleDialogPanel(this.SLPlayerInstanceId,js.Lib.document.body);
+			this._dialogPanel.injectAppModel(this._filesModel);
+		}
 		if(b) this._dialogPanel.show(title); else this._dialogPanel.hide();
 	}
 	,initializeAppModel: function() {
@@ -13972,11 +13975,17 @@ filemanager.client.FileManager.prototype = $extend(org.slplayer.component.ui.Dis
 		this._toolBox.injectAppModel(this._filesModel);
 		this._toolBox.injectAppManager(this);
 	}
+	,initializeSelectedPath: function() {
+		var selectedPaths = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"SelectedPath");
+		var selectedPath = selectedPaths[0];
+		selectedPath.injectAppModel(this._filesModel);
+	}
 	,init: function() {
-		this._filesModel = new filemanager.client.models.FilesModel();
+		this._filesModel = new filemanager.client.models.FilesModel(this.rootElement);
 		this.initializeFileDropper();
 		this.initializeUploadStatus();
 		this.initializeToolBox();
+		this.initializeSelectedPath();
 		this.initializeAppModel();
 	}
 	,_application: null
@@ -13991,8 +14000,9 @@ filemanager.client.FileManager.prototype = $extend(org.slplayer.component.ui.Dis
 	,__class__: filemanager.client.FileManager
 });
 filemanager.client.models = {}
-filemanager.client.models.FilesModel = function() {
+filemanager.client.models.FilesModel = function(appRootElement) {
 	this._api = new filemanager.client.services.Api();
+	this._appDispatcher = appRootElement;
 	this._uploadsQueue = new Hash();
 };
 $hxClasses["filemanager.client.models.FilesModel"] = filemanager.client.models.FilesModel;
@@ -14001,28 +14011,45 @@ filemanager.client.models.FilesModel.prototype = {
 	setFolderOfDroppedFile: function(folder,onUpdateFoldersStates) {
 		var _g = this;
 		this._targetFolder = folder;
-		var result = this._api.moveFileToFolder(this._manipulatedFile.path,this._manipulatedFile.name,this._targetFolder.path,function(sucess) {
+		var result = this._api.moveFileToFolder(this._selectedFile.path,this._selectedFile.name,this._targetFolder.path,function(sucess) {
 			_g.getTreeFolder("../files",onUpdateFoldersStates);
 		});
 	}
 	,setDraggedFile: function(file) {
-		this._manipulatedFile = file;
+		this._selectedFile = file;
+		this.dispatchUpdate();
+	}
+	,dispatchUpdate: function() {
+		var event = js.Lib.document.createEvent("CustomEvent");
+		event.initCustomEvent("pathUpdate",false,false,this._appDispatcher);
+		this._appDispatcher.dispatchEvent(event);
+	}
+	,get_appDispatcher: function() {
+		return this._appDispatcher;
+	}
+	,get_selectedFile: function() {
+		return this._selectedFile;
 	}
 	,set_selectedFolder: function(value) {
 		var lastCharacter = HxOverrides.substr(value,value.length - 1,1);
-		this._selectedFolder = value;
-		if(lastCharacter != "/") this._selectedFolder += "/";
-		return this._selectedFolder;
+		this._selectedFile = null;
+		this._selectedFolderPath = value;
+		if(lastCharacter != "/") this._selectedFolderPath += "/";
+		this.dispatchUpdate();
+		return this._selectedFolderPath;
 	}
 	,get_selectedFolder: function() {
-		return this._selectedFolder;
+		return this._selectedFolderPath;
 	}
 	,onCancelUpload: function(trackID) {
-		haxe.Log.trace("FilesModel - onCancelUpload() " + trackID,{ fileName : "FilesModel.hx", lineNumber : 226, className : "filemanager.client.models.FilesModel", methodName : "onCancelUpload"});
+		haxe.Log.trace("FilesModel - onCancelUpload() " + trackID,{ fileName : "FilesModel.hx", lineNumber : 241, className : "filemanager.client.models.FilesModel", methodName : "onCancelUpload"});
 	}
 	,createNewFolder: function(folderName) {
 	}
 	,renameFile: function(filePath,newName) {
+		this._api.renameFile(filePath,newName,function(success) {
+			haxe.Log.trace("FilesModel - renameFile() -- on  successfully renamed a file or folder " + Std.string(success),{ fileName : "FilesModel.hx", lineNumber : 225, className : "filemanager.client.models.FilesModel", methodName : "renameFile"});
+		});
 	}
 	,pasteFile: function(newPath) {
 	}
@@ -14041,7 +14068,7 @@ filemanager.client.models.FilesModel.prototype = {
 	,handleUploadProgress: function(msg) {
 		var _g = this;
 		var response = haxe.Json.parse(msg.data);
-		haxe.Log.trace("FilesModel - handleUploadProgress() " + Std.string(response.destination) + " // " + Std.string(response.result.filename),{ fileName : "FilesModel.hx", lineNumber : 158, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
+		haxe.Log.trace("FilesModel - handleUploadProgress() " + Std.string(response.destination) + " // " + Std.string(response.result.filename),{ fileName : "FilesModel.hx", lineNumber : 171, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
 		switch(response.type) {
 		case "progress":
 			this._uploadsQueue.get(response.result.filename).progressPercent = response.result.percentuploaded;
@@ -14060,7 +14087,7 @@ filemanager.client.models.FilesModel.prototype = {
 			this.onUploadUpdate(this._uploadsQueue.get(response.result.filename));
 			break;
 		case "error":
-			haxe.Log.trace("FilesModel - handleUploadProgress() - response: error " + Std.string(response.error),{ fileName : "FilesModel.hx", lineNumber : 179, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
+			haxe.Log.trace("FilesModel - handleUploadProgress() - response: error " + Std.string(response.error),{ fileName : "FilesModel.hx", lineNumber : 192, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
 			break;
 		}
 	}
@@ -14069,7 +14096,7 @@ filemanager.client.models.FilesModel.prototype = {
 			var uploadWorker = new Worker("fileupload.js");
 			uploadWorker.onmessage = $bind(this,this.handleUploadProgress);
 			uploadWorker.onerror = $bind(this,this.handleError);
-			var dataMsg = { file : this._uploadsQueue.get(response.filepath).file, validName : this.validateFileName(this._uploadsQueue.get(response.filepath).file.name), destination : this._selectedFolder};
+			var dataMsg = { file : this._uploadsQueue.get(response.filepath).file, validName : this.validateFileName(this._uploadsQueue.get(response.filepath).file.name), destination : this._selectedFolderPath};
 			uploadWorker.postMessage(dataMsg);
 		}
 	}
@@ -14101,17 +14128,20 @@ filemanager.client.models.FilesModel.prototype = {
 		this._api.getTreeFolder(folderpath,onSuccess);
 	}
 	,handleError: function(e) {
-		haxe.Log.trace("FilesModel - handleError() ERROR: Line " + Std.string(e.lineno) + " in " + Std.string(e.filename) + ": " + Std.string(e.message),{ fileName : "FilesModel.hx", lineNumber : 73, className : "filemanager.client.models.FilesModel", methodName : "handleError"});
+		haxe.Log.trace("FilesModel - handleError() ERROR: Line " + Std.string(e.lineno) + " in " + Std.string(e.filename) + ": " + Std.string(e.message),{ fileName : "FilesModel.hx", lineNumber : 86, className : "filemanager.client.models.FilesModel", methodName : "handleError"});
 	}
+	,_appDispatcher: null
 	,_targetFolder: null
-	,_manipulatedFile: null
+	,_selectedFile: null
+	,selectedFile: null
+	,appDispatcher: null
 	,selectedFolder: null
-	,_selectedFolder: null
+	,_selectedFolderPath: null
 	,onUploadUpdate: null
 	,_uploadsQueue: null
 	,_api: null
 	,__class__: filemanager.client.models.FilesModel
-	,__properties__: {set_selectedFolder:"set_selectedFolder",get_selectedFolder:"get_selectedFolder"}
+	,__properties__: {set_selectedFolder:"set_selectedFolder",get_selectedFolder:"get_selectedFolder",get_appDispatcher:"get_appDispatcher",get_selectedFile:"get_selectedFile"}
 }
 filemanager.client.models.Locator = function() { }
 $hxClasses["filemanager.client.models.Locator"] = filemanager.client.models.Locator;
@@ -14139,7 +14169,10 @@ $hxClasses["filemanager.client.services.Api"] = filemanager.client.services.Api;
 filemanager.client.services.Api.__name__ = ["filemanager","client","services","Api"];
 filemanager.client.services.Api.prototype = {
 	defaultOnError: function(err) {
-		haxe.Log.trace("Error (API default error handler) : " + Std.string(err),{ fileName : "Api.hx", lineNumber : 100, className : "filemanager.client.services.Api", methodName : "defaultOnError"});
+		haxe.Log.trace("Error (API default error handler) : " + Std.string(err),{ fileName : "Api.hx", lineNumber : 103, className : "filemanager.client.services.Api", methodName : "defaultOnError"});
+	}
+	,renameFile: function(filePath,newName,onSuccess,onError) {
+		haxe.Log.trace("Api - renameFile() " + filePath + " // " + newName,{ fileName : "Api.hx", lineNumber : 96, className : "filemanager.client.services.Api", methodName : "renameFile"});
 	}
 	,moveFileToFolder: function(filePath,fileName,folderPath,onSuccess,onError) {
 		var cnx = haxe.remoting.HttpAsyncConnection.urlConnect("server/index.php");
@@ -14186,6 +14219,21 @@ filemanager.client.views.base.View.prototype = $extend(org.slplayer.component.ui
 	}
 	,__class__: filemanager.client.views.base.View
 });
+filemanager.client.views.DetailView = function(rootElement,SLPId) {
+	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"DetailView");
+	filemanager.client.views.base.View.call(this,rootElement,SLPId);
+};
+$hxClasses["filemanager.client.views.DetailView"] = filemanager.client.views.DetailView;
+filemanager.client.views.DetailView.__name__ = ["filemanager","client","views","DetailView"];
+filemanager.client.views.DetailView.__super__ = filemanager.client.views.base.View;
+filemanager.client.views.DetailView.prototype = $extend(filemanager.client.views.base.View.prototype,{
+	init: function() {
+		this.rootElement.innerHTML = "Detail View";
+		filemanager.client.views.base.View.prototype.init.call(this);
+	}
+	,_filesModel: null
+	,__class__: filemanager.client.views.DetailView
+});
 filemanager.client.views.FileDropper = function(rootElement,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"FileDropper");
 	rootElement.className = "fileDropper noMargin";
@@ -14230,8 +14278,6 @@ filemanager.client.views.FilesView.prototype = $extend(filemanager.client.views.
 		this._filesModel = filesModel;
 	}
 	,handleFileDragged: function(file,evt) {
-		haxe.Log.trace("FilesView - handleFileDragged() " + Std.string(file),{ fileName : "FilesView.hx", lineNumber : 49, className : "filemanager.client.views.FilesView", methodName : "handleFileDragged"});
-		haxe.Log.trace("FilesView - handleFileDragged() " + Std.string(this._filesModel),{ fileName : "FilesView.hx", lineNumber : 50, className : "filemanager.client.views.FilesView", methodName : "handleFileDragged"});
 		this._filesModel.setDraggedFile(file);
 	}
 	,setList: function(data) {
@@ -14349,6 +14395,39 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 	,_rootFolder: null
 	,__class__: filemanager.client.views.FolderTreeView
 });
+filemanager.client.views.SelectedPath = function(rootElement,SLPId) {
+	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"SelectedPath");
+	filemanager.client.views.base.View.call(this,rootElement,SLPId);
+};
+$hxClasses["filemanager.client.views.SelectedPath"] = filemanager.client.views.SelectedPath;
+filemanager.client.views.SelectedPath.__name__ = ["filemanager","client","views","SelectedPath"];
+filemanager.client.views.SelectedPath.__super__ = filemanager.client.views.base.View;
+filemanager.client.views.SelectedPath.prototype = $extend(filemanager.client.views.base.View.prototype,{
+	handleSelectedPathUpdated: function(e) {
+		this.rootElement.innerHTML = this._filesModel.get_selectedFile() != null?this._filesModel.get_selectedFile().path:this._filesModel.get_selectedFolder();
+	}
+	,injectAppModel: function(filesModel) {
+		this._filesModel = filesModel;
+		this._filesModel.get_appDispatcher().addEventListener("pathUpdate",$bind(this,this.handleSelectedPathUpdated),false);
+	}
+	,_filesModel: null
+	,__class__: filemanager.client.views.SelectedPath
+});
+filemanager.client.views.TitleTopBar = function(rootElement,SLPId) {
+	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"TitleTopBar");
+	filemanager.client.views.base.View.call(this,rootElement,SLPId);
+};
+$hxClasses["filemanager.client.views.TitleTopBar"] = filemanager.client.views.TitleTopBar;
+filemanager.client.views.TitleTopBar.__name__ = ["filemanager","client","views","TitleTopBar"];
+filemanager.client.views.TitleTopBar.__super__ = filemanager.client.views.base.View;
+filemanager.client.views.TitleTopBar.prototype = $extend(filemanager.client.views.base.View.prototype,{
+	init: function() {
+		this.rootElement.innerHTML = "Silex Media Center";
+		filemanager.client.views.base.View.prototype.init.call(this);
+	}
+	,_filesModel: null
+	,__class__: filemanager.client.views.TitleTopBar
+});
 filemanager.client.views.ToolBox = function(rootElement,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"ToolBox");
 	rootElement.className = "toolBox smallFont";
@@ -14358,11 +14437,16 @@ $hxClasses["filemanager.client.views.ToolBox"] = filemanager.client.views.ToolBo
 filemanager.client.views.ToolBox.__name__ = ["filemanager","client","views","ToolBox"];
 filemanager.client.views.ToolBox.__super__ = filemanager.client.views.base.View;
 filemanager.client.views.ToolBox.prototype = $extend(filemanager.client.views.base.View.prototype,{
-	injectAppManager: function(filesManager) {
+	handleSelectedPathUpdated: function(e) {
+		var selectedPathIsFile = this._filesModel.get_selectedFile() != null?true:false;
+		this._download.set_enabled(selectedPathIsFile);
+	}
+	,injectAppManager: function(filesManager) {
 		this._filesManager = filesManager;
 	}
 	,injectAppModel: function(filesModel) {
 		this._filesModel = filesModel;
+		this._filesModel.get_appDispatcher().addEventListener("pathUpdate",$bind(this,this.handleSelectedPathUpdated),false);
 	}
 	,onClickedToolBox: function(buttonId) {
 		switch(buttonId) {
@@ -14377,10 +14461,9 @@ filemanager.client.views.ToolBox.prototype = $extend(filemanager.client.views.ba
 			break;
 		case "PasteButton":
 			break;
-		case "UploadButton":
-			break;
 		case "RenameButton":
-			this._filesManager.showInputOverlay(true,"New name:");
+			var title = this._filesModel.get_selectedFile() != null?"New file's name: ":"New directory's name";
+			this._filesManager.showInputOverlay(true,title);
 			break;
 		}
 	}
@@ -14389,21 +14472,18 @@ filemanager.client.views.ToolBox.prototype = $extend(filemanager.client.views.ba
 		this._copy = new filemanager.client.views.uis.buttons.CopyButton("Copy",this.SLPlayerInstanceId);
 		this._paste = new filemanager.client.views.uis.buttons.PasteButton("Paste",this.SLPlayerInstanceId);
 		this._delete = new filemanager.client.views.uis.buttons.DeleteButton("Delete",this.SLPlayerInstanceId);
-		this._upload = new filemanager.client.views.uis.buttons.UploadButton("Upload",this.SLPlayerInstanceId);
 		this._rename = new filemanager.client.views.uis.buttons.RenameButton("Rename",this.SLPlayerInstanceId);
 		this._createFolder = new filemanager.client.views.uis.buttons.CreateFolderButton("Create New Folder",this.SLPlayerInstanceId);
 		this.rootElement.appendChild(this._download.rootElement);
 		this.rootElement.appendChild(this._copy.rootElement);
 		this.rootElement.appendChild(this._paste.rootElement);
 		this.rootElement.appendChild(this._delete.rootElement);
-		this.rootElement.appendChild(this._upload.rootElement);
 		this.rootElement.appendChild(this._createFolder.rootElement);
 		this.rootElement.appendChild(this._rename.rootElement);
 		this._download.onButtonClicked = $bind(this,this.onClickedToolBox);
 		this._copy.onButtonClicked = $bind(this,this.onClickedToolBox);
 		this._paste.onButtonClicked = $bind(this,this.onClickedToolBox);
 		this._delete.onButtonClicked = $bind(this,this.onClickedToolBox);
-		this._upload.onButtonClicked = $bind(this,this.onClickedToolBox);
 		this._createFolder.onButtonClicked = $bind(this,this.onClickedToolBox);
 		this._rename.onButtonClicked = $bind(this,this.onClickedToolBox);
 	}
@@ -14411,7 +14491,6 @@ filemanager.client.views.ToolBox.prototype = $extend(filemanager.client.views.ba
 	,_filesModel: null
 	,_rename: null
 	,_createFolder: null
-	,_upload: null
 	,_delete: null
 	,_paste: null
 	,_copy: null
@@ -14465,7 +14544,7 @@ filemanager.client.views.base.LabelButton.prototype = $extend(filemanager.client
 		this._enabled = value;
 		this.rootElement.style.border = this._enabled == true?"1px solid #61c4ea":"1px solid #888888";
 		this.rootElement.style.backgroundColor = this._enabled == true?"#7cceee":"#aaaaaa";
-		if(this._enabled) this.rootElement.style.cursor = cocktail.core.unit.UnitManager.getCSSCursor(cocktail.core.style.Cursor.pointer);
+		this.rootElement.style.cursor = this._enabled?cocktail.core.unit.UnitManager.getCSSCursor(cocktail.core.style.Cursor.pointer):null;
 		return this._enabled = value;
 	}
 	,get_enabled: function() {
@@ -14484,7 +14563,7 @@ filemanager.client.views.base.LabelButton.prototype = $extend(filemanager.client
 		}
 	}
 	,handleClick: function(e) {
-		if(this.onclicked != null) this.onclicked(e);
+		if(this.onclicked != null && this._enabled) this.onclicked(e);
 	}
 	,enabled: null
 	,_enabled: null
@@ -14644,7 +14723,7 @@ filemanager.client.views.uis.FolderUI.prototype = $extend(filemanager.client.vie
 		this.rootElement.className = "draggable-dropzone folderUI";
 		this.rootElement.style.cursor = cocktail.core.unit.UnitManager.getCSSCursor(cocktail.core.style.Cursor.pointer);
 		this.rootElement.style.height = null;
-		this.rootElement.style.marginLeft = Std.string(this._isDescendant * 20 + "px");
+		this.rootElement.style.marginLeft = Std.string(5 + this._isDescendant * 20 + "px");
 	}
 	,subFolders: null
 	,isVisible: null
@@ -14699,6 +14778,7 @@ filemanager.client.views.uis.SimpleDialogPanel = function(SLPId,parent) {
 	this._title = js.Lib.document.createElement("span");
 	this._panel.appendChild(this._title);
 	this._input = js.Lib.document.createElement("input");
+	this._input.addEventListener("keydown",$bind(this,this.handleKeyboardEvent),false);
 	this._panel.appendChild(this._input);
 	this._cancel = new filemanager.client.views.uis.buttons.CancelButton("Cancel",SLPId);
 	this._panel.appendChild(this._cancel.rootElement);
@@ -14706,7 +14786,7 @@ filemanager.client.views.uis.SimpleDialogPanel = function(SLPId,parent) {
 	this._cancel.onclicked = $bind(this,this.hide);
 	this._confirm = new filemanager.client.views.uis.buttons.ConfirmButton("Confirm",SLPId);
 	this._panel.appendChild(this._confirm.rootElement);
-	this._confirm.set_enabled(true);
+	this._confirm.onclicked = $bind(this,this.handleUserConfirmation);
 	root.appendChild(this._background);
 	root.appendChild(this._panel);
 	filemanager.client.views.base.View.call(this,root,SLPId);
@@ -14715,16 +14795,31 @@ $hxClasses["filemanager.client.views.uis.SimpleDialogPanel"] = filemanager.clien
 filemanager.client.views.uis.SimpleDialogPanel.__name__ = ["filemanager","client","views","uis","SimpleDialogPanel"];
 filemanager.client.views.uis.SimpleDialogPanel.__super__ = filemanager.client.views.base.View;
 filemanager.client.views.uis.SimpleDialogPanel.prototype = $extend(filemanager.client.views.base.View.prototype,{
-	hide: function(evt) {
+	injectAppModel: function(filesModel) {
+		this._filesModel = filesModel;
+	}
+	,hide: function(evt) {
 		this._parent.removeChild(this.rootElement);
-		haxe.Log.trace("SimpleDialogPanel - hide() ",{ fileName : "SimpleDialogPanel.hx", lineNumber : 73, className : "filemanager.client.views.uis.SimpleDialogPanel", methodName : "hide"});
 	}
 	,show: function(title) {
 		this._title.innerHTML = title;
 		this._parent.appendChild(this.rootElement);
-		haxe.Log.trace("SimpleDialogPanel - show() " + title,{ fileName : "SimpleDialogPanel.hx", lineNumber : 67, className : "filemanager.client.views.uis.SimpleDialogPanel", methodName : "show"});
+		this._confirm.set_enabled(false);
+		this._input.innerHTML = "";
+	}
+	,handleUserConfirmation: function(evt) {
+		var selectedIsFile = this._filesModel.get_selectedFile() != null?true:false;
+		var selectedPath = this._filesModel.get_selectedFile() != null?this._filesModel.get_selectedFile().path:this._filesModel.get_selectedFolder();
+		var value = this._input.value;
+		this._filesModel.renameFile(selectedPath,value);
+		this.hide();
+	}
+	,handleKeyboardEvent: function(e) {
+		var value = this._input.value;
+		this._confirm.set_enabled(value.length > 1);
 	}
 	,_parent: null
+	,_filesModel: null
 	,_panel: null
 	,_background: null
 	,_confirm: null
@@ -14771,9 +14866,7 @@ $hxClasses["filemanager.client.views.uis.buttons.ConfirmButton"] = filemanager.c
 filemanager.client.views.uis.buttons.ConfirmButton.__name__ = ["filemanager","client","views","uis","buttons","ConfirmButton"];
 filemanager.client.views.uis.buttons.ConfirmButton.__super__ = filemanager.client.views.base.LabelButton;
 filemanager.client.views.uis.buttons.ConfirmButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
-	handleClick: function(e) {
-	}
-	,__class__: filemanager.client.views.uis.buttons.ConfirmButton
+	__class__: filemanager.client.views.uis.buttons.ConfirmButton
 });
 filemanager.client.views.uis.buttons.CopyButton = function(label,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"CopyButton");
@@ -14876,23 +14969,6 @@ filemanager.client.views.uis.buttons.RenameButton.prototype = $extend(filemanage
 	}
 	,onButtonClicked: null
 	,__class__: filemanager.client.views.uis.buttons.RenameButton
-});
-filemanager.client.views.uis.buttons.UploadButton = function(label,SLPId) {
-	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"UploadButton");
-	filemanager.client.views.base.LabelButton.call(this,label,SLPId);
-	this.rootElement.className = "buttons uploadButton";
-	this.onclicked = $bind(this,this.handleClicked);
-	this.set_enabled(true);
-};
-$hxClasses["filemanager.client.views.uis.buttons.UploadButton"] = filemanager.client.views.uis.buttons.UploadButton;
-filemanager.client.views.uis.buttons.UploadButton.__name__ = ["filemanager","client","views","uis","buttons","UploadButton"];
-filemanager.client.views.uis.buttons.UploadButton.__super__ = filemanager.client.views.base.LabelButton;
-filemanager.client.views.uis.buttons.UploadButton.prototype = $extend(filemanager.client.views.base.LabelButton.prototype,{
-	handleClicked: function(evt) {
-		if(this.onButtonClicked != null) this.onButtonClicked("UploadButton");
-	}
-	,onButtonClicked: null
-	,__class__: filemanager.client.views.uis.buttons.UploadButton
 });
 filemanager.cross = {}
 filemanager.cross.FileUpdatedVO = function() {
@@ -19799,12 +19875,18 @@ org.slplayer.core.Application.prototype = {
 	,registerComponentsforInit: function() {
 		filemanager.client.views.UploadStatus;
 		this.registerComponent("filemanager.client.views.UploadStatus");
+		filemanager.client.views.DetailView;
+		this.registerComponent("filemanager.client.views.DetailView");
 		filemanager.client.views.FilesView;
 		this.registerComponent("filemanager.client.views.FilesView");
 		filemanager.client.views.FolderTreeView;
 		this.registerComponent("filemanager.client.views.FolderTreeView");
 		org.slplayer.component.interaction.Draggable;
 		this.registerComponent("org.slplayer.component.interaction.Draggable");
+		filemanager.client.views.SelectedPath;
+		this.registerComponent("filemanager.client.views.SelectedPath");
+		filemanager.client.views.TitleTopBar;
+		this.registerComponent("filemanager.client.views.TitleTopBar");
 		filemanager.client.views.FileDropper;
 		this.registerComponent("filemanager.client.views.FileDropper");
 		filemanager.client.FileManager;
@@ -20210,6 +20292,7 @@ cocktail.core.style.CSSConstants.TRANSITION_TIMING_FUNCTION_STYLE_NAME = "transi
 cocktail.core.style.CSSConstants.TRANSFORM_ORIGIN_STYLE_NAME = "transform-origin";
 cocktail.core.style.CSSConstants.TRANSFORM_STYLE_NAME = "transform";
 cocktail.core.style.transition.TransitionManager.TRANSITION_UPDATE_SPEED = 20;
+filemanager.client.models.FilesModel.PATH_UPDTATE = "pathUpdate";
 filemanager.client.services.Api.GATEWAY_URL = "server/index.php";
 filemanager.client.views.uis.FileUploadStatus.PENDING = "Pending";
 filemanager.client.views.uis.FileUploadStatus.PROGRESS = "Progress";
@@ -20223,7 +20306,6 @@ filemanager.client.views.uis.buttons.DeleteButton.VIEW_ID = "DeleteButton";
 filemanager.client.views.uis.buttons.DownloadButton.VIEW_ID = "DownloadButton";
 filemanager.client.views.uis.buttons.PasteButton.VIEW_ID = "PasteButton";
 filemanager.client.views.uis.buttons.RenameButton.VIEW_ID = "RenameButton";
-filemanager.client.views.uis.buttons.UploadButton.VIEW_ID = "UploadButton";
 haxe.Serializer.USE_CACHE = false;
 haxe.Serializer.USE_ENUM_INDEX = false;
 haxe.Serializer.BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";

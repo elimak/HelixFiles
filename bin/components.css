@@ -1,15 +1,45 @@
-.body{
+body{
 	font-family:'Verdana',Arial,sans-serif;
+	font-size: 10pt;
+	margin:0;
+}
+.titleTopBar{
+	width:100%;
+	color:#ffffff;
+	background-color:#ff6400;
 	font-size: 14pt;
+	font-weight:bold;
+	padding:8px;
 }
 .folderTreeView{
 	float:left;
-	width:300px;
+	width:30%;
+	overflow-y:scroll;
+	overflow-x:hidden;
+	height: 180px;
+	padding-top:10px;
+	padding-bottom:10px;
 }
 .filesView{
 	float:left;
-	overflow: hidden;
-	height: 200px;
+	overflow-y:scroll;
+	overflow-x:hidden;
+	height: 180px;
+	width:30%;
+	padding-top:10px;
+	padding-bottom:10px;
+}
+.detailView{
+	float:left;
+	overflow:hidden;
+	height: 180px;
+	width:40%;
+	padding-top:10px;
+	padding-bottom:10px;
+}
+.detailView div{
+	margin-left: 8px;
+	
 }
 .fileUI{
 	background-position	: left center;
@@ -20,6 +50,7 @@
 	width				: 250px;	
 	background-image	: url('imgs/icons/txt.png');
 	height				: 25px;
+	margin-left			: 8px;
 }
 .smallFont{
 	font-family: Verdana, Arial;
@@ -29,9 +60,15 @@
 	font-family: Verdana, Arial;
 	font-size: 12pt;
 }
-.fileManager{
+.explorer{
 	display:block;
 	height:200px;
+}
+.selectedPath{
+	display:block;
+	height:20px;
+	width:600px;
+	background-color: #dddddd;
 }
 .fileUploadStatus{
 }
@@ -41,6 +78,15 @@
 	margin-top: 5px;
 }
 .toolBox{
+	background-color: #dddddd;
+}
+.hrGray{
+	color: #eeeeee;
+	background-color: #dddddd;
+	height: 5px;
+	margin:0px;
+	border-style: solid;
+	border-width: 0px;
 }
 .toolBox div{
 	display: inline-block;

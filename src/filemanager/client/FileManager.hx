@@ -4,6 +4,7 @@ import filemanager.client.models.Locator;
 import filemanager.client.views.FileDropper;
 import filemanager.client.views.FilesView;
 import filemanager.client.views.FolderTreeView;
+import filemanager.client.views.SelectedPath;
 import filemanager.client.views.ToolBox;
 import filemanager.client.views.uis.SimpleDialogPanel;
 import filemanager.client.views.UploadStatus;
@@ -45,12 +46,20 @@ class FileManager extends DisplayObject
 
 	override public function init() {
 		
-		_filesModel = new FilesModel(); // create the model
+		_filesModel = new FilesModel( rootElement ); // create the model
 		
 		initializeFileDropper();	// locate and store File Dropper for upload
 		initializeUploadStatus();	// Locate and store Upload status - list of ui monitoring each separated upload
 		initializeToolBox();		// Locate and initialize ToolBox 
+		initializeSelectedPath();	// Locate and initialize the selected Path bar (with either the folder or the path of the file currently selected)
 		initializeAppModel(); 		// requests the files/folders list 
+	}
+	
+	private function initializeSelectedPath() {
+		var selectedPaths : Array<DisplayObject> = Locator.getSLDisplay( SLPlayerInstanceId, "SelectedPath");
+		var selectedPath : SelectedPath = cast selectedPaths[0];
+		
+		selectedPath.injectAppModel(_filesModel);
 	}
 	
 	private function initializeToolBox() {
@@ -86,6 +95,7 @@ class FileManager extends DisplayObject
 	public function showInputOverlay( b: Bool, title: String) {
 		if (_dialogPanel == null) {
 			_dialogPanel = new SimpleDialogPanel( SLPlayerInstanceId, Lib.document.body); // Create and store the dialog box
+			_dialogPanel.injectAppModel(_filesModel);
 		}
 		if( b ){
 			_dialogPanel.show(title);

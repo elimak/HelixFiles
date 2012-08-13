@@ -10,11 +10,8 @@ import js.Lib;
  * @author valerie.elimak - blog.elimak.com
  */
 
-class FileDropper extends View
-{
-	
-	//public var onFileDropped : Array<Dynamic>->Void;
-	
+class FileDropper extends View {
+
 	private var _filesModel	 : FilesModel;
 	
 	public function new (rootElement:HtmlDom, SLPId:String) {

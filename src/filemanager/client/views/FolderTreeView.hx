@@ -18,8 +18,6 @@ import org.slplayer.component.interaction.Draggable;
 
 class FolderTreeView extends View
 {
-	//public static inline var DROPPED_FILE : String = "droppedFile";
-	
 	private var _rootFolder 	: FolderUI;		// top folder
 	private var _data			: FolderVO;		// store the data loaded (full tree in Json/Dynamic)
 	private var _folderStatus	: Hash<Bool>;	// stores only the status open/closed of the folders based on their path (path is unique)
@@ -135,7 +133,7 @@ class FolderTreeView extends View
 
 	private function handleOnFolderClick( target: FolderUI, folderData: FolderVO, evt: Event ) : Void {
 	
-		target.isOpen = !target.isOpen;		// toggles the properties isOpen
+		target.isOpen = !target.isOpen;				// toggles the properties isOpen
 		
 		// deselects the previous selected folder
 		if( _currentFolderUISelected != null && _currentFolderUISelected != target){
@@ -143,13 +141,13 @@ class FolderTreeView extends View
 			_currentFolderUISelected.refresh();
 		}
 		
-		target.isSelected = true;			// stores the current folder as the one being selected
+		target.isSelected = true;					// stores the current folder as the one being selected
 		_currentFolderUISelected = target;
 		
 		var folderPath	: String = folderData.path;	// stores the value isOpen based on the unique path of the folder
 		_folderStatus.set(folderPath, target.isOpen);
 
-		folderData.open = target.isOpen;	// updates the full data tree
+		folderData.open = target.isOpen;			// updates the full data tree
 		target.refresh();
 		
 		_filesModel.selectedFolder = folderPath;

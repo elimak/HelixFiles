@@ -9,7 +9,6 @@ import filemanager.client.views.uis.buttons.DeleteButton;
 import filemanager.client.views.uis.buttons.DownloadButton;
 import filemanager.client.views.uis.buttons.PasteButton;
 import filemanager.client.views.uis.buttons.RenameButton;
-import filemanager.client.views.uis.buttons.UploadButton;
 import js.Lib;
 import js.Dom;
 
@@ -25,7 +24,6 @@ class ToolBox extends View {
 	private var _copy			: CopyButton;
 	private var _paste			: PasteButton;
 	private var _delete			: DeleteButton;
-	private var _upload			: UploadButton;
 	private var _createFolder	: CreateFolderButton;
 	private var _rename			: RenameButton;
 	
@@ -48,7 +46,6 @@ class ToolBox extends View {
 		_copy 		= new CopyButton( "Copy", SLPlayerInstanceId);
 		_paste 		= new PasteButton( "Paste", SLPlayerInstanceId);
 		_delete 	= new DeleteButton( "Delete", SLPlayerInstanceId);
-		_upload 	= new UploadButton( "Upload", SLPlayerInstanceId);
 		_rename 	= new RenameButton( "Rename", SLPlayerInstanceId);
 		_createFolder 	= new CreateFolderButton( "Create New Folder", SLPlayerInstanceId);
 		
@@ -56,7 +53,6 @@ class ToolBox extends View {
 		rootElement.appendChild(_copy.rootElement);
 		rootElement.appendChild(_paste.rootElement);
 		rootElement.appendChild(_delete.rootElement);
-		rootElement.appendChild(_upload.rootElement);
 		rootElement.appendChild(_createFolder.rootElement);
 		rootElement.appendChild(_rename.rootElement);
 		
@@ -64,7 +60,6 @@ class ToolBox extends View {
 		_copy.onButtonClicked = onClickedToolBox;
 		_paste.onButtonClicked = onClickedToolBox;
 		_delete.onButtonClicked = onClickedToolBox;
-		_upload.onButtonClicked = onClickedToolBox;
 		_createFolder.onButtonClicked = onClickedToolBox;
 		_rename.onButtonClicked = onClickedToolBox;
 	}
@@ -81,9 +76,9 @@ class ToolBox extends View {
 			case CopyButton.VIEW_ID		:
 			case DeleteButton.VIEW_ID	:
 			case PasteButton.VIEW_ID	:
-			case UploadButton.VIEW_ID	:
 			case RenameButton.VIEW_ID	:
-				_filesManager.showInputOverlay( true, "New name:" );
+				var title = ( _filesModel.selectedFile != null )? "New file's name: " : "New directory's name";
+				_filesManager.showInputOverlay( true, title);
 		}
 	}
 
@@ -93,9 +88,19 @@ class ToolBox extends View {
 
 	public function injectAppModel( filesModel:FilesModel) : Void {
 		_filesModel = filesModel;
+		_filesModel.appDispatcher.addEventListener( FilesModel.PATH_UPDTATE, handleSelectedPathUpdated, false);
 	}
 	
 	public function injectAppManager( filesManager:FileManager) : Void {
 		_filesManager = filesManager;
+	}
+	
+/**
+ * Check wether the current selection is a file or a folder
+ * @param	e
+ */
+	private function handleSelectedPathUpdated(e:Event):Void {
+		var selectedPathIsFile = ( _filesModel.selectedFile != null )? true : false;
+		_download.enabled = selectedPathIsFile; // only enabled for files
 	}
 }

@@ -82,7 +82,7 @@ class FolderUI extends View
 		
 		rootElement.style.cursor = UnitManager.getCSSCursor(Cursor.pointer);
 		rootElement.style.height = null;
-		rootElement.style.marginLeft = Std.string( _isDescendant * 20 +"px");
+		rootElement.style.marginLeft = Std.string( 5 + _isDescendant * 20 +"px");
 	}
 
 	public function refresh ( ?isFull : Bool) : Void {

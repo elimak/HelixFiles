@@ -14,12 +14,9 @@ import js.Lib;
  * @author valerie.elimak - blog.elimak.com
  */
 
-class FilesView extends View
-{
-
-	//public static inline var DRAGGING_FILE : String = "startedToDragFile";
-	//public var currentDraggedFile	: FileVO;
-	private var _filesModel			: FilesModel;
+class FilesView extends View {
+	
+	private var _filesModel	: FilesModel;
 	
 	public function new(rootElement:HtmlDom, SLPId:String) {
 		Locator.registerSLDisplay(SLPId, this, "FilesView");
@@ -42,12 +39,6 @@ class FilesView extends View
 	}
 	
 	private function handleFileDragged( file: FileVO, evt: Event ) : Void {
-		/*currentDraggedFile = file;
-		var event : CustomEvent = cast Lib.document.createEvent("CustomEvent");
-		event.initCustomEvent(DRAGGING_FILE, false, false, rootElement);
-		rootElement.dispatchEvent(event);*/
-		Log.trace("FilesView - handleFileDragged() "+file);
-		Log.trace("FilesView - handleFileDragged() "+_filesModel);
 		_filesModel.setDraggedFile(file);
 	}
 	
