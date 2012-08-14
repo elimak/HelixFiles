@@ -13,21 +13,41 @@ class filemanager_server_Api {
 		$result->filename = $splitted->pop();
 		return $result;
 	}
+	public function validatePath($filePath) {
+		if(file_exists($filePath)) {
+			$_g = 1;
+			while($_g < 100) {
+				$i = $_g++;
+				if(!file_exists($filePath . "(" . _hx_string_rec($i, "") . ")")) {
+					return $filePath . "(" . _hx_string_rec($i, "") . ")";
+				}
+				unset($i);
+			}
+		}
+		return $filePath;
+	}
 	public function moveFileToFolder($filePath, $fileName, $folderPath) {
 		if($filePath === $folderPath . "/" . $fileName) {
 			return true;
 		}
-		sys_io_File::copy($filePath, $folderPath . "/" . $fileName);
+		$newPath = $this->validatePath($folderPath . "/" . $fileName);
+		sys_io_File::copy($filePath, $newPath);
 		if(file_exists($folderPath . "/" . $fileName)) {
 			@unlink($filePath);
 			return true;
 		}
 		return false;
 	}
+	public function createFolder($folderpath) {
+		$validFolder = $this->validatePath($folderpath);
+		@mkdir($validFolder, 493);
+		$response = $this->getTreeFolder("../files");
+		return $response;
+	}
 	public function deleteTempFile($filepath) {
 		$response = new filemanager_cross_FileUpdatedVO();
 		$file = $this->getFileHelper($filepath);
-		$tempFile = "../largefiles/" . $file->filename . "_temp." . $file->extension;
+		$tempFile = "../files" . $file->filename . "_temp." . $file->extension;
 		$response->filepath = $filepath;
 		if(file_exists($tempFile)) {
 			@unlink($tempFile);
@@ -44,8 +64,8 @@ class filemanager_server_Api {
 		$response = new filemanager_cross_FileUpdatedVO();
 		$response->filepath = $filepath;
 		$file = $this->getFileHelper($filepath);
-		$oldFile = "../largefiles/" . $file->filename . "." . $file->extension;
-		$tempFile = "../largefiles/" . $file->filename . "_temp." . $file->extension;
+		$oldFile = "../files" . $file->filename . "." . $file->extension;
+		$tempFile = "../files" . $file->filename . "_temp." . $file->extension;
 		if(file_exists($oldFile)) {
 			rename($oldFile, $tempFile);
 			$response->success = true;
@@ -72,6 +92,6 @@ class filemanager_server_Api {
 		else
 			throw new HException('Unable to call «'.$m.'»');
 	}
-	static $FILES_FOLDER = "../largefiles/";
+	static $FILES_FOLDER = "../files";
 	function __toString() { return 'filemanager.server.Api'; }
 }

@@ -18,7 +18,7 @@ typedef FileHelper = {
 class Api {
 	
 	private var _explorer 	: FileExplorer;
-	private static inline var FILES_FOLDER : String = "../largefiles/";
+	private static inline var FILES_FOLDER : String = "../files";
 	
 	public function new() {
 		_explorer = new FileExplorer();
@@ -67,16 +67,49 @@ class Api {
 		if ( !response.success ) response.error = "the file could not be deleted";
 	
 		return response;
+	}	
+	
+	public function createFolder ( folderpath : String ) : FolderVO {
+		var validFolder = validatePath(folderpath);
+		FileSystem.createDirectory(validFolder);
+		var response	: FolderVO = getTreeFolder(FILES_FOLDER);
+		/*
+		var file		: FileHelper = getFileHelper (filepath);
+		var tempFile 	: String = FILES_FOLDER + file.filename + "_temp." + file.extension;
+		response.filepath = filepath;
+		
+		if ( FileSystem.exists(tempFile) ){
+			FileSystem.deleteFile(tempFile);
+			response.success = FileSystem.exists(tempFile);
+		}
+		else {
+			response.success = true;
+		}
+		if ( !response.success ) response.error = "the file could not be deleted";
+		*/
+		return response;
 	}
 	
 	private function moveFileToFolder (filePath: String, fileName: String, folderPath: String ) : Bool {
 		if ( filePath == (folderPath + "/" + fileName) ) return true;
-		File.copy(filePath, folderPath + "/" + fileName);
+		var newPath = validatePath(folderPath + "/" + fileName);
+		File.copy(filePath, newPath);
 		if ( FileSystem.exists(folderPath + "/" + fileName)){
 			FileSystem.deleteFile(filePath);
 			return true;
 		}
 		return false;
+	}
+	
+	private function validatePath(filePath:String) : String {
+		if ( FileSystem.exists(filePath)) {
+			for (i in 1...100) {
+				if ( !FileSystem.exists(filePath + "(" + i + ")") ) {
+					return filePath + "(" + i + ")";
+				}
+			}
+		}
+		return filePath;
 	}
 	
 	private function getFileHelper(filepath:String) : FileHelper {

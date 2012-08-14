@@ -43,4 +43,8 @@ class FileUI extends View
 		rootElement.style.cursor = UnitManager.getCSSCursor(Cursor.pointer);
 		rootElement.style.backgroundImage = "url('imgs/icons/" + data.extension + ".png')";
 	}
+		
+	public function setSelected( selected: Bool ) {
+		rootElement.style.backgroundColor = selected? "#dfdfdf" : null;
+	}
 }

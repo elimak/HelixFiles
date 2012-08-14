@@ -222,11 +222,14 @@ class FilesModel
 	
 	// TODO: we need a dialog panel to implement this
 	public function renameFile ( filePath: String, newName: String) { 
-		_api.renameFile( filePath, newName, function( success: Bool ){ Log.trace("FilesModel - renameFile() -- on  successfully renamed a file or folder "+success);});
+		Log.trace("FilesModel - renameFile() "+filePath+" , "+newName);
+		//_api.renameFile( filePath, newName, function( success: Bool ){ Log.trace("FilesModel - renameFile() -- on  successfully renamed a file or folder "+success);});
 	}
 	
 	// TODO: we need a dialog panel to implement this
-	public function createNewFolder ( folderName : String ) {}
+	public function createNewFolder ( folderPath : String, onSuccess: FolderVO->Void ) {
+		_api.createFolder( folderPath, onSuccess);
+	}
 	
 // ------------------------ // 
 // UPLOAD MANAGEMENT
@@ -237,7 +240,6 @@ class FilesModel
 		// find the worker and stop it?
 		// restaure the temp file if there is one
 		// update the uis when the upload was cancelled
-		
 		Log.trace("FilesModel - onCancelUpload() "+trackID);
 	}
 	

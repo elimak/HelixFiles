@@ -51,7 +51,7 @@ class FolderTreeView extends View
 		_rootFolder = new FolderUI((_data.children > 0), 0, _data.name, SLPlayerInstanceId);
 		
 		// Store the status (open/closed) based on the unique path
-		var folderPath	: String = _data.path + "/" + _data.name;
+		var folderPath	: String = _data.path;
 		_folderStatus.set(folderPath, isOpen);
 
 		makeInteractive(_rootFolder, _data);
@@ -72,10 +72,10 @@ class FolderTreeView extends View
 		
 		for (i in 0...currentFolder.childFolders.length) {
 			var child 		: FolderVO 	= currentFolder.childFolders[i];
-			var childPath	: String 	= child.path + "/" + child.name;
-			
+
 			// if we already recorded a value, use it, else use the default value set in FolderUI's constructor
-			target.isOpen = _folderStatus.exists(childPath)? _folderStatus.get(childPath) : target.isOpen;
+			Log.trace("FolderTreeView - createSubFolders() childPath "+child.path+" // "+_folderStatus.exists(child.path)+" -- "+_folderStatus.get(child.path));
+			target.isOpen = _folderStatus.exists(child.path)? _folderStatus.get(child.path) : target.isOpen;
 			
 			var folderChild : FolderUI = new FolderUI ((child.children > 0 ), inDescendant, child.name, SLPlayerInstanceId);
 			target.subFolders.push(folderChild);
@@ -89,7 +89,7 @@ class FolderTreeView extends View
 			createSubFolders(child, folderChild, (inDescendant + 1));
 		}
 	}
-	
+
 	/**
 	 * Add interaction on click
 	 * @param	folder
@@ -101,28 +101,6 @@ class FolderTreeView extends View
 		var droppedCallBack = callback(handleFileDropped, data, folder);
 		
 		folder.rootElement.addEventListener("dragEventDropped", droppedCallBack, false);
-	}
-	
-	private function updateEmptiness( currentFolder: FolderVO, target: FolderUI , inDescendant: Int)  {
-		//currentFolder.re
-		/*for (i in 0...currentFolder.children.length) {
-			var child 		: FolderVO 	= currentFolder.children[i];
-			var childPath	: String 	= child.path + "/" + child.name;
-			
-			// if we already recorded a value, use it, else use the default value set in FolderUI's constructor
-			//target.isOpen = _folderStatus.exists(childPath)? _folderStatus.get(childPath) : target.isOpen;
-			
-			var folderChild : FolderUI = new FolderUI ((child.children.length > 0 ), inDescendant, child.name, SLPlayerInstanceId);
-			/*target.subFolders.push(folderChild);
-			
-			rootElement.appendChild(folderChild.rootElement);
-			folderChild.isVisible = target.isOpen;
-			
-			folderChild.isOpen = child.open;
-			makeInteractive(folderChild, child);
-		/
-			createSubFolders(child, folderChild, (inDescendant + 1));
-		}*/
 	}
 		
 // ----------------------------------- // 
@@ -180,8 +158,8 @@ class FolderTreeView extends View
 
 	public function update(data:FolderVO) {
 		_data = data;
-		_rootFolder.refresh();
-		//updateEmptiness(_data, _rootFolder, 1);
+		clear();
+		buildView();
 	}
 	
 	public function injectAppModel(filesModel : FilesModel) {

@@ -33,6 +33,10 @@ class LabelButton extends View
 		super( viewDom, SLPId);
 	}
 	
+	public function updateLabel( newLabel: String) {
+		rootElement.innerHTML = newLabel;
+	}
+	
 	private function handleClick( e: Event) {
 		if ( onclicked != null && _enabled )
 			onclicked(e);

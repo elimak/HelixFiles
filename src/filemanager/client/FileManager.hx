@@ -92,13 +92,14 @@ class FileManager extends DisplayObject
 // SHOW/HIDE OVERLAYS
 // ------------------------ //
 
-	public function showInputOverlay( b: Bool, title: String) {
+	public function showInputOverlay( b: Bool, title: String, instruction: String, type: Int) {
 		if (_dialogPanel == null) {
 			_dialogPanel = new SimpleDialogPanel( SLPlayerInstanceId, Lib.document.body); // Create and store the dialog box
 			_dialogPanel.injectAppModel(_filesModel);
+			_dialogPanel.injectAppManager(this);
 		}
 		if( b ){
-			_dialogPanel.show(title);
+			_dialogPanel.show(title,instruction, type);
 		}else {
 			_dialogPanel.hide();
 		}
@@ -126,11 +127,17 @@ class FileManager extends DisplayObject
 		_filesView.injectAppModel(_filesModel);
 		
 		data.open = true; // the root folder is set as open, so we can see the folder's list that belongs to it right away 
+		Log.trace("FileManager - initializeFolders() "+data.toString());
 		_foldersView.initialize(data);
 	}	
 
 	private function showFiles( data: Array<FileVO> ) : Void {
 		//Log.trace("FileManager - showFolders() "+data.toString());
+	}
+	
+	public function updateFolders( data: FolderVO ) : Void {
+		Log.trace("FileManager - updateFolders() "+data.toString());
+		_foldersView.update(data);
 	}
 
 	public function getListOfFiles(folderPath: String) {

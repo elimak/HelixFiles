@@ -9,6 +9,7 @@ import filemanager.client.views.uis.buttons.DeleteButton;
 import filemanager.client.views.uis.buttons.DownloadButton;
 import filemanager.client.views.uis.buttons.PasteButton;
 import filemanager.client.views.uis.buttons.RenameButton;
+import filemanager.client.views.uis.SimpleDialogPanel;
 import js.Lib;
 import js.Dom;
 
@@ -71,14 +72,14 @@ class ToolBox extends View {
 	private function onClickedToolBox( buttonId: String ) : Void {
 		switch(buttonId) {
 			case CreateFolderButton.VIEW_ID :
-				_filesManager.showInputOverlay( true, "Folder's name" );
+				_filesManager.showInputOverlay( true, "Create Folder", "Name:", SimpleDialogPanel.CREATE );
 			case DownloadButton.VIEW_ID	:
 			case CopyButton.VIEW_ID		:
 			case DeleteButton.VIEW_ID	:
 			case PasteButton.VIEW_ID	:
 			case RenameButton.VIEW_ID	:
-				var title = ( _filesModel.selectedFile != null )? "New file's name: " : "New directory's name";
-				_filesManager.showInputOverlay( true, title);
+
+				_filesManager.showInputOverlay( true, "Rename Selection", "New name:", SimpleDialogPanel.RENAME);
 		}
 	}
 

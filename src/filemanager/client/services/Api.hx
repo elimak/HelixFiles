@@ -95,6 +95,14 @@ class Api
 	public function renameFile ( filePath: String, newName: String, onSuccess: Bool->Void, ?onError: Dynamic->Void ) : Void {
 		Log.trace("Api - renameFile() "+filePath+" // "+newName);
 	}
+	
+	public function createFolder(folderPath:String, onSuccess: FolderVO->Void, ?onError: Dynamic->Void ) : Void {
+		var cnx = HttpAsyncConnection.urlConnect(GATEWAY_URL);
+		if (onError != null) cnx.setErrorHandler( onError );
+		else cnx.setErrorHandler( defaultOnError );
+			
+		cnx.api.createFolder.call([folderPath], onSuccess);
+	}
 /**
  * Error callback 
  * @param	err
@@ -102,6 +110,4 @@ class Api
 	private function defaultOnError(err) : Void {
 		trace("Error (API default error handler) : "+Std.string(err));
 	}
-	
-	
 }
