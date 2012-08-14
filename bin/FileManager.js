@@ -14357,7 +14357,7 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 			this._currentFolderUISelected.isSelected = false;
 			this._currentFolderUISelected.refresh();
 		}
-		target.isSelected = true;
+		target.isSelected = evt != null?true:false;
 		this._currentFolderUISelected = target;
 		var folderPath = folderData.path;
 		this._folderStatus.set(folderPath,target.isOpen);
@@ -14385,9 +14385,10 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 		while(_g1 < _g) {
 			var i = _g1++;
 			var child = currentFolder.childFolders[i];
-			haxe.Log.trace("FolderTreeView - createSubFolders() childPath " + child.path + " // " + Std.string(this._folderStatus.exists(child.path)) + " -- " + Std.string(this._folderStatus.get(child.path)),{ fileName : "FolderTreeView.hx", lineNumber : 77, className : "filemanager.client.views.FolderTreeView", methodName : "createSubFolders"});
-			target.isOpen = this._folderStatus.exists(child.path)?this._folderStatus.get(child.path):target.isOpen;
+			target.isOpen = this._folderStatus.exists(currentFolder.path)?this._folderStatus.get(currentFolder.path):target.isOpen;
 			var folderChild = new filemanager.client.views.uis.FolderUI(child.children > 0,inDescendant,child.name,this.SLPlayerInstanceId);
+			folderChild.path = child.path;
+			folderChild.isSelected = this._currentFolderUISelected != null?folderChild.path == this._currentFolderUISelected.path && this._currentFolderUISelected.isSelected:false;
 			target.subFolders.push(folderChild);
 			this.rootElement.appendChild(folderChild.rootElement);
 			folderChild.isVisible = target.isOpen;
@@ -14397,10 +14398,10 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 		}
 	}
 	,buildView: function() {
-		var isOpen = true;
 		this._rootFolder = new filemanager.client.views.uis.FolderUI(this._data.children > 0,0,this._data.name,this.SLPlayerInstanceId);
+		this._rootFolder.isOpen = false;
 		var folderPath = this._data.path;
-		this._folderStatus.set(folderPath,isOpen);
+		this._folderStatus.set(folderPath,this._rootFolder.isOpen);
 		this.makeInteractive(this._rootFolder,this._data);
 		this.rootElement.appendChild(this._rootFolder.rootElement);
 		this.createSubFolders(this._data,this._rootFolder,1);
@@ -14752,6 +14753,7 @@ filemanager.client.views.uis.FolderUI.prototype = $extend(filemanager.client.vie
 		this.rootElement.style.height = null;
 		this.rootElement.style.marginLeft = Std.string(5 + this._isDescendant * 20 + "px");
 	}
+	,path: null
 	,subFolders: null
 	,isVisible: null
 	,isSelected: null

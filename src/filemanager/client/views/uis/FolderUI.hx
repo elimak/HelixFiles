@@ -22,6 +22,7 @@ class FolderUI extends View
 	public var isVisible		: Bool;
 	
 	public var subFolders 	: Array<FolderUI>;
+	public var path			: String;
 	
 	public function new( isFull: Bool, isDescendant : Int, inTitle : String, SLPId:String ) {
 		

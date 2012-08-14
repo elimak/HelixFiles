@@ -44,15 +44,13 @@ class FolderTreeView extends View
 	 * children still exist but their height is set to 0 & their label is removed
 	 */
 	private function buildView() {
-		
-		var isOpen : Bool = true;
-		
+
 		// create the top folder
 		_rootFolder = new FolderUI((_data.children > 0), 0, _data.name, SLPlayerInstanceId);
-		
+		_rootFolder.isOpen = false;
 		// Store the status (open/closed) based on the unique path
 		var folderPath	: String = _data.path;
-		_folderStatus.set(folderPath, isOpen);
+		_folderStatus.set(folderPath, _rootFolder.isOpen);
 
 		makeInteractive(_rootFolder, _data);
 		rootElement.appendChild(_rootFolder.rootElement);
@@ -68,16 +66,17 @@ class FolderTreeView extends View
 	 * @param	target
 	 * @param	inDescendant
 	 */
-	private function createSubFolders( currentFolder: FolderVO, target: FolderUI , inDescendant: Int)  {
+	private function createSubFolders( currentFolder: FolderVO, target: FolderUI , inDescendant: Int) {
 		
 		for (i in 0...currentFolder.childFolders.length) {
-			var child 		: FolderVO 	= currentFolder.childFolders[i];
+			var child 	: FolderVO 	= currentFolder.childFolders[i];
 
 			// if we already recorded a value, use it, else use the default value set in FolderUI's constructor
-			Log.trace("FolderTreeView - createSubFolders() childPath "+child.path+" // "+_folderStatus.exists(child.path)+" -- "+_folderStatus.get(child.path));
-			target.isOpen = _folderStatus.exists(child.path)? _folderStatus.get(child.path) : target.isOpen;
+			target.isOpen = _folderStatus.exists(currentFolder.path)? _folderStatus.get(currentFolder.path) : target.isOpen;
 			
 			var folderChild : FolderUI = new FolderUI ((child.children > 0 ), inDescendant, child.name, SLPlayerInstanceId);
+			folderChild.path = child.path;
+			folderChild.isSelected = (_currentFolderUISelected != null)? (folderChild.path == _currentFolderUISelected.path && _currentFolderUISelected.isSelected) : false;
 			target.subFolders.push(folderChild);
 			
 			rootElement.appendChild(folderChild.rootElement);
@@ -85,7 +84,6 @@ class FolderTreeView extends View
 			
 			folderChild.isOpen = child.open;
 			makeInteractive(folderChild, child);
-			
 			createSubFolders(child, folderChild, (inDescendant + 1));
 		}
 	}
@@ -119,13 +117,14 @@ class FolderTreeView extends View
 			_currentFolderUISelected.refresh();
 		}
 		
-		target.isSelected = true;					// stores the current folder as the one being selected
+		
+		target.isSelected = (evt != null)? true : false; // stores the current folder as the one being selected, is false when handleFolderClick is called from buildView () to initialize the rootFolder
 		_currentFolderUISelected = target;
 		
-		var folderPath	: String = folderData.path;	// stores the value isOpen based on the unique path of the folder
+		var folderPath	: String = folderData.path;		// stores the value isOpen based on the unique path of the folder
 		_folderStatus.set(folderPath, target.isOpen);
 
-		folderData.open = target.isOpen;			// updates the full data tree
+		folderData.open = target.isOpen;				// updates the full data tree
 		target.refresh();
 		
 		_filesModel.selectedFolder = folderPath;
