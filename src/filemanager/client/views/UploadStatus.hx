@@ -35,7 +35,6 @@ class UploadStatus extends View
 // ----------------------------------- // 
 // HANDLES ALL UPDATE of the UPLOADS
 // ----------------------------------- //
-
 	
 /**
  * When a queue of files is uploaded, the updates for each files can be "started, progress, complete, error"
@@ -55,9 +54,7 @@ class UploadStatus extends View
 		var fileName : String = cast uploadUpdate.file.name;
 		_currentQueueUIs.get(fileName).update (uploadUpdate);
 		
-		/**
-		 * refresh the list of files on the middle windows
-		 */
+		// refresh the list of files on the middle windows when a file is completely uploaded
 		if ( uploadUpdate.completed ) {
 			_filesManager.getListOfFiles(_filesModel.selectedFolder);
 		}

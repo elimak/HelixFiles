@@ -14057,13 +14057,13 @@ filemanager.client.models.FilesModel.prototype = {
 		return this._selectedFolderPath;
 	}
 	,onCancelUpload: function(trackID) {
-		haxe.Log.trace("FilesModel - onCancelUpload() " + trackID,{ fileName : "FilesModel.hx", lineNumber : 251, className : "filemanager.client.models.FilesModel", methodName : "onCancelUpload"});
+		haxe.Log.trace("FilesModel - onCancelUpload() " + trackID,{ fileName : "FilesModel.hx", lineNumber : 250, className : "filemanager.client.models.FilesModel", methodName : "onCancelUpload"});
 	}
 	,createNewFolder: function(folderPath,onSuccess) {
 		this._api.createFolder(folderPath,onSuccess);
 	}
 	,renameFile: function(filePath,newName) {
-		haxe.Log.trace("FilesModel - renameFile() " + filePath + " , " + newName,{ fileName : "FilesModel.hx", lineNumber : 233, className : "filemanager.client.models.FilesModel", methodName : "renameFile"});
+		haxe.Log.trace("FilesModel - renameFile() " + filePath + " , " + newName,{ fileName : "FilesModel.hx", lineNumber : 232, className : "filemanager.client.models.FilesModel", methodName : "renameFile"});
 	}
 	,pasteFile: function(newPath) {
 	}
@@ -14072,6 +14072,7 @@ filemanager.client.models.FilesModel.prototype = {
 	,moveFile: function(filePath,newPath) {
 	}
 	,deleteFile: function(filePath,onSuccess) {
+		haxe.Log.trace("FilesModel - deleteFile() " + filePath,{ fileName : "FilesModel.hx", lineNumber : 217, className : "filemanager.client.models.FilesModel", methodName : "deleteFile"});
 		this._api.deleteFile(filePath,onSuccess);
 	}
 	,validateFileName: function(filename) {
@@ -14104,13 +14105,12 @@ filemanager.client.models.FilesModel.prototype = {
 			this.onUploadUpdate(fileToUpload);
 			break;
 		case "error":
-			haxe.Log.trace("FilesModel - handleUploadProgress() - response: error " + Std.string(response.error),{ fileName : "FilesModel.hx", lineNumber : 198, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
+			haxe.Log.trace("FilesModel - handleUploadProgress() - response: error " + Std.string(response.error),{ fileName : "FilesModel.hx", lineNumber : 196, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
 			break;
 		}
 	}
 	,handleUploadInitialized: function(response) {
 		if(response.error != null && response.error != "") haxe.Log.trace("FilesModel - handleUploadInitialized() - ERROR:  " + response.error,{ fileName : "FilesModel.hx", lineNumber : 151, className : "filemanager.client.models.FilesModel", methodName : "handleUploadInitialized"});
-		haxe.Log.trace("FilesModel - handleUploadInitialized() - " + response.filepath + " // " + Std.string(this._uploadsQueue.exists(response.filepath)),{ fileName : "FilesModel.hx", lineNumber : 154, className : "filemanager.client.models.FilesModel", methodName : "handleUploadInitialized"});
 		if(this._uploadsQueue.exists(response.filepath)) {
 			var uploadWorker = new Worker("fileupload.js");
 			uploadWorker.onmessage = $bind(this,this.handleUploadProgress);

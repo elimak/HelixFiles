@@ -45,13 +45,29 @@ class filemanager_server_Api {
 		$response = $this->getTreeFolder("../files");
 		return $response;
 	}
-	public function deleteFile($folderpath) {
-		$validFolder = $this->validatePath($folderpath);
-		if(file_exists($folderpath)) {
-			haxe_Log::trace("Api - deleteFile() " . $folderpath . " - exists", _hx_anonymous(array("fileName" => "Api.hx", "lineNumber" => 80, "className" => "filemanager.server.Api", "methodName" => "deleteFile")));
-		}
+	public function deleteFile($filepath) {
+		$validFolder = $this->validatePath($filepath);
+		$this->unlink($filepath);
 		$response = $this->getTreeFolder("../files");
 		return $response;
+	}
+	public function unlink($path) {
+		if(file_exists($path)) {
+			if(is_dir($path)) {
+				{
+					$_g = 0; $_g1 = sys_FileSystem::readDirectory($path);
+					while($_g < $_g1->length) {
+						$entry = $_g1[$_g];
+						++$_g;
+						$this->unlink($path . "/" . $entry);
+						unset($entry);
+					}
+				}
+				@rmdir($path);
+			} else {
+				@unlink($path);
+			}
+		}
 	}
 	public function deleteTempFile($filepath) {
 		$response = new filemanager_cross_FileUpdatedVO();

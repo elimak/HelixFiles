@@ -151,8 +151,6 @@ class FilesModel
 			Log.trace("FilesModel - handleUploadInitialized() - ERROR:  "+response.error);
 		}
 		
-		Log.trace("FilesModel - handleUploadInitialized() - " + response.filepath + " // " + _uploadsQueue.exists(response.filepath));
-		
 		if( _uploadsQueue.exists(response.filepath)) {
 			var uploadWorker = new Worker('fileupload.js');
 			uploadWorker.onmessage = handleUploadProgress;
@@ -216,6 +214,7 @@ class FilesModel
 	// clicking button delete when folder or file is selected -> actually move the files into the garbage
 	// Todo: keep track of the initial path is we need to restaure the file or folder
 	public function deleteFile ( filePath: String, onSuccess: FolderVO->Void ) {
+		Log.trace("FilesModel - deleteFile() "+filePath);
 		_api.deleteFile( filePath, onSuccess);
 	}
 	

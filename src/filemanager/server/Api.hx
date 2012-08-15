@@ -72,14 +72,25 @@ class Api {
 		return response;
 	}	
 	
-	public function deleteFile ( folderpath : String ) : FolderVO {
-		var validFolder = validatePath(folderpath);
+	private function unlink( path : String ) : Void { 
+		if( FileSystem.exists( path ) )  { 
+			if( FileSystem.isDirectory( path ) ) { 
+				for( entry in FileSystem.readDirectory( path ) ) { 
+					unlink( path + "/" + entry ); 
+				} 
+				FileSystem.deleteDirectory( path ); 
+			} 
+			else { 
+				FileSystem.deleteFile( path ); 
+			} 
+		} 
+	} 
+	
+	public function deleteFile ( filepath : String ) : FolderVO {
+		var validFolder = validatePath(filepath);
 		
-		if ( FileSystem.exists(folderpath) ){
-			//FileSystem.deleteFile(folderpath);
-			Log.trace("Api - deleteFile() "+folderpath +" - exists");
-		}
-		
+		unlink(filepath);
+
 		var response	: FolderVO = getTreeFolder(FILES_FOLDER);
 		return response;
 	}	
