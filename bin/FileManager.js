@@ -13930,11 +13930,11 @@ filemanager.client.FileManager.prototype = $extend(org.slplayer.component.ui.Dis
 	getListOfFiles: function(folderPath) {
 		var _g = this;
 		this._filesModel.getFiles(folderPath,function(inData) {
+			haxe.Log.trace("FileManager - getListOfFiles() " + inData.join(","),{ fileName : "FileManager.hx", lineNumber : 173, className : "filemanager.client.FileManager", methodName : "getListOfFiles"});
 			_g._filesView.setList(inData);
 		});
 	}
 	,updateFolders: function(data) {
-		haxe.Log.trace("FileManager - updateFolders() " + data.toString(),{ fileName : "FileManager.hx", lineNumber : 168, className : "filemanager.client.FileManager", methodName : "updateFolders"});
 		this._foldersView.update(data);
 	}
 	,showFiles: function(data) {
@@ -13948,7 +13948,6 @@ filemanager.client.FileManager.prototype = $extend(org.slplayer.component.ui.Dis
 		this._filesView = filesViews[0];
 		this._filesView.injectAppModel(this._filesModel);
 		data.open = true;
-		haxe.Log.trace("FileManager - initializeFolders() " + data.toString(),{ fileName : "FileManager.hx", lineNumber : 159, className : "filemanager.client.FileManager", methodName : "initializeFolders"});
 		this._foldersView.initialize(data);
 	}
 	,showConfirmation: function(b) {
@@ -13982,6 +13981,7 @@ filemanager.client.FileManager.prototype = $extend(org.slplayer.component.ui.Dis
 		var uploadStatus = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"UploadStatus");
 		this._uploadStatus = uploadStatus[0];
 		this._uploadStatus.injectAppModel(this._filesModel);
+		this._uploadStatus.injectAppManager(this);
 	}
 	,initializeToolBox: function() {
 		var toolBoxes = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"ToolBox");
@@ -14057,13 +14057,13 @@ filemanager.client.models.FilesModel.prototype = {
 		return this._selectedFolderPath;
 	}
 	,onCancelUpload: function(trackID) {
-		haxe.Log.trace("FilesModel - onCancelUpload() " + trackID,{ fileName : "FilesModel.hx", lineNumber : 244, className : "filemanager.client.models.FilesModel", methodName : "onCancelUpload"});
+		haxe.Log.trace("FilesModel - onCancelUpload() " + trackID,{ fileName : "FilesModel.hx", lineNumber : 251, className : "filemanager.client.models.FilesModel", methodName : "onCancelUpload"});
 	}
 	,createNewFolder: function(folderPath,onSuccess) {
 		this._api.createFolder(folderPath,onSuccess);
 	}
 	,renameFile: function(filePath,newName) {
-		haxe.Log.trace("FilesModel - renameFile() " + filePath + " , " + newName,{ fileName : "FilesModel.hx", lineNumber : 226, className : "filemanager.client.models.FilesModel", methodName : "renameFile"});
+		haxe.Log.trace("FilesModel - renameFile() " + filePath + " , " + newName,{ fileName : "FilesModel.hx", lineNumber : 233, className : "filemanager.client.models.FilesModel", methodName : "renameFile"});
 	}
 	,pasteFile: function(newPath) {
 	}
@@ -14072,6 +14072,7 @@ filemanager.client.models.FilesModel.prototype = {
 	,moveFile: function(filePath,newPath) {
 	}
 	,deleteFile: function(filePath,onSuccess) {
+		this._api.deleteFile(filePath,onSuccess);
 	}
 	,validateFileName: function(filename) {
 		filename = StringTools.replace(filename," ","");
@@ -14082,30 +14083,34 @@ filemanager.client.models.FilesModel.prototype = {
 	,handleUploadProgress: function(msg) {
 		var _g = this;
 		var response = haxe.Json.parse(msg.data);
-		haxe.Log.trace("FilesModel - handleUploadProgress() " + Std.string(response.destination) + " // " + Std.string(response.result.filename),{ fileName : "FilesModel.hx", lineNumber : 171, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
+		var filePath = response.destination + response.result.filename;
+		var fileToUpload = this._uploadsQueue.get(filePath);
 		switch(response.type) {
 		case "progress":
-			this._uploadsQueue.get(response.result.filename).progressPercent = response.result.percentuploaded;
-			this.onUploadUpdate(this._uploadsQueue.get(response.result.filename));
+			fileToUpload.progressPercent = response.result.percentuploaded;
+			this.onUploadUpdate(fileToUpload);
 			break;
 		case "completed":
-			var tempFile = response.result.filename;
-			this._api.deleteTempFile(response.result.filename,function(file) {
-				_g.onUploadUpdate(_g._uploadsQueue.get(response.result.filename));
+			var tempFile = response.destination + response.result.filename;
+			this._api.deleteTempFile(tempFile,function(file) {
+				_g.onUploadUpdate(fileToUpload);
 			});
-			this._uploadsQueue.get(response.result.filename).completed = true;
-			this.onUploadUpdate(this._uploadsQueue.get(response.result.filename));
+			fileToUpload.completed = true;
+			this.onUploadUpdate(fileToUpload);
+			this._uploadsQueue.remove(filePath);
 			break;
 		case "started":
-			this._uploadsQueue.get(response.result.filename).started = true;
-			this.onUploadUpdate(this._uploadsQueue.get(response.result.filename));
+			fileToUpload.started = true;
+			this.onUploadUpdate(fileToUpload);
 			break;
 		case "error":
-			haxe.Log.trace("FilesModel - handleUploadProgress() - response: error " + Std.string(response.error),{ fileName : "FilesModel.hx", lineNumber : 192, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
+			haxe.Log.trace("FilesModel - handleUploadProgress() - response: error " + Std.string(response.error),{ fileName : "FilesModel.hx", lineNumber : 198, className : "filemanager.client.models.FilesModel", methodName : "handleUploadProgress"});
 			break;
 		}
 	}
 	,handleUploadInitialized: function(response) {
+		if(response.error != null && response.error != "") haxe.Log.trace("FilesModel - handleUploadInitialized() - ERROR:  " + response.error,{ fileName : "FilesModel.hx", lineNumber : 151, className : "filemanager.client.models.FilesModel", methodName : "handleUploadInitialized"});
+		haxe.Log.trace("FilesModel - handleUploadInitialized() - " + response.filepath + " // " + Std.string(this._uploadsQueue.exists(response.filepath)),{ fileName : "FilesModel.hx", lineNumber : 154, className : "filemanager.client.models.FilesModel", methodName : "handleUploadInitialized"});
 		if(this._uploadsQueue.exists(response.filepath)) {
 			var uploadWorker = new Worker("fileupload.js");
 			uploadWorker.onmessage = $bind(this,this.handleUploadProgress);
@@ -14119,17 +14124,18 @@ filemanager.client.models.FilesModel.prototype = {
 		while(_g < files.length) {
 			var file = files[_g];
 			++_g;
+			var backupFileFullPath = this._selectedFolderPath + this.validateFileName(file.name);
 			var fileToUpload = { file : file, validateFileName : this.validateFileName(file.name), initialized : false, progressPercent : 0, completed : false, started : false};
-			this._uploadsQueue.set(this.validateFileName(file.name),fileToUpload);
+			this._uploadsQueue.set(backupFileFullPath,fileToUpload);
 		}
 		var $it0 = this._uploadsQueue.keys();
 		while( $it0.hasNext() ) {
 			var key = $it0.next();
 			var filehelper = this._uploadsQueue.get(key);
 			if(!filehelper.initialized) {
-				this._api.backupAsTemporary(filehelper.validateFileName,$bind(this,this.handleUploadInitialized));
-				this._uploadsQueue.get(filehelper.validateFileName).initialized = true;
-				this.onUploadUpdate(this._uploadsQueue.get(filehelper.validateFileName));
+				this._api.backupAsTemporary(key,$bind(this,this.handleUploadInitialized));
+				this._uploadsQueue.get(key).initialized = true;
+				this.onUploadUpdate(this._uploadsQueue.get(key));
 			}
 		}
 	}
@@ -14183,7 +14189,12 @@ $hxClasses["filemanager.client.services.Api"] = filemanager.client.services.Api;
 filemanager.client.services.Api.__name__ = ["filemanager","client","services","Api"];
 filemanager.client.services.Api.prototype = {
 	defaultOnError: function(err) {
-		haxe.Log.trace("Error (API default error handler) : " + Std.string(err),{ fileName : "Api.hx", lineNumber : 111, className : "filemanager.client.services.Api", methodName : "defaultOnError"});
+		haxe.Log.trace("Error (API default error handler) : " + Std.string(err),{ fileName : "Api.hx", lineNumber : 133, className : "filemanager.client.services.Api", methodName : "defaultOnError"});
+	}
+	,deleteFile: function(folderPath,onSuccess,onError) {
+		var cnx = haxe.remoting.HttpAsyncConnection.urlConnect("server/index.php");
+		if(onError != null) cnx.setErrorHandler(onError); else cnx.setErrorHandler($bind(this,this.defaultOnError));
+		cnx.resolve("api").resolve("deleteFile").call([folderPath],onSuccess);
 	}
 	,createFolder: function(folderPath,onSuccess,onError) {
 		var cnx = haxe.remoting.HttpAsyncConnection.urlConnect("server/index.php");
@@ -14191,7 +14202,7 @@ filemanager.client.services.Api.prototype = {
 		cnx.resolve("api").resolve("createFolder").call([folderPath],onSuccess);
 	}
 	,renameFile: function(filePath,newName,onSuccess,onError) {
-		haxe.Log.trace("Api - renameFile() " + filePath + " // " + newName,{ fileName : "Api.hx", lineNumber : 96, className : "filemanager.client.services.Api", methodName : "renameFile"});
+		haxe.Log.trace("Api - renameFile() " + filePath + " // " + newName,{ fileName : "Api.hx", lineNumber : 98, className : "filemanager.client.services.Api", methodName : "renameFile"});
 	}
 	,moveFileToFolder: function(filePath,fileName,folderPath,onSuccess,onError) {
 		var cnx = haxe.remoting.HttpAsyncConnection.urlConnect("server/index.php");
@@ -14201,9 +14212,11 @@ filemanager.client.services.Api.prototype = {
 	,deleteTempFile: function(fullpath,onSuccess,onError) {
 		var cnx = haxe.remoting.HttpAsyncConnection.urlConnect("server/index.php");
 		if(onError != null) cnx.setErrorHandler(onError); else cnx.setErrorHandler($bind(this,this.defaultOnError));
+		haxe.Log.trace("Api - deleteTempFile() " + fullpath,{ fileName : "Api.hx", lineNumber : 80, className : "filemanager.client.services.Api", methodName : "deleteTempFile"});
 		cnx.resolve("api").resolve("deleteTempFile").call([fullpath],onSuccess);
 	}
 	,backupAsTemporary: function(fullpath,onSuccess,onError) {
+		haxe.Log.trace("Api - backupAsTemporary() " + fullpath,{ fileName : "Api.hx", lineNumber : 60, className : "filemanager.client.services.Api", methodName : "backupAsTemporary"});
 		var cnx = haxe.remoting.HttpAsyncConnection.urlConnect("server/index.php");
 		if(onError != null) cnx.setErrorHandler(onError); else cnx.setErrorHandler($bind(this,this.defaultOnError));
 		cnx.resolve("api").resolve("backupAsTemporary").call([fullpath],onSuccess);
@@ -14543,7 +14556,10 @@ $hxClasses["filemanager.client.views.UploadStatus"] = filemanager.client.views.U
 filemanager.client.views.UploadStatus.__name__ = ["filemanager","client","views","UploadStatus"];
 filemanager.client.views.UploadStatus.__super__ = filemanager.client.views.base.View;
 filemanager.client.views.UploadStatus.prototype = $extend(filemanager.client.views.base.View.prototype,{
-	injectAppModel: function(filesModel) {
+	injectAppManager: function(filesManager) {
+		this._filesManager = filesManager;
+	}
+	,injectAppModel: function(filesModel) {
 		this._filesModel = filesModel;
 		this._filesModel.onUploadUpdate = $bind(this,this.onUpdate);
 	}
@@ -14556,10 +14572,12 @@ filemanager.client.views.UploadStatus.prototype = $extend(filemanager.client.vie
 		}
 		var fileName = uploadUpdate.file.name;
 		this._currentQueueUIs.get(fileName).update(uploadUpdate);
+		if(uploadUpdate.completed) this._filesManager.getListOfFiles(this._filesModel.get_selectedFolder());
 	}
 	,init: function() {
 	}
 	,_currentQueueUIs: null
+	,_filesManager: null
 	,_filesModel: null
 	,__class__: filemanager.client.views.UploadStatus
 });
@@ -14633,6 +14651,7 @@ filemanager.client.views.uis.AlertDialogPanel = function(SLPId,parent) {
 	this._confirm = new filemanager.client.views.uis.buttons.ConfirmButton("Confirm",SLPId);
 	this._panel.appendChild(this._confirm.rootElement);
 	this._confirm.onclicked = $bind(this,this.handleUserConfirmation);
+	this._confirm.set_enabled(true);
 	this._cancel = new filemanager.client.views.uis.buttons.CancelButton("Cancel",SLPId);
 	this._panel.appendChild(this._cancel.rootElement);
 	this._cancel.set_enabled(true);
@@ -14659,7 +14678,6 @@ filemanager.client.views.uis.AlertDialogPanel.prototype = $extend(filemanager.cl
 		this._title.innerHTML = title;
 		this._instruction.innerHTML = instruction;
 		this._parent.appendChild(this.rootElement);
-		this._confirm.set_enabled(false);
 	}
 	,handleUserConfirmation: function(evt) {
 		var selectedPath = this._filesModel.get_selectedFile() != null?this._filesModel.get_selectedFile().path:this._filesModel.get_selectedFolder();

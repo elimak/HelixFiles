@@ -6,11 +6,12 @@ class filemanager_server_Api {
 		$this->_explorer = new filemanager_server_FileExplorer();
 	}}
 	public function getFileHelper($filepath) {
-		$result = _hx_anonymous(array("extension" => "", "filename" => ""));
+		$result = _hx_anonymous(array("extension" => "", "filename" => "", "path" => ""));
 		$splitted = _hx_explode(".", $filepath);
 		$result->extension = $splitted->pop();
 		$splitted = _hx_explode("/", $splitted->join("."));
 		$result->filename = $splitted->pop();
+		$result->path = $splitted->join("/");
 		return $result;
 	}
 	public function validatePath($filePath) {
@@ -44,14 +45,22 @@ class filemanager_server_Api {
 		$response = $this->getTreeFolder("../files");
 		return $response;
 	}
+	public function deleteFile($folderpath) {
+		$validFolder = $this->validatePath($folderpath);
+		if(file_exists($folderpath)) {
+			haxe_Log::trace("Api - deleteFile() " . $folderpath . " - exists", _hx_anonymous(array("fileName" => "Api.hx", "lineNumber" => 80, "className" => "filemanager.server.Api", "methodName" => "deleteFile")));
+		}
+		$response = $this->getTreeFolder("../files");
+		return $response;
+	}
 	public function deleteTempFile($filepath) {
 		$response = new filemanager_cross_FileUpdatedVO();
 		$file = $this->getFileHelper($filepath);
-		$tempFile = "../files" . $file->filename . "_temp." . $file->extension;
+		$tempFile = $file->path . "/" . $file->filename . "_temp." . $file->extension;
 		$response->filepath = $filepath;
 		if(file_exists($tempFile)) {
 			@unlink($tempFile);
-			$response->success = file_exists($tempFile);
+			$response->success = !file_exists($tempFile);
 		} else {
 			$response->success = true;
 		}
@@ -64,14 +73,16 @@ class filemanager_server_Api {
 		$response = new filemanager_cross_FileUpdatedVO();
 		$response->filepath = $filepath;
 		$file = $this->getFileHelper($filepath);
-		$oldFile = "../files" . $file->filename . "." . $file->extension;
-		$tempFile = "../files" . $file->filename . "_temp." . $file->extension;
+		$oldFile = $file->path . "/" . $file->filename . "." . $file->extension;
+		$tempFile = $file->path . "/" . $file->filename . "_temp." . $file->extension;
 		if(file_exists($oldFile)) {
 			rename($oldFile, $tempFile);
-			$response->success = true;
+			$response->success = file_exists($tempFile);
+			if(!$response->success) {
+				$response->error = "failed to back up " . $oldFile;
+			}
 		} else {
-			$response->success = false;
-			$response->error = $oldFile . " was not found";
+			$response->success = true;
 		}
 		return $response;
 	}

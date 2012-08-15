@@ -2,6 +2,7 @@ package filemanager.server;
 import filemanager.cross.FileVO;
 import filemanager.cross.FolderVO;
 import filemanager.cross.FileUpdatedVO;
+import haxe.Log;
 import php.FileSystem;
 import php.io.File;
 
@@ -13,6 +14,7 @@ import php.io.File;
 typedef FileHelper = {
 	var extension	: String;
 	var filename	: String;
+	var path		: String;
 }
 
 class Api {
@@ -37,16 +39,17 @@ class Api {
 		response.filepath = filepath;
 		
 		var file		: FileHelper = getFileHelper (filepath);
-		var oldFile 	: String = FILES_FOLDER + file.filename + "." + file.extension;
-		var tempFile 	: String = FILES_FOLDER + file.filename + "_temp." + file.extension;
+		var oldFile 	: String = file.path +"/"+ file.filename + "." + file.extension;
+		var tempFile 	: String = file.path +"/"+ file.filename + "_temp." + file.extension;
 		
 		if ( FileSystem.exists(oldFile) ){
 			FileSystem.rename(oldFile, tempFile);
-			response.success = true;
+			response.success = FileSystem.exists(tempFile);
+			if ( !response.success )
+				response.error = "failed to back up " + oldFile;
 		}
 		else{
-			response.success = false; 
-			response.error = oldFile + " was not found";
+			response.success = true; 
 		}
 		return response;
 	}
@@ -54,12 +57,12 @@ class Api {
 	public function deleteTempFile ( filepath : String ) : FileUpdatedVO {
 		var response	: FileUpdatedVO = new FileUpdatedVO();
 		var file		: FileHelper = getFileHelper (filepath);
-		var tempFile 	: String = FILES_FOLDER + file.filename + "_temp." + file.extension;
+		var tempFile 	: String = file.path +"/"+ file.filename + "_temp." + file.extension;
 		response.filepath = filepath;
 		
 		if ( FileSystem.exists(tempFile) ){
 			FileSystem.deleteFile(tempFile);
-			response.success = FileSystem.exists(tempFile);
+			response.success = !FileSystem.exists(tempFile);
 		}
 		else {
 			response.success = true;
@@ -69,24 +72,22 @@ class Api {
 		return response;
 	}	
 	
+	public function deleteFile ( folderpath : String ) : FolderVO {
+		var validFolder = validatePath(folderpath);
+		
+		if ( FileSystem.exists(folderpath) ){
+			//FileSystem.deleteFile(folderpath);
+			Log.trace("Api - deleteFile() "+folderpath +" - exists");
+		}
+		
+		var response	: FolderVO = getTreeFolder(FILES_FOLDER);
+		return response;
+	}	
+	
 	public function createFolder ( folderpath : String ) : FolderVO {
 		var validFolder = validatePath(folderpath);
 		FileSystem.createDirectory(validFolder);
 		var response	: FolderVO = getTreeFolder(FILES_FOLDER);
-		/*
-		var file		: FileHelper = getFileHelper (filepath);
-		var tempFile 	: String = FILES_FOLDER + file.filename + "_temp." + file.extension;
-		response.filepath = filepath;
-		
-		if ( FileSystem.exists(tempFile) ){
-			FileSystem.deleteFile(tempFile);
-			response.success = FileSystem.exists(tempFile);
-		}
-		else {
-			response.success = true;
-		}
-		if ( !response.success ) response.error = "the file could not be deleted";
-		*/
 		return response;
 	}
 	
@@ -113,11 +114,12 @@ class Api {
 	}
 	
 	private function getFileHelper(filepath:String) : FileHelper {
-		var result 		: FileHelper = {extension: "", filename: ""};
+		var result 		: FileHelper = {extension: "", filename: "", path:""};
 		var splitted 	: Array<String> = filepath.split(".");
 		result.extension  = splitted.pop();
 		splitted = splitted.join(".").split("/");
 		result.filename  = splitted.pop();
+		result.path  = splitted.join("/");
 
 		return result;
 	}

@@ -1,4 +1,5 @@
 package filemanager.client.views;
+import filemanager.client.FileManager;
 import filemanager.client.models.Locator;
 import filemanager.client.models.FilesModel;
 import filemanager.client.views.base.View;
@@ -14,6 +15,8 @@ import js.Lib;
 class UploadStatus extends View
 {
 	private var _filesModel			: FilesModel;
+	private var _filesManager		: FileManager;
+	
 	private var _currentQueueUIs 	: Hash<FileUploadStatus>;
 	
 	public function new (rootElement:HtmlDom, SLPId:String) {
@@ -51,10 +54,21 @@ class UploadStatus extends View
 		}
 		var fileName : String = cast uploadUpdate.file.name;
 		_currentQueueUIs.get(fileName).update (uploadUpdate);
+		
+		/**
+		 * refresh the list of files on the middle windows
+		 */
+		if ( uploadUpdate.completed ) {
+			_filesManager.getListOfFiles(_filesModel.selectedFolder);
+		}
 	}
 	
 	public function injectAppModel( filesModel:FilesModel) {
 		_filesModel = filesModel;
 		_filesModel.onUploadUpdate = onUpdate;
+	}
+	
+	public function injectAppManager( filesManager:FileManager) : Void {
+		_filesManager = filesManager;
 	}
 }

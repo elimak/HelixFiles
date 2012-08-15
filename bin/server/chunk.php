@@ -13,8 +13,8 @@ $targetFile;
 function checkErrors () {
 	global $rawPost, $errors, $fullFileName, $fileName, $fileExtension, $targetFile, $targetFolder, $fileSize, $chunkSize;
 	
-	if( empty( $rawPost ) ) $errors[] = 'You did not send any POST data.'; 				// Add an error if there is no data posted.
-	$fileName =  substr( $fullFileName, 0, strrpos( $fullFileName, '.')); 				// Remove the extension from the filename and remove special characters.
+	if ( empty( $rawPost ) ) $errors[] = 'You did not send any POST data.'; 				// Add an error if there is no data posted.							// Remove the extension from the filename and remove special characters.
+	$fileName =  substr( $fullFileName, 0, strrpos( $fullFileName, '.')); 								// Remove the extension from the filename and remove special characters.
 	if( empty( $fileName ) ) $errors[] = 'You did not specify a file name in the url.'; // Add an error if name is not specified.
 	if( empty( $fileSize ) ) $errors[] = 'You did not specify the file\'s size.'; 		// Add an error if size is not specified.
 	if( empty( $chunkSize ) ) $errors[] = 'You did not specify the chunk\'s size.';		// Add an error if chunk is not specified.
@@ -37,7 +37,7 @@ function uploadChunk() {
 	if ( file_put_contents($targetFile, $rawPost, FILE_APPEND) ) {
 		$percentProgress = filesize($targetFile) / $fileSize;
 		
-		die('{"result":{"filename":"' . $fullFileName. '", "filesize":' . filesize($targetFile) . ',"percentuploaded":' . $percentProgress . ',"chunksize":' . $chunkSize . '}, "type":"progress", "destination":"'.$targetFile.'"}');
+		die('{"result":{"filename":"' . $fullFileName. '", "filesize":' . filesize($targetFile) . ',"percentuploaded":' . $percentProgress . ',"chunksize":' . $chunkSize . '}, "type":"progress", "destination":"'.$targetFolder.'"}');
 	}
 	else {
 		die('{"error":"Something went wrong"}');

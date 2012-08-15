@@ -122,15 +122,16 @@ class FilesModel
 	public function uploadSelectedFiles ( files: Array<Dynamic> ) : Void {
 		
 		for ( file in files ) {
+			var backupFileFullPath = _selectedFolderPath + validateFileName(file.name);
 			var fileToUpload : FileToUpload = { file : file, validateFileName:validateFileName(file.name), initialized : false, progressPercent : 0, completed : false, started: false };
-			_uploadsQueue.set(validateFileName(file.name), fileToUpload);
+			_uploadsQueue.set(backupFileFullPath, fileToUpload);
 		}
 		for (key in _uploadsQueue.keys()) {
 			var filehelper : FileToUpload = cast _uploadsQueue.get(key);
 			if ( !filehelper.initialized ) {
-				_api.backupAsTemporary(filehelper.validateFileName, handleUploadInitialized);
-				_uploadsQueue.get(filehelper.validateFileName).initialized = true;
-				onUploadUpdate(_uploadsQueue.get(filehelper.validateFileName));
+				_api.backupAsTemporary(key, handleUploadInitialized);
+				_uploadsQueue.get(key).initialized = true;
+				onUploadUpdate(_uploadsQueue.get(key));
 			}
 		}
 	}
@@ -146,6 +147,11 @@ class FilesModel
  * @param	response
  */
 	private function handleUploadInitialized(response: FileUpdatedVO): Void {
+		if ( response.error != null && response.error != "" ) {
+			Log.trace("FilesModel - handleUploadInitialized() - ERROR:  "+response.error);
+		}
+		
+		Log.trace("FilesModel - handleUploadInitialized() - " + response.filepath + " // " + _uploadsQueue.exists(response.filepath));
 		
 		if( _uploadsQueue.exists(response.filepath)) {
 			var uploadWorker = new Worker('fileupload.js');
@@ -155,7 +161,7 @@ class FilesModel
 							validName:  validateFileName(_uploadsQueue.get(response.filepath).file.name),
 							destination: _selectedFolderPath
 							};
-			uploadWorker.postMessage( dataMsg);
+			uploadWorker.postMessage(dataMsg);
 		}
 	}
 	
@@ -167,26 +173,26 @@ class FilesModel
 	private function handleUploadProgress( msg: Dynamic ) : Void {
 		
 		var response: Dynamic = Json.parse(msg.data);
-		
-		Log.trace("FilesModel - handleUploadProgress() "+response.destination+" // "+response.result.filename);
+		var filePath : String = response.destination + response.result.filename;
+		var fileToUpload : FileToUpload = _uploadsQueue.get(filePath);
 		
 		switch (response.type) {
 			case "progress"	: 
-				_uploadsQueue.get(response.result.filename).progressPercent = response.result.percentuploaded;
-				onUploadUpdate(_uploadsQueue.get(response.result.filename));
+				fileToUpload.progressPercent = response.result.percentuploaded;
+				onUploadUpdate(fileToUpload);
 				
 			case "completed": 
-				var tempFile : String = response.result.filename;
-				_api.deleteTempFile(response.result.filename, function( file: FileUpdatedVO ) {
-									onUploadUpdate (_uploadsQueue.get(response.result.filename));
+				var tempFile : String = response.destination + response.result.filename;
+				_api.deleteTempFile(tempFile, function( file: FileUpdatedVO ) {
+									onUploadUpdate (fileToUpload);
 								});
-				_uploadsQueue.get(response.result.filename).completed = true;
-				onUploadUpdate(_uploadsQueue.get(response.result.filename));
-				//_uploadsQueue.remove(response.result.filename);
+				fileToUpload.completed = true;
+				onUploadUpdate(fileToUpload);
+				_uploadsQueue.remove(filePath);
 				
 			case "started"	: 
-				_uploadsQueue.get(response.result.filename).started = true;
-				onUploadUpdate(_uploadsQueue.get(response.result.filename));
+				fileToUpload.started = true;
+				onUploadUpdate(fileToUpload);
 				
 			case "error"	: 
 				Log.trace("FilesModel - handleUploadProgress() - response: error "+response.error);
@@ -210,6 +216,7 @@ class FilesModel
 	// clicking button delete when folder or file is selected -> actually move the files into the garbage
 	// Todo: keep track of the initial path is we need to restaure the file or folder
 	public function deleteFile ( filePath: String, onSuccess: FolderVO->Void ) {
+		_api.deleteFile( filePath, onSuccess);
 	}
 	
 	// using drag and drop

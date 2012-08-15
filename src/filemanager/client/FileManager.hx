@@ -77,6 +77,7 @@ class FileManager extends DisplayObject
 		var uploadStatus : Array<DisplayObject> = Locator.getSLDisplay( SLPlayerInstanceId, "UploadStatus");
 		_uploadStatus = cast uploadStatus[0];
 		_uploadStatus.injectAppModel(_filesModel);
+		_uploadStatus.injectAppManager(this);
 	}
 	
 	private function initializeFileDropper() {
@@ -156,7 +157,6 @@ class FileManager extends DisplayObject
 		_filesView.injectAppModel(_filesModel);
 		
 		data.open = true; // the root folder is set as open, so we can see the folder's list that belongs to it right away 
-		Log.trace("FileManager - initializeFolders() "+data.toString());
 		_foldersView.initialize(data);
 	}	
 
@@ -165,12 +165,12 @@ class FileManager extends DisplayObject
 	}
 	
 	public function updateFolders( data: FolderVO ) : Void {
-		Log.trace("FileManager - updateFolders() "+data.toString());
 		_foldersView.update(data);
 	}
 
 	public function getListOfFiles(folderPath: String) {
-		_filesModel.getFiles(folderPath, function(inData: Array<FileVO>){
+		_filesModel.getFiles(folderPath, function(inData: Array<FileVO>) {
+											Log.trace("FileManager - getListOfFiles() "+inData.join(","));
 											_filesView.setList(inData);
 										});
 	}

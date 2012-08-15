@@ -57,6 +57,7 @@ class Api
  */
 	public function backupAsTemporary (fullpath: String, onSuccess: FileUpdatedVO->Void, ?onError: Dynamic->Void) : Void {
 		
+		Log.trace("Api - backupAsTemporary() "+fullpath);
 		var cnx = HttpAsyncConnection.urlConnect(GATEWAY_URL);
 		if (onError != null) cnx.setErrorHandler( onError );
 		else cnx.setErrorHandler( defaultOnError );
@@ -75,7 +76,8 @@ class Api
 		var cnx = HttpAsyncConnection.urlConnect(GATEWAY_URL);
 		if (onError != null) cnx.setErrorHandler( onError );
 		else cnx.setErrorHandler( defaultOnError );
-			
+		
+		Log.trace("Api - deleteTempFile() "+fullpath);
 		cnx.api.deleteTempFile.call([fullpath], onSuccess);
 	}
 	
@@ -96,12 +98,32 @@ class Api
 		Log.trace("Api - renameFile() "+filePath+" // "+newName);
 	}
 	
+/**
+ * Remoting call to server to create a new folder
+ * @param	folderPath
+ * @param	onSuccess
+ * @param	?onError
+ */
 	public function createFolder(folderPath:String, onSuccess: FolderVO->Void, ?onError: Dynamic->Void ) : Void {
 		var cnx = HttpAsyncConnection.urlConnect(GATEWAY_URL);
 		if (onError != null) cnx.setErrorHandler( onError );
 		else cnx.setErrorHandler( defaultOnError );
 			
 		cnx.api.createFolder.call([folderPath], onSuccess);
+	}	
+	
+/**
+ * Remoting call to server to delete a file or a folder
+ * @param	folderPath
+ * @param	onSuccess
+ * @param	?onError
+ */
+	public function deleteFile(folderPath:String, onSuccess: FolderVO->Void, ?onError: Dynamic->Void ) : Void {
+		var cnx = HttpAsyncConnection.urlConnect(GATEWAY_URL);
+		if (onError != null) cnx.setErrorHandler( onError );
+		else cnx.setErrorHandler( defaultOnError );
+			
+		cnx.api.deleteFile.call([folderPath], onSuccess);
 	}
 /**
  * Error callback 
