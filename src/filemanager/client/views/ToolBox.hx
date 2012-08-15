@@ -3,13 +3,14 @@ import filemanager.client.FileManager;
 import filemanager.client.models.FilesModel;
 import filemanager.client.models.Locator;
 import filemanager.client.views.base.View;
+import filemanager.client.views.uis.AlertDialogPanel;
 import filemanager.client.views.uis.buttons.CopyButton;
 import filemanager.client.views.uis.buttons.CreateFolderButton;
 import filemanager.client.views.uis.buttons.DeleteButton;
 import filemanager.client.views.uis.buttons.DownloadButton;
 import filemanager.client.views.uis.buttons.PasteButton;
 import filemanager.client.views.uis.buttons.RenameButton;
-import filemanager.client.views.uis.SimpleDialogPanel;
+import filemanager.client.views.uis.InputDialogPanel;
 import js.Lib;
 import js.Dom;
 
@@ -72,14 +73,19 @@ class ToolBox extends View {
 	private function onClickedToolBox( buttonId: String ) : Void {
 		switch(buttonId) {
 			case CreateFolderButton.VIEW_ID :
-				_filesManager.showInputOverlay( true, "Create Folder", "Name:", SimpleDialogPanel.CREATE );
+				_filesManager.showInputOverlay( true, "Create Folder", "Name:", InputDialogPanel.CREATE );
 			case DownloadButton.VIEW_ID	:
 			case CopyButton.VIEW_ID		:
 			case DeleteButton.VIEW_ID	:
+				var target = (_filesModel.selectedFile != null )? "file": "folder";
+				var title = "Delete selected " + target;
+				var instruction = "This action will permanently delete the selected " + target;
+				if (_filesModel.selectedFile == null )
+					instruction += " and everything it contains";
+				_filesManager.showAlertOverlay( true, title, instruction, AlertDialogPanel.DELETE );
 			case PasteButton.VIEW_ID	:
 			case RenameButton.VIEW_ID	:
-
-				_filesManager.showInputOverlay( true, "Rename Selection", "New name:", SimpleDialogPanel.RENAME);
+				_filesManager.showInputOverlay( true, "Rename Selection", "New name:", InputDialogPanel.RENAME);
 		}
 	}
 

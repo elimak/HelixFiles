@@ -13934,7 +13934,7 @@ filemanager.client.FileManager.prototype = $extend(org.slplayer.component.ui.Dis
 		});
 	}
 	,updateFolders: function(data) {
-		haxe.Log.trace("FileManager - updateFolders() " + data.toString(),{ fileName : "FileManager.hx", lineNumber : 139, className : "filemanager.client.FileManager", methodName : "updateFolders"});
+		haxe.Log.trace("FileManager - updateFolders() " + data.toString(),{ fileName : "FileManager.hx", lineNumber : 168, className : "filemanager.client.FileManager", methodName : "updateFolders"});
 		this._foldersView.update(data);
 	}
 	,showFiles: function(data) {
@@ -13948,18 +13948,26 @@ filemanager.client.FileManager.prototype = $extend(org.slplayer.component.ui.Dis
 		this._filesView = filesViews[0];
 		this._filesView.injectAppModel(this._filesModel);
 		data.open = true;
-		haxe.Log.trace("FileManager - initializeFolders() " + data.toString(),{ fileName : "FileManager.hx", lineNumber : 130, className : "filemanager.client.FileManager", methodName : "initializeFolders"});
+		haxe.Log.trace("FileManager - initializeFolders() " + data.toString(),{ fileName : "FileManager.hx", lineNumber : 159, className : "filemanager.client.FileManager", methodName : "initializeFolders"});
 		this._foldersView.initialize(data);
 	}
 	,showConfirmation: function(b) {
 	}
-	,showInputOverlay: function(b,title,instruction,type) {
-		if(this._dialogPanel == null) {
-			this._dialogPanel = new filemanager.client.views.uis.SimpleDialogPanel(this.SLPlayerInstanceId,js.Lib.document.body);
-			this._dialogPanel.injectAppModel(this._filesModel);
-			this._dialogPanel.injectAppManager(this);
+	,showAlertOverlay: function(b,title,instruction,type) {
+		if(this._alertDialogPanel == null) {
+			this._alertDialogPanel = new filemanager.client.views.uis.AlertDialogPanel(this.SLPlayerInstanceId,js.Lib.document.body);
+			this._alertDialogPanel.injectAppModel(this._filesModel);
+			this._alertDialogPanel.injectAppManager(this);
 		}
-		if(b) this._dialogPanel.show(title,instruction,type); else this._dialogPanel.hide();
+		if(b) this._alertDialogPanel.show(title,instruction,type); else this._alertDialogPanel.hide();
+	}
+	,showInputOverlay: function(b,title,instruction,type) {
+		if(this._inputDialogPanel == null) {
+			this._inputDialogPanel = new filemanager.client.views.uis.InputDialogPanel(this.SLPlayerInstanceId,js.Lib.document.body);
+			this._inputDialogPanel.injectAppModel(this._filesModel);
+			this._inputDialogPanel.injectAppManager(this);
+		}
+		if(b) this._inputDialogPanel.show(title,instruction,type); else this._inputDialogPanel.hide();
 	}
 	,initializeAppModel: function() {
 		this._filesModel.getTreeFolder("../files",$bind(this,this.initializeFolders));
@@ -13998,7 +14006,8 @@ filemanager.client.FileManager.prototype = $extend(org.slplayer.component.ui.Dis
 	,_foldersView: null
 	,_filesView: null
 	,_fileDropper: null
-	,_dialogPanel: null
+	,_alertDialogPanel: null
+	,_inputDialogPanel: null
 	,_toolBox: null
 	,_uploadStatus: null
 	,_folderView: null
@@ -14048,13 +14057,13 @@ filemanager.client.models.FilesModel.prototype = {
 		return this._selectedFolderPath;
 	}
 	,onCancelUpload: function(trackID) {
-		haxe.Log.trace("FilesModel - onCancelUpload() " + trackID,{ fileName : "FilesModel.hx", lineNumber : 243, className : "filemanager.client.models.FilesModel", methodName : "onCancelUpload"});
+		haxe.Log.trace("FilesModel - onCancelUpload() " + trackID,{ fileName : "FilesModel.hx", lineNumber : 244, className : "filemanager.client.models.FilesModel", methodName : "onCancelUpload"});
 	}
 	,createNewFolder: function(folderPath,onSuccess) {
 		this._api.createFolder(folderPath,onSuccess);
 	}
 	,renameFile: function(filePath,newName) {
-		haxe.Log.trace("FilesModel - renameFile() " + filePath + " , " + newName,{ fileName : "FilesModel.hx", lineNumber : 225, className : "filemanager.client.models.FilesModel", methodName : "renameFile"});
+		haxe.Log.trace("FilesModel - renameFile() " + filePath + " , " + newName,{ fileName : "FilesModel.hx", lineNumber : 226, className : "filemanager.client.models.FilesModel", methodName : "renameFile"});
 	}
 	,pasteFile: function(newPath) {
 	}
@@ -14062,7 +14071,7 @@ filemanager.client.models.FilesModel.prototype = {
 	}
 	,moveFile: function(filePath,newPath) {
 	}
-	,deleteFile: function(filePath) {
+	,deleteFile: function(filePath,onSuccess) {
 	}
 	,validateFileName: function(filename) {
 		filename = StringTools.replace(filename," ","");
@@ -14481,6 +14490,11 @@ filemanager.client.views.ToolBox.prototype = $extend(filemanager.client.views.ba
 		case "CopyButton":
 			break;
 		case "DeleteButton":
+			var target = this._filesModel.get_selectedFile() != null?"file":"folder";
+			var title = "Delete selected " + target;
+			var instruction = "This action will permanently delete the selected " + target;
+			if(this._filesModel.get_selectedFile() == null) instruction += " and everything it contains";
+			this._filesManager.showAlertOverlay(true,title,instruction,1);
 			break;
 		case "PasteButton":
 			break;
@@ -14597,6 +14611,73 @@ filemanager.client.views.base.LabelButton.prototype = $extend(filemanager.client
 	,__properties__: {set_enabled:"set_enabled",get_enabled:"get_enabled"}
 });
 filemanager.client.views.uis = {}
+filemanager.client.views.uis.AlertDialogPanel = function(SLPId,parent) {
+	this._parent = parent;
+	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"AlertDialogPanel");
+	var root = js.Lib.document.createElement("div");
+	root.className = "dialogPanel smallFont";
+	this._background = js.Lib.document.createElement("div");
+	this._background.className = "overlayBackground";
+	this._panel = js.Lib.document.createElement("div");
+	this._panel.className = "panel";
+	this._title = js.Lib.document.createElement("p");
+	this._title.className = "title";
+	this._panel.appendChild(this._title);
+	var separator = js.Lib.document.createElement("hr");
+	this._panel.appendChild(separator);
+	this._instruction = js.Lib.document.createElement("div");
+	this._instruction.className = "alert";
+	this._panel.appendChild(this._instruction);
+	separator = js.Lib.document.createElement("hr");
+	this._panel.appendChild(separator);
+	this._confirm = new filemanager.client.views.uis.buttons.ConfirmButton("Confirm",SLPId);
+	this._panel.appendChild(this._confirm.rootElement);
+	this._confirm.onclicked = $bind(this,this.handleUserConfirmation);
+	this._cancel = new filemanager.client.views.uis.buttons.CancelButton("Cancel",SLPId);
+	this._panel.appendChild(this._cancel.rootElement);
+	this._cancel.set_enabled(true);
+	this._cancel.onclicked = $bind(this,this.hide);
+	root.appendChild(this._background);
+	root.appendChild(this._panel);
+	filemanager.client.views.base.View.call(this,root,SLPId);
+};
+$hxClasses["filemanager.client.views.uis.AlertDialogPanel"] = filemanager.client.views.uis.AlertDialogPanel;
+filemanager.client.views.uis.AlertDialogPanel.__name__ = ["filemanager","client","views","uis","AlertDialogPanel"];
+filemanager.client.views.uis.AlertDialogPanel.__super__ = filemanager.client.views.base.View;
+filemanager.client.views.uis.AlertDialogPanel.prototype = $extend(filemanager.client.views.base.View.prototype,{
+	injectAppManager: function(fileManager) {
+		this._fileManager = fileManager;
+	}
+	,injectAppModel: function(filesModel) {
+		this._filesModel = filesModel;
+	}
+	,hide: function(evt) {
+		this._parent.removeChild(this.rootElement);
+	}
+	,show: function(title,instruction,type) {
+		this._type = type;
+		this._title.innerHTML = title;
+		this._instruction.innerHTML = instruction;
+		this._parent.appendChild(this.rootElement);
+		this._confirm.set_enabled(false);
+	}
+	,handleUserConfirmation: function(evt) {
+		var selectedPath = this._filesModel.get_selectedFile() != null?this._filesModel.get_selectedFile().path:this._filesModel.get_selectedFolder();
+		this._filesModel.deleteFile(selectedPath,($_=this._fileManager,$bind($_,$_.updateFolders)));
+		this.hide();
+	}
+	,_type: null
+	,_parent: null
+	,_fileManager: null
+	,_filesModel: null
+	,_panel: null
+	,_background: null
+	,_confirm: null
+	,_cancel: null
+	,_instruction: null
+	,_title: null
+	,__class__: filemanager.client.views.uis.AlertDialogPanel
+});
 filemanager.client.views.uis.FileUI = function(data,SLPId) {
 	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"FileUI");
 	var viewDom = js.Lib.document.createElement("div");
@@ -14763,43 +14844,11 @@ filemanager.client.views.uis.FolderUI.prototype = $extend(filemanager.client.vie
 	,_title: null
 	,__class__: filemanager.client.views.uis.FolderUI
 });
-filemanager.client.views.uis.ProgressBar = function(SLPId) {
-	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"ProgressBar");
-	var viewDom = js.Lib.document.createElement("div");
-	viewDom.className = "progressBar";
-	this._bar = js.Lib.document.createElement("div");
-	this._bar.className = "bar";
-	viewDom.appendChild(this._bar);
-	filemanager.client.views.base.View.call(this,viewDom,SLPId);
-};
-$hxClasses["filemanager.client.views.uis.ProgressBar"] = filemanager.client.views.uis.ProgressBar;
-filemanager.client.views.uis.ProgressBar.__name__ = ["filemanager","client","views","uis","ProgressBar"];
-filemanager.client.views.uis.ProgressBar.__super__ = filemanager.client.views.base.View;
-filemanager.client.views.uis.ProgressBar.prototype = $extend(filemanager.client.views.base.View.prototype,{
-	value: null
-	,getFullBarWidth: function() {
-		return this.rootElement.clientWidth - (this._bar.offsetLeft - this.rootElement.offsetLeft) * 4;
-	}
-	,set_value: function(percent) {
-		if(this._fullBarWidth == null) this._fullBarWidth = this.getFullBarWidth();
-		this._value = percent;
-		this._bar.style.width = this._value * this._fullBarWidth + "px";
-		return this.get_value();
-	}
-	,get_value: function() {
-		return this._value;
-	}
-	,_fullBarWidth: null
-	,_value: null
-	,_bar: null
-	,__class__: filemanager.client.views.uis.ProgressBar
-	,__properties__: {set_value:"set_value",get_value:"get_value"}
-});
-filemanager.client.views.uis.SimpleDialogPanel = function(SLPId,parent) {
+filemanager.client.views.uis.InputDialogPanel = function(SLPId,parent) {
 	this._parent = parent;
-	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"SimpleDialogPanel");
+	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"InputDialogPanel");
 	var root = js.Lib.document.createElement("div");
-	root.className = "simpleDialogPanel smallFont";
+	root.className = "dialogPanel smallFont";
 	this._background = js.Lib.document.createElement("div");
 	this._background.className = "overlayBackground";
 	this._panel = js.Lib.document.createElement("div");
@@ -14830,10 +14879,10 @@ filemanager.client.views.uis.SimpleDialogPanel = function(SLPId,parent) {
 	root.appendChild(this._panel);
 	filemanager.client.views.base.View.call(this,root,SLPId);
 };
-$hxClasses["filemanager.client.views.uis.SimpleDialogPanel"] = filemanager.client.views.uis.SimpleDialogPanel;
-filemanager.client.views.uis.SimpleDialogPanel.__name__ = ["filemanager","client","views","uis","SimpleDialogPanel"];
-filemanager.client.views.uis.SimpleDialogPanel.__super__ = filemanager.client.views.base.View;
-filemanager.client.views.uis.SimpleDialogPanel.prototype = $extend(filemanager.client.views.base.View.prototype,{
+$hxClasses["filemanager.client.views.uis.InputDialogPanel"] = filemanager.client.views.uis.InputDialogPanel;
+filemanager.client.views.uis.InputDialogPanel.__name__ = ["filemanager","client","views","uis","InputDialogPanel"];
+filemanager.client.views.uis.InputDialogPanel.__super__ = filemanager.client.views.base.View;
+filemanager.client.views.uis.InputDialogPanel.prototype = $extend(filemanager.client.views.base.View.prototype,{
 	injectAppManager: function(fileManager) {
 		this._fileManager = fileManager;
 	}
@@ -14874,7 +14923,39 @@ filemanager.client.views.uis.SimpleDialogPanel.prototype = $extend(filemanager.c
 	,_input: null
 	,_instruction: null
 	,_title: null
-	,__class__: filemanager.client.views.uis.SimpleDialogPanel
+	,__class__: filemanager.client.views.uis.InputDialogPanel
+});
+filemanager.client.views.uis.ProgressBar = function(SLPId) {
+	filemanager.client.models.Locator.registerSLDisplay(SLPId,this,"ProgressBar");
+	var viewDom = js.Lib.document.createElement("div");
+	viewDom.className = "progressBar";
+	this._bar = js.Lib.document.createElement("div");
+	this._bar.className = "bar";
+	viewDom.appendChild(this._bar);
+	filemanager.client.views.base.View.call(this,viewDom,SLPId);
+};
+$hxClasses["filemanager.client.views.uis.ProgressBar"] = filemanager.client.views.uis.ProgressBar;
+filemanager.client.views.uis.ProgressBar.__name__ = ["filemanager","client","views","uis","ProgressBar"];
+filemanager.client.views.uis.ProgressBar.__super__ = filemanager.client.views.base.View;
+filemanager.client.views.uis.ProgressBar.prototype = $extend(filemanager.client.views.base.View.prototype,{
+	value: null
+	,getFullBarWidth: function() {
+		return this.rootElement.clientWidth - (this._bar.offsetLeft - this.rootElement.offsetLeft) * 4;
+	}
+	,set_value: function(percent) {
+		if(this._fullBarWidth == null) this._fullBarWidth = this.getFullBarWidth();
+		this._value = percent;
+		this._bar.style.width = this._value * this._fullBarWidth + "px";
+		return this.get_value();
+	}
+	,get_value: function() {
+		return this._value;
+	}
+	,_fullBarWidth: null
+	,_value: null
+	,_bar: null
+	,__class__: filemanager.client.views.uis.ProgressBar
+	,__properties__: {set_value:"set_value",get_value:"get_value"}
 });
 filemanager.client.views.uis.buttons = {}
 filemanager.client.views.uis.buttons.CancelButton = function(label,SLPId) {
@@ -20342,11 +20423,12 @@ cocktail.core.style.CSSConstants.TRANSFORM_STYLE_NAME = "transform";
 cocktail.core.style.transition.TransitionManager.TRANSITION_UPDATE_SPEED = 20;
 filemanager.client.models.FilesModel.PATH_UPDTATE = "pathUpdate";
 filemanager.client.services.Api.GATEWAY_URL = "server/index.php";
+filemanager.client.views.uis.AlertDialogPanel.DELETE = 1;
 filemanager.client.views.uis.FileUploadStatus.PENDING = "Pending";
 filemanager.client.views.uis.FileUploadStatus.PROGRESS = "Progress";
 filemanager.client.views.uis.FileUploadStatus.COMPLETE = "Complete";
-filemanager.client.views.uis.SimpleDialogPanel.RENAME = 1;
-filemanager.client.views.uis.SimpleDialogPanel.CREATE = 2;
+filemanager.client.views.uis.InputDialogPanel.RENAME = 1;
+filemanager.client.views.uis.InputDialogPanel.CREATE = 2;
 filemanager.client.views.uis.buttons.CancelButton.VIEW_ID = "CancelButton";
 filemanager.client.views.uis.buttons.CancelUploadButton.VIEW_ID = "CancelUploadButton";
 filemanager.client.views.uis.buttons.ConfirmButton.VIEW_ID = "ConfirmButton";

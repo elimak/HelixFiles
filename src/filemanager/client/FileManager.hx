@@ -6,7 +6,8 @@ import filemanager.client.views.FilesView;
 import filemanager.client.views.FolderTreeView;
 import filemanager.client.views.SelectedPath;
 import filemanager.client.views.ToolBox;
-import filemanager.client.views.uis.SimpleDialogPanel;
+import filemanager.client.views.uis.InputDialogPanel;
+import filemanager.client.views.uis.AlertDialogPanel;
 import filemanager.client.views.UploadStatus;
 import filemanager.cross.FileVO;
 import filemanager.cross.FolderVO;
@@ -23,12 +24,13 @@ import js.Dom;
 
 class FileManager extends DisplayObject
 {
-	private var _filesModel		: FilesModel;
-	private var _folderView		: FolderTreeView;
-	private var _uploadStatus	: UploadStatus;
-	private var _toolBox		: ToolBox;
-	private var _dialogPanel	: SimpleDialogPanel;
-	private var _fileDropper	: FileDropper;
+	private var _filesModel			: FilesModel;
+	private var _folderView			: FolderTreeView;
+	private var _uploadStatus		: UploadStatus;
+	private var _toolBox			: ToolBox;
+	private var _inputDialogPanel	: InputDialogPanel;
+	private var _alertDialogPanel	: AlertDialogPanel;
+	private var _fileDropper		: FileDropper;
 	
 	private var _filesView		: FilesView;
 	private var _foldersView	: FolderTreeView;
@@ -92,16 +94,43 @@ class FileManager extends DisplayObject
 // SHOW/HIDE OVERLAYS
 // ------------------------ //
 
+/**
+ * Panel with input to rename file or folder and to create a new folder
+ * @param	b
+ * @param	title
+ * @param	instruction
+ * @param	type
+ */
 	public function showInputOverlay( b: Bool, title: String, instruction: String, type: Int) {
-		if (_dialogPanel == null) {
-			_dialogPanel = new SimpleDialogPanel( SLPlayerInstanceId, Lib.document.body); // Create and store the dialog box
-			_dialogPanel.injectAppModel(_filesModel);
-			_dialogPanel.injectAppManager(this);
+		if (_inputDialogPanel == null) {
+			_inputDialogPanel = new InputDialogPanel( SLPlayerInstanceId, Lib.document.body); // Create and store the dialog box
+			_inputDialogPanel.injectAppModel(_filesModel);
+			_inputDialogPanel.injectAppManager(this);
 		}
 		if( b ){
-			_dialogPanel.show(title,instruction, type);
+			_inputDialogPanel.show(title,instruction, type);
 		}else {
-			_dialogPanel.hide();
+			_inputDialogPanel.hide();
+		}
+	}
+	
+/**
+ * Panel with a warning message when a user wants to delete a file
+ * @param	b
+ * @param	title
+ * @param	instruction
+ * @param	type
+ */	
+	public function showAlertOverlay( b: Bool, title: String, instruction: String, type: Int) {
+		if (_alertDialogPanel == null) {
+			_alertDialogPanel = new AlertDialogPanel( SLPlayerInstanceId, Lib.document.body); // Create and store the dialog box
+			_alertDialogPanel.injectAppModel(_filesModel);
+			_alertDialogPanel.injectAppManager(this);
+		}
+		if( b ){
+			_alertDialogPanel.show(title,instruction, type);
+		}else {
+			_alertDialogPanel.hide();
 		}
 	}
 	
