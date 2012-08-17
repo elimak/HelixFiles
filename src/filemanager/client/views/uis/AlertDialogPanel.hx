@@ -32,7 +32,6 @@ class AlertDialogPanel extends View {
 	
 	public static inline var DELETE : Int = 1;
 
-	
 	public function new(SLPId:String, parent: HtmlDom) {
 		
 		_parent = parent;

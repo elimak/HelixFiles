@@ -7,7 +7,9 @@ import php.FileSystem;
 import php.io.File;
 
 /** 
- * Remoting API server-side to manage the files and folders
+ * Remoting Services 
+ * API server-side to manage the files and folders
+ * 
  * @author valerie.elimak - blog.elimak.com
  */
 
@@ -87,8 +89,7 @@ class Api {
 		
 		var response	 : FolderVO = getTreeFolder(FILES_FOLDER);
 		response.success = FileSystem.exists(validPath);
-
-		if ( !response.success ) response.error = "the file " + filePath + " could not be renamed with the new name " + newName;
+		
 		return response;
 	}
 	
@@ -165,11 +166,13 @@ class Api {
  * @return
  */
 	private function moveFileToFolder (filePath: String, fileName: String, folderPath: String ) : Bool {
+		
 		// return if the file is dropped where it already belongs
 		if ( filePath == (folderPath + "/" + fileName) ) return true;
 		
 		var newPath = validatePath(folderPath + "/" + fileName);
 		File.copy(filePath, newPath);
+		
 		// if the copy was successful, delete the initial file
 		if ( FileSystem.exists(newPath) && FileSystem.exists(filePath)){
 			FileSystem.deleteFile(filePath);
@@ -218,7 +221,7 @@ class Api {
 		var result 	 : FileHelper = { extension: "", filename: "", path:"" };
 		var splitted : Array<String> = new Array<String>();
 		
-		if( FileSystem.isDirectory(filePath)){
+		if( FileSystem.isDirectory(filepath)){
 			result.extension  = "";
 			splitted = filepath.split("/");
 			splitted.pop();

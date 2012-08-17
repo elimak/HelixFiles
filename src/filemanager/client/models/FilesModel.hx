@@ -258,6 +258,7 @@ class FilesModel
 	}
 	
 	private function set_selectedFolder(value:String):String {
+		Log.trace("FilesModel - set_selectedFolder() "+value);
 		var lastCharacter = value.substr(value.length - 1, 1);
 		_selectedFile = null;
 		_selectedFolderPath = value;

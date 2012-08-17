@@ -8,7 +8,7 @@ class filemanager_server_Api {
 	public function getFileHelper($filepath) {
 		$result = _hx_anonymous(array("extension" => "", "filename" => "", "path" => ""));
 		$splitted = new _hx_array(array());
-		if(_hx_substr($filepath, strlen($filepath) - 1, 1) === "/") {
+		if(is_dir($filepath)) {
 			$result->extension = "";
 			$splitted = _hx_explode("/", $filepath);
 			$splitted->pop();
@@ -56,7 +56,7 @@ class filemanager_server_Api {
 		}
 		$newPath = $this->validatePath($folderPath . "/" . $fileName);
 		sys_io_File::copy($filePath, $newPath);
-		if(file_exists($folderPath . "/" . $fileName)) {
+		if(file_exists($newPath) && file_exists($filePath)) {
 			@unlink($filePath);
 			return true;
 		}
@@ -69,7 +69,6 @@ class filemanager_server_Api {
 		return $response;
 	}
 	public function deleteFile($filepath) {
-		$validFolder = $this->validatePath($filepath);
 		$this->unlink($filepath);
 		$response = $this->getTreeFolder("../files");
 		return $response;
@@ -117,9 +116,6 @@ class filemanager_server_Api {
 		rename($filePath, $validPath);
 		$response1 = $this->getTreeFolder("../files");
 		$response1->success = file_exists($validPath);
-		if(!$response1->success) {
-			$response1->error = "the file " . $filePath . " could not be renamed with the new name " . $newName;
-		}
 		return $response1;
 	}
 	public function backupAsTemporary($filepath) {

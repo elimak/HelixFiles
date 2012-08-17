@@ -5,6 +5,7 @@ import filemanager.client.models.Locator;
 import filemanager.client.views.base.View;
 import filemanager.client.views.uis.buttons.CancelButton;
 import filemanager.client.views.uis.buttons.ConfirmButton;
+import filemanager.cross.FolderVO;
 import haxe.Log;
 import js.Dom;
 import js.Lib;
@@ -100,7 +101,10 @@ class InputDialogPanel extends View {
 		var value: String = untyped _input.value;
 		
 		if ( _type == RENAME ) {
-			_filesModel.renameFile(selectedPath, value, _fileManager.updateFolders);
+			_filesModel.renameFile(selectedPath, value, function( data: FolderVO ) { 
+													_fileManager.updateFolders(data);
+													_fileManager.getListOfFiles(_filesModel.selectedFolder);
+													Log.trace("InputDialogPanel - handleUserConfirmation() "+_filesModel.selectedFolder);} );
 		}
 		else if ( _type == CREATE ) {
 			_filesModel.createNewFolder( _filesModel.selectedFolder+value, _fileManager.updateFolders );

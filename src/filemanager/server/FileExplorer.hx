@@ -26,19 +26,21 @@ class FileExplorer
 
 // PRIVATE
 
-	/**
-	 * Lists the files within the selected folder
-	 */
+/**
+ * Lists the files within the selected folder
+ * @param	folderRoot
+ */
 	private function createTheCurrentFilesList(folderRoot : String) {
 		_fileListing = new Array<FileVO>();
 		listFiles(folderRoot, _fileListing);
 		return Json.stringify(_fileListing);
 	}
 
-	/**
-	 * Create the listing of all the folder's tree starting by the root folder.
-	 * The data is encoded in JSON
-	 */
+/**
+ * Create the listing of all the folder's tree starting by the root folder.
+ * The data is encoded in JSON
+ * @param	folderRoot
+ */
 	private function createTheFolderTree(folderRoot : String) {
 		_dirListing = new Array<FileInfoHelper>();
 		
@@ -60,12 +62,12 @@ class FileExplorer
 // READ PHYSICAL FOLDERS / FILES
 // ----------------------------------------- //
 
-	/**
-	 * Loops through the folder's descendants and
-	 * create a new FileInfoFolder to be pushed in the folder's listing
-	 * @param	path
-	 * @param	dirListing
-	 */
+/**
+ * Loops through the folder's descendants and
+ * create a new FileInfoFolder to be pushed in the folder's listing
+ * @param	path
+ * @param	dirListing
+ */
 	private function listDirectories ( path: String, dirListing: Array<FileInfoHelper> ) {
 		var listing: Array<String> = FileSystem.readDirectory( path );
 		
@@ -83,12 +85,12 @@ class FileExplorer
 			}
 		}
 	}
-	
-	/**
-	 * Loops through selected folder and lists only the files
-	 * @param	path
-	 * @param	dirListing
-	 */
+
+/**
+ * Loops through selected folder and lists only the files
+ * @param	path
+ * @param	dirListing
+ */
 	private function listFiles( dirPath: String, fileListing: Array<FileVO>) {
 		var listing: Array<String> = FileSystem.readDirectory( dirPath );
 

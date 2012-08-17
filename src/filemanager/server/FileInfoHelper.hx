@@ -10,8 +10,8 @@ import sys.io.File;
  * ...
  * @author valerie.elimak - blog.elimak.com
  * 
- * Is used in association with FileExplorer to help formating the file and folder resources into 
- * the casted FileVO and FolderVO object in order to send them to the client side.
+ * Is used in association with FileExplorer to create an object describing the files and folders tree into 
+ * The object are casted into: FileVO and FolderVO before being sent to the client side.
  */
  
 class FileInfoHelper
@@ -32,7 +32,7 @@ class FileInfoHelper
 	private function createFolderTree(data: FolderVO, inFolderSublist : Array<FileInfoHelper>) : FolderVO {
 		if ( inFolderSublist.length > 0 ) {
 			for ( i in 0...inFolderSublist.length) {
-				var subFolder : FolderVO= new FolderVO();
+				var subFolder : FolderVO = new FolderVO();
 				subFolder.name = inFolderSublist[i].name;
 				subFolder.path = inFolderSublist[i].path;
 				subFolder.childFolders = new Array<FolderVO>();
@@ -43,7 +43,7 @@ class FileInfoHelper
 		return data;
 	}
 	
-	public function writeDirectoryObject( ) : FolderVO{
+	public function writeDirectoryObject() : FolderVO{
 		var data : FolderVO = new FolderVO();
 		data.name = this.name;
 		data.path = this.path;

@@ -18,7 +18,9 @@ import org.slplayer.component.ui.DisplayObject;
 import js.Dom;
 
 /**
- * ...
+ * Main Class:
+ * -> instanciate the Model and retrieve the Views (created at run-time with SLPLayer )
+ * -> behave as a Front controller when some action requiere to hook up together several views  
  * @author valerie.elimak - blog.elimak.com
  */
 
@@ -32,10 +34,10 @@ class FileManager extends DisplayObject
 	private var _alertDialogPanel	: AlertDialogPanel;
 	private var _fileDropper		: FileDropper;
 	
-	private var _filesView		: FilesView;
-	private var _foldersView	: FolderTreeView;
+	private var _filesView			: FilesView;
+	private var _foldersView		: FolderTreeView;
 	
-	private var _application	: Application;
+	private var _application		: Application;
 
 	public function new(rootElement:HtmlDom, SLPId:String){
 		super(rootElement, SLPId);
@@ -50,22 +52,22 @@ class FileManager extends DisplayObject
 		
 		_filesModel = new FilesModel( rootElement ); // create the model
 		
-		initializeFileDropper();	// locate and store File Dropper for upload
-		initializeUploadStatus();	// Locate and store Upload status - list of ui monitoring each separated upload
-		initializeToolBox();		// Locate and initialize ToolBox 
-		initializeSelectedPath();	// Locate and initialize the selected Path bar (with either the folder or the path of the file currently selected)
-		initializeAppModel(); 		// requests the files/folders list 
+		initializeViewFileDropper();	// locate and store File Dropper for upload
+		initializeViewUploadStatus();	// Locate and store Upload status - list of ui monitoring each separated upload
+		initializeViewToolBox();		// Locate and initialize ToolBox 
+		initializeViewSelectedPath();	// Locate and initialize the selected Path bar (with either the folder or the path of the file currently selected)
+		
+		_filesModel.getTreeFolder("../files", initializeViewFolders);	// requests the files/folders list and initialize the ViewFolders + ViewFiles
 	}
 	
-	private function initializeSelectedPath() {
+	private function initializeViewSelectedPath() {
 		var selectedPaths : Array<DisplayObject> = Locator.getSLDisplay( SLPlayerInstanceId, "SelectedPath");
 		var selectedPath : SelectedPath = cast selectedPaths[0];
 		
 		selectedPath.injectAppModel(_filesModel);
 	}
 	
-	private function initializeToolBox() {
-		
+	private function initializeViewToolBox() {
 		var toolBoxes : Array<DisplayObject> = Locator.getSLDisplay( SLPlayerInstanceId, "ToolBox");
 		_toolBox = cast toolBoxes[0];
 		
@@ -73,22 +75,34 @@ class FileManager extends DisplayObject
 		_toolBox.injectAppManager(this);
 	}
 	
-	private function initializeUploadStatus() {
+	private function initializeViewUploadStatus() {
 		var uploadStatus : Array<DisplayObject> = Locator.getSLDisplay( SLPlayerInstanceId, "UploadStatus");
 		_uploadStatus = cast uploadStatus[0];
 		_uploadStatus.injectAppModel(_filesModel);
 		_uploadStatus.injectAppManager(this);
 	}
 	
-	private function initializeFileDropper() {
+	private function initializeViewFileDropper() {
 		var fileDroppers : Array<DisplayObject> = Locator.getSLDisplay( SLPlayerInstanceId, "FileDropper");
 		_fileDropper = cast fileDroppers[0];
 		_fileDropper.injectAppModel(_filesModel);
 	}	
-	
-	private function initializeAppModel() {
-		_filesModel.getTreeFolder("../files", initializeFolders);
-		_filesModel.getFiles("../files", showFiles);
+
+	private function initializeViewFolders( data: FolderVO ) : Void {
+		
+		// initialize the folder's View
+		var folderTreeViews : Array<DisplayObject> = Locator.getSLDisplay( SLPlayerInstanceId, "FolderTreeView" );
+		_foldersView = cast folderTreeViews[0];
+		_foldersView.injectAppModel(_filesModel);
+		_foldersView.injectAppManager(this);
+		
+		// initialize the file's View
+		var filesViews : Array<DisplayObject> = Locator.getSLDisplay( SLPlayerInstanceId, "FilesView" );
+		_filesView = cast filesViews[0];
+		_filesView.injectAppModel(_filesModel);
+		
+		data.open = true; // the root folder is set as open, so we can see the folder's list that belongs to it right away 
+		_foldersView.initialize(data);
 	}
 	
 // ------------------------ // 
@@ -134,44 +148,22 @@ class FileManager extends DisplayObject
 			_alertDialogPanel.hide();
 		}
 	}
-	
-	private function showConfirmation ( b: Bool ) {
-		
-	}
-	
+
 // ------------------------------ // 
 // MANAGE FILES/FOLDER TREE VIEW
-// ------------------------------ //
+// ------------------------------ //	
 
-	private function initializeFolders( data: FolderVO ) : Void {
-		
-		// initialize the folder's View
-		var folderTreeViews : Array<DisplayObject> = Locator.getSLDisplay( SLPlayerInstanceId, "FolderTreeView" );
-		_foldersView = cast folderTreeViews[0];
-		_foldersView.injectAppModel(_filesModel);
-		_foldersView.injectAppManager(this);
-		
-		// initialize the file's View
-		var filesViews : Array<DisplayObject> = Locator.getSLDisplay( SLPlayerInstanceId, "FilesView" );
-		_filesView = cast filesViews[0];
-		_filesView.injectAppModel(_filesModel);
-		
-		data.open = true; // the root folder is set as open, so we can see the folder's list that belongs to it right away 
-		_foldersView.initialize(data);
-	}	
+/**
+ * public API called by the views to refresh the folder / files when necessary
+ * after an action was performed on a file or folder 
+ */
 
-	private function showFiles( data: Array<FileVO> ) : Void {
-		//Log.trace("FileManager - showFolders() "+data.toString());
-	}
-	
 	public function updateFolders( data: FolderVO ) : Void {
-		Log.trace("FileManager - updateFolders() "+data.toString());
 		_foldersView.update(data);
 	}
 
 	public function getListOfFiles(folderPath: String) {
 		_filesModel.getFiles(folderPath, function(inData: Array<FileVO>) {
-											Log.trace("FileManager - getListOfFiles() "+inData.join(","));
 											_filesView.setList(inData);
 										});
 	}

@@ -13930,28 +13930,11 @@ filemanager.client.FileManager.prototype = $extend(org.slplayer.component.ui.Dis
 	getListOfFiles: function(folderPath) {
 		var _g = this;
 		this._filesModel.getFiles(folderPath,function(inData) {
-			haxe.Log.trace("FileManager - getListOfFiles() " + inData.join(","),{ fileName : "FileManager.hx", lineNumber : 174, className : "filemanager.client.FileManager", methodName : "getListOfFiles"});
 			_g._filesView.setList(inData);
 		});
 	}
 	,updateFolders: function(data) {
-		haxe.Log.trace("FileManager - updateFolders() " + data.toString(),{ fileName : "FileManager.hx", lineNumber : 168, className : "filemanager.client.FileManager", methodName : "updateFolders"});
 		this._foldersView.update(data);
-	}
-	,showFiles: function(data) {
-	}
-	,initializeFolders: function(data) {
-		var folderTreeViews = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"FolderTreeView");
-		this._foldersView = folderTreeViews[0];
-		this._foldersView.injectAppModel(this._filesModel);
-		this._foldersView.injectAppManager(this);
-		var filesViews = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"FilesView");
-		this._filesView = filesViews[0];
-		this._filesView.injectAppModel(this._filesModel);
-		data.open = true;
-		this._foldersView.initialize(data);
-	}
-	,showConfirmation: function(b) {
 	}
 	,showAlertOverlay: function(b,title,instruction,type) {
 		if(this._alertDialogPanel == null) {
@@ -13969,39 +13952,46 @@ filemanager.client.FileManager.prototype = $extend(org.slplayer.component.ui.Dis
 		}
 		if(b) this._inputDialogPanel.show(title,instruction,type); else this._inputDialogPanel.hide();
 	}
-	,initializeAppModel: function() {
-		this._filesModel.getTreeFolder("../files",$bind(this,this.initializeFolders));
-		this._filesModel.getFiles("../files",$bind(this,this.showFiles));
+	,initializeViewFolders: function(data) {
+		var folderTreeViews = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"FolderTreeView");
+		this._foldersView = folderTreeViews[0];
+		this._foldersView.injectAppModel(this._filesModel);
+		this._foldersView.injectAppManager(this);
+		var filesViews = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"FilesView");
+		this._filesView = filesViews[0];
+		this._filesView.injectAppModel(this._filesModel);
+		data.open = true;
+		this._foldersView.initialize(data);
 	}
-	,initializeFileDropper: function() {
+	,initializeViewFileDropper: function() {
 		var fileDroppers = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"FileDropper");
 		this._fileDropper = fileDroppers[0];
 		this._fileDropper.injectAppModel(this._filesModel);
 	}
-	,initializeUploadStatus: function() {
+	,initializeViewUploadStatus: function() {
 		var uploadStatus = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"UploadStatus");
 		this._uploadStatus = uploadStatus[0];
 		this._uploadStatus.injectAppModel(this._filesModel);
 		this._uploadStatus.injectAppManager(this);
 	}
-	,initializeToolBox: function() {
+	,initializeViewToolBox: function() {
 		var toolBoxes = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"ToolBox");
 		this._toolBox = toolBoxes[0];
 		this._toolBox.injectAppModel(this._filesModel);
 		this._toolBox.injectAppManager(this);
 	}
-	,initializeSelectedPath: function() {
+	,initializeViewSelectedPath: function() {
 		var selectedPaths = filemanager.client.models.Locator.getSLDisplay(this.SLPlayerInstanceId,"SelectedPath");
 		var selectedPath = selectedPaths[0];
 		selectedPath.injectAppModel(this._filesModel);
 	}
 	,init: function() {
 		this._filesModel = new filemanager.client.models.FilesModel(this.rootElement);
-		this.initializeFileDropper();
-		this.initializeUploadStatus();
-		this.initializeToolBox();
-		this.initializeSelectedPath();
-		this.initializeAppModel();
+		this.initializeViewFileDropper();
+		this.initializeViewUploadStatus();
+		this.initializeViewToolBox();
+		this.initializeViewSelectedPath();
+		this._filesModel.getTreeFolder("../files",$bind(this,this.initializeViewFolders));
 	}
 	,_application: null
 	,_foldersView: null
@@ -14047,6 +14037,7 @@ filemanager.client.models.FilesModel.prototype = {
 		return this._selectedFile;
 	}
 	,set_selectedFolder: function(value) {
+		haxe.Log.trace("FilesModel - set_selectedFolder() " + value,{ fileName : "FilesModel.hx", lineNumber : 261, className : "filemanager.client.models.FilesModel", methodName : "set_selectedFolder"});
 		var lastCharacter = HxOverrides.substr(value,value.length - 1,1);
 		this._selectedFile = null;
 		this._selectedFolderPath = value;
@@ -14360,14 +14351,15 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 		this._filesModel = filesModel;
 	}
 	,update: function(data) {
-		this._data = data;
+		this._rootData = data;
 		this.clear();
 		this.buildView();
 	}
 	,init: function() {
 	}
 	,initialize: function(data) {
-		this._data = data;
+		this._rootData = data;
+		haxe.Log.trace("FolderTreeView - initialize() " + data.path,{ fileName : "FolderTreeView.hx", lineNumber : 156, className : "filemanager.client.views.FolderTreeView", methodName : "initialize"});
 		this._filesModel.set_selectedFolder(data.path);
 		this._fileManager.getListOfFiles(data.path);
 		this.buildView();
@@ -14382,9 +14374,11 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 		if(this._currentFolderUISelected != null && this._currentFolderUISelected != target) {
 			this._currentFolderUISelected.isSelected = false;
 			this._currentFolderUISelected.refresh();
+			this._fileManager.getListOfFiles(this._currentFolderUISelected.path);
 		}
 		target.isSelected = evt != null?true:false;
 		this._currentFolderUISelected = target;
+		this._currentDataSelected = folderData;
 		var folderPath = folderData.path;
 		this._folderStatus.set(folderPath,target.isOpen);
 		folderData.open = target.isOpen;
@@ -14393,6 +14387,7 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 		this._fileManager.getListOfFiles(folderPath);
 	}
 	,makeInteractive: function(folder,data) {
+		haxe.Log.trace("FolderTreeView - makeInteractive() " + data.path,{ fileName : "FolderTreeView.hx", lineNumber : 102, className : "filemanager.client.views.FolderTreeView", methodName : "makeInteractive"});
 		var handelClickCallback = (function(f,a1,a2) {
 			return function(a3) {
 				return f(a1,a2,a3);
@@ -14424,20 +14419,22 @@ filemanager.client.views.FolderTreeView.prototype = $extend(filemanager.client.v
 		}
 	}
 	,buildView: function() {
-		this._rootFolder = new filemanager.client.views.uis.FolderUI(this._data.children > 0,0,this._data.name,this.SLPlayerInstanceId);
+		haxe.Log.trace("FolderTreeView - buildView() ",{ fileName : "FolderTreeView.hx", lineNumber : 49, className : "filemanager.client.views.FolderTreeView", methodName : "buildView"});
+		this._rootFolder = new filemanager.client.views.uis.FolderUI(this._rootData.children > 0,0,this._rootData.name,this.SLPlayerInstanceId);
 		this._rootFolder.isOpen = false;
-		var folderPath = this._data.path;
+		var folderPath = this._rootData.path;
 		this._folderStatus.set(folderPath,this._rootFolder.isOpen);
-		this.makeInteractive(this._rootFolder,this._data);
+		this.makeInteractive(this._rootFolder,this._rootData);
 		this.rootElement.appendChild(this._rootFolder.rootElement);
-		this.createSubFolders(this._data,this._rootFolder,1);
-		this.handleOnFolderClick(this._rootFolder,this._data,null);
+		this.createSubFolders(this._rootData,this._rootFolder,1);
+		this.handleOnFolderClick(this._rootFolder,this._rootData,null);
 	}
 	,_fileManager: null
 	,_filesModel: null
+	,_currentDataSelected: null
 	,_currentFolderUISelected: null
 	,_folderStatus: null
-	,_data: null
+	,_rootData: null
 	,_rootFolder: null
 	,__class__: filemanager.client.views.FolderTreeView
 });
@@ -14923,10 +14920,15 @@ filemanager.client.views.uis.InputDialogPanel.prototype = $extend(filemanager.cl
 		this._input.value = "";
 	}
 	,handleUserConfirmation: function(evt) {
+		var _g = this;
 		var selectedIsFile = this._filesModel.get_selectedFile() != null?true:false;
 		var selectedPath = this._filesModel.get_selectedFile() != null?this._filesModel.get_selectedFile().path:this._filesModel.get_selectedFolder();
 		var value = this._input.value;
-		if(this._type == 1) this._filesModel.renameFile(selectedPath,value,($_=this._fileManager,$bind($_,$_.updateFolders))); else if(this._type == 2) this._filesModel.createNewFolder(this._filesModel.get_selectedFolder() + value,($_=this._fileManager,$bind($_,$_.updateFolders)));
+		if(this._type == 1) this._filesModel.renameFile(selectedPath,value,function(data) {
+			_g._fileManager.updateFolders(data);
+			_g._fileManager.getListOfFiles(_g._filesModel.get_selectedFolder());
+			haxe.Log.trace("InputDialogPanel - handleUserConfirmation() " + _g._filesModel.get_selectedFolder(),{ fileName : "InputDialogPanel.hx", lineNumber : 107, className : "filemanager.client.views.uis.InputDialogPanel", methodName : "handleUserConfirmation"});
+		}); else if(this._type == 2) this._filesModel.createNewFolder(this._filesModel.get_selectedFolder() + value,($_=this._fileManager,$bind($_,$_.updateFolders)));
 		this.hide();
 	}
 	,handleKeyboardEvent: function(e) {
@@ -15178,12 +15180,8 @@ filemanager.cross.FolderVO.prototype = {
 		l_result += "\t path: " + this.path + "\n";
 		l_result += "\t childFolders: " + this.childFolders.join(",") + "\n";
 		l_result += "\t children: " + this.children + "\n";
-		l_result += "\t success: " + Std.string(this.success) + "\n";
-		l_result += "\t error: " + this.error + "\n";
 		return l_result;
 	}
-	,error: null
-	,success: null
 	,children: null
 	,childFolders: null
 	,open: null

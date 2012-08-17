@@ -54,7 +54,7 @@ class UploadStatus extends View
 		var fileName : String = cast uploadUpdate.file.name;
 		_currentQueueUIs.get(fileName).update (uploadUpdate);
 		
-		// refresh the list of files on the middle windows when a file is completely uploaded
+		// refresh the list of files when a file is completely uploaded
 		if ( uploadUpdate.completed ) {
 			_filesManager.getListOfFiles(_filesModel.selectedFolder);
 		}

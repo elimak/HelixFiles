@@ -11,12 +11,8 @@ class filemanager_cross_FolderVO {
 		$l_result .= "\x09 path: " . $this->path . "\x0A";
 		$l_result .= "\x09 childFolders: " . $this->childFolders->join(",") . "\x0A";
 		$l_result .= "\x09 children: " . _hx_string_rec($this->children, "") . "\x0A";
-		$l_result .= "\x09 success: " . Std::string($this->success) . "\x0A";
-		$l_result .= "\x09 error: " . $this->error . "\x0A";
 		return $l_result;
 	}
-	public $error;
-	public $success;
 	public $children;
 	public $childFolders;
 	public $open;
