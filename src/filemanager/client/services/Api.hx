@@ -56,8 +56,7 @@ class Api
  * @param	?onError
  */
 	public function backupAsTemporary (fullpath: String, onSuccess: FileUpdatedVO->Void, ?onError: Dynamic->Void) : Void {
-		
-		Log.trace("Api - backupAsTemporary() "+fullpath);
+
 		var cnx = HttpAsyncConnection.urlConnect(GATEWAY_URL);
 		if (onError != null) cnx.setErrorHandler( onError );
 		else cnx.setErrorHandler( defaultOnError );
@@ -76,8 +75,7 @@ class Api
 		var cnx = HttpAsyncConnection.urlConnect(GATEWAY_URL);
 		if (onError != null) cnx.setErrorHandler( onError );
 		else cnx.setErrorHandler( defaultOnError );
-		
-		Log.trace("Api - deleteTempFile() "+fullpath);
+
 		cnx.api.deleteTempFile.call([fullpath], onSuccess);
 	}
 	
@@ -105,8 +103,7 @@ class Api
 		var cnx = HttpAsyncConnection.urlConnect(GATEWAY_URL);
 		if (onError != null) cnx.setErrorHandler( onError );
 		else cnx.setErrorHandler( defaultOnError );
-			
-		Log.trace("Api - renameFile() "+filePath+" // "+newName);
+
 		cnx.api.renameFile.call([filePath, newName], onSuccess);
 	}
 	

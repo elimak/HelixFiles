@@ -75,6 +75,7 @@ class ToolBox extends View {
 			case CreateFolderButton.VIEW_ID :
 				_filesManager.showInputOverlay( true, "Create Folder", "Name:", InputDialogPanel.CREATE );
 			case DownloadButton.VIEW_ID	:
+				_filesModel.download(_filesModel.selectedFile.path);
 			case CopyButton.VIEW_ID		:
 			case DeleteButton.VIEW_ID	:
 				var target = (_filesModel.selectedFile != null )? "file": "folder";

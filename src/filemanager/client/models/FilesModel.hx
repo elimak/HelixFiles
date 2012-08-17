@@ -198,7 +198,7 @@ class FilesModel
 	}	
 	
 	private function validateFileName ( filename: String ) : String {
-		// TODO: to complete
+		// TODO: to complete if needed
 		filename = StringTools.replace(filename, " ", "");
 		filename = StringTools.replace(filename, "$", "");
 		filename = StringTools.replace(filename, "+", "");
@@ -226,12 +226,19 @@ class FilesModel
 	// only available when a file was first copied
 	public function pasteFile ( newPath: String ) { }
 	
-	// TODO: we need a dialog panel to implement this
+/**
+ * TODO: This is supposed to open a dialog window, but it doesnt seem to work for image files (I did not test on other type of file)
+ * @param	filePath
+ */
+	public function download( filePath: String ) {
+		var correctedPath = ( filePath.split("../").length > 0 ) ?  filePath.split("../")[1] : filePath;
+		js.Lib.window.open(correctedPath,'Downloading');  
+	}
+	
 	public function renameFile ( filePath: String, newName: String, onSuccess: FolderVO->Void ) {
 		_api.renameFile( filePath, newName, onSuccess);
 	}
 	
-	// TODO: we need a dialog panel to implement this
 	public function createNewFolder ( folderPath : String, onSuccess: FolderVO->Void ) {
 		_api.createFolder( folderPath, onSuccess);
 	}
