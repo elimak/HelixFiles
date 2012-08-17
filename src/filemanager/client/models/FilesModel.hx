@@ -214,7 +214,6 @@ class FilesModel
 	// clicking button delete when folder or file is selected -> actually move the files into the garbage
 	// Todo: keep track of the initial path is we need to restaure the file or folder
 	public function deleteFile ( filePath: String, onSuccess: FolderVO->Void ) {
-		Log.trace("FilesModel - deleteFile() "+filePath);
 		_api.deleteFile( filePath, onSuccess);
 	}
 	
@@ -258,7 +257,6 @@ class FilesModel
 	}
 	
 	private function set_selectedFolder(value:String):String {
-		Log.trace("FilesModel - set_selectedFolder() "+value);
 		var lastCharacter = value.substr(value.length - 1, 1);
 		_selectedFile = null;
 		_selectedFolderPath = value;

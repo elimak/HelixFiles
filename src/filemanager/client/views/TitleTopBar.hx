@@ -21,11 +21,9 @@ class TitleTopBar extends View {
 	}
 	
 	override public function init():Void {
-		//rootElement.innerHTML = "Silex Media Center";
 		var title = Lib.document.createElement("p");
 		title.innerHTML = "Silex Media Center";
 		rootElement.appendChild(title);
-		Log.trace("TitleTopBar - init() "+title);
 		super.init();
 	}
 }

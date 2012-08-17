@@ -45,7 +45,6 @@ class FolderTreeView extends View
 	 */
 	private function buildView() {
 
-		Log.trace("FolderTreeView - buildView() ");
 		// create the top folder
 		_rootFolder = new FolderUI((_rootData.children > 0), 0, _rootData.name, SLPlayerInstanceId);
 		_rootFolder.isOpen = false;
@@ -95,7 +94,6 @@ class FolderTreeView extends View
 	 * @param	data
 	 */
 	private function makeInteractive(folder:FolderUI, data: FolderVO) {
-		Log.trace("FolderTreeView - makeInteractive() "+data.path);
 		var handelClickCallback = callback(handleOnFolderClick, folder, data);
 		folder.rootElement.onclick = handelClickCallback;
 		var droppedCallBack = callback(handleFileDropped, data, folder);
@@ -147,9 +145,7 @@ class FolderTreeView extends View
 
 	public function initialize ( data: FolderVO ) {
 		_rootData = data;
-		
-		Log.trace("FolderTreeView - initialize() "+data.path);
-		
+
 		_filesModel.selectedFolder = data.path;
 		_fileManager.getListOfFiles(data.path);
 		

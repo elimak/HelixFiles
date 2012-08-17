@@ -103,8 +103,7 @@ class InputDialogPanel extends View {
 		if ( _type == RENAME ) {
 			_filesModel.renameFile(selectedPath, value, function( data: FolderVO ) { 
 													_fileManager.updateFolders(data);
-													_fileManager.getListOfFiles(_filesModel.selectedFolder);
-													Log.trace("InputDialogPanel - handleUserConfirmation() "+_filesModel.selectedFolder);} );
+													_fileManager.getListOfFiles(_filesModel.selectedFolder);} );
 		}
 		else if ( _type == CREATE ) {
 			_filesModel.createNewFolder( _filesModel.selectedFolder+value, _fileManager.updateFolders );
