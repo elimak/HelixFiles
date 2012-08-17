@@ -99,8 +99,8 @@ class InputDialogPanel extends View {
 		var selectedPath = ( _filesModel.selectedFile != null )? _filesModel.selectedFile.path : _filesModel.selectedFolder;
 		var value: String = untyped _input.value;
 		
-		if( _type == RENAME ){
-			_filesModel.renameFile(selectedPath, value );
+		if ( _type == RENAME ) {
+			_filesModel.renameFile(selectedPath, value, _fileManager.updateFolders);
 		}
 		else if ( _type == CREATE ) {
 			_filesModel.createNewFolder( _filesModel.selectedFolder+value, _fileManager.updateFolders );

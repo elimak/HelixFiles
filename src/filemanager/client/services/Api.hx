@@ -94,8 +94,20 @@ class Api
 		cnx.api.moveFileToFolder.call([filePath, fileName, folderPath], onSuccess);
 	}
 	
-	public function renameFile ( filePath: String, newName: String, onSuccess: Bool->Void, ?onError: Dynamic->Void ) : Void {
+/**
+ * Remoting call to server to rename a file or a folder
+ * @param	filePath
+ * @param	newName
+ * @param	onSuccess
+ * @param	?onError
+ */
+	public function renameFile ( filePath: String, newName: String, onSuccess: FolderVO->Void, ?onError: Dynamic->Void ) : Void {
+		var cnx = HttpAsyncConnection.urlConnect(GATEWAY_URL);
+		if (onError != null) cnx.setErrorHandler( onError );
+		else cnx.setErrorHandler( defaultOnError );
+			
 		Log.trace("Api - renameFile() "+filePath+" // "+newName);
+		cnx.api.renameFile.call([filePath, newName], onSuccess);
 	}
 	
 /**

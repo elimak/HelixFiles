@@ -165,6 +165,7 @@ class FileManager extends DisplayObject
 	}
 	
 	public function updateFolders( data: FolderVO ) : Void {
+		Log.trace("FileManager - updateFolders() "+data.toString());
 		_foldersView.update(data);
 	}
 

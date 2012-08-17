@@ -7,22 +7,45 @@ class filemanager_server_Api {
 	}}
 	public function getFileHelper($filepath) {
 		$result = _hx_anonymous(array("extension" => "", "filename" => "", "path" => ""));
-		$splitted = _hx_explode(".", $filepath);
-		$result->extension = $splitted->pop();
-		$splitted = _hx_explode("/", $splitted->join("."));
+		$splitted = new _hx_array(array());
+		if(_hx_substr($filepath, strlen($filepath) - 1, 1) === "/") {
+			$result->extension = "";
+			$splitted = _hx_explode("/", $filepath);
+			$splitted->pop();
+		} else {
+			$splitted = _hx_explode(".", $filepath);
+			$result->extension = $splitted->pop();
+			$splitted = _hx_explode("/", $splitted->join("."));
+		}
 		$result->filename = $splitted->pop();
 		$result->path = $splitted->join("/");
 		return $result;
 	}
 	public function validatePath($filePath) {
 		if(file_exists($filePath)) {
-			$_g = 1;
-			while($_g < 100) {
-				$i = $_g++;
-				if(!file_exists($filePath . "(" . _hx_string_rec($i, "") . ")")) {
-					return $filePath . "(" . _hx_string_rec($i, "") . ")";
+			if(is_dir($filePath)) {
+				$_g = 1;
+				while($_g < 100) {
+					$i = $_g++;
+					if(!file_exists($filePath . "(" . _hx_string_rec($i, "") . ")")) {
+						return $filePath . "(" . _hx_string_rec($i, "") . ")";
+					}
+					unset($i);
 				}
-				unset($i);
+			} else {
+				$splittedName = _hx_explode(".", $filePath);
+				$extension = $splittedName->pop();
+				$fileName = $splittedName->join(".");
+				{
+					$_g = 1;
+					while($_g < 100) {
+						$i = $_g++;
+						if(!file_exists($fileName . "(" . _hx_string_rec($i, "") . ")." . $extension)) {
+							return $fileName . "(" . _hx_string_rec($i, "") . ")." . $extension;
+						}
+						unset($i);
+					}
+				}
 			}
 		}
 		return $filePath;
@@ -85,6 +108,20 @@ class filemanager_server_Api {
 		}
 		return $response;
 	}
+	public function renameFile($filePath, $newName) {
+		$response = new filemanager_cross_FileUpdatedVO();
+		$file = $this->getFileHelper($filePath);
+		$newNamedFile = $file->path . "/" . $newName;
+		$newNamedFile .= filemanager_server_Api_0($this, $file, $filePath, $newName, $newNamedFile, $response);
+		$validPath = $this->validatePath($newNamedFile);
+		rename($filePath, $validPath);
+		$response1 = $this->getTreeFolder("../files");
+		$response1->success = file_exists($validPath);
+		if(!$response1->success) {
+			$response1->error = "the file " . $filePath . " could not be renamed with the new name " . $newName;
+		}
+		return $response1;
+	}
 	public function backupAsTemporary($filepath) {
 		$response = new filemanager_cross_FileUpdatedVO();
 		$response->filepath = $filepath;
@@ -121,4 +158,11 @@ class filemanager_server_Api {
 	}
 	static $FILES_FOLDER = "../files";
 	function __toString() { return 'filemanager.server.Api'; }
+}
+function filemanager_server_Api_0(&$»this, &$file, &$filePath, &$newName, &$newNamedFile, &$response) {
+	if($file->extension !== "") {
+		return "." . $file->extension;
+	} else {
+		return "";
+	}
 }

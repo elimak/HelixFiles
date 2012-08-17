@@ -228,9 +228,8 @@ class FilesModel
 	public function pasteFile ( newPath: String ) { }
 	
 	// TODO: we need a dialog panel to implement this
-	public function renameFile ( filePath: String, newName: String) { 
-		Log.trace("FilesModel - renameFile() "+filePath+" , "+newName);
-		//_api.renameFile( filePath, newName, function( success: Bool ){ Log.trace("FilesModel - renameFile() -- on  successfully renamed a file or folder "+success);});
+	public function renameFile ( filePath: String, newName: String, onSuccess: FolderVO->Void ) {
+		_api.renameFile( filePath, newName, onSuccess);
 	}
 	
 	// TODO: we need a dialog panel to implement this

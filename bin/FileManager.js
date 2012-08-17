@@ -13930,11 +13930,12 @@ filemanager.client.FileManager.prototype = $extend(org.slplayer.component.ui.Dis
 	getListOfFiles: function(folderPath) {
 		var _g = this;
 		this._filesModel.getFiles(folderPath,function(inData) {
-			haxe.Log.trace("FileManager - getListOfFiles() " + inData.join(","),{ fileName : "FileManager.hx", lineNumber : 173, className : "filemanager.client.FileManager", methodName : "getListOfFiles"});
+			haxe.Log.trace("FileManager - getListOfFiles() " + inData.join(","),{ fileName : "FileManager.hx", lineNumber : 174, className : "filemanager.client.FileManager", methodName : "getListOfFiles"});
 			_g._filesView.setList(inData);
 		});
 	}
 	,updateFolders: function(data) {
+		haxe.Log.trace("FileManager - updateFolders() " + data.toString(),{ fileName : "FileManager.hx", lineNumber : 168, className : "filemanager.client.FileManager", methodName : "updateFolders"});
 		this._foldersView.update(data);
 	}
 	,showFiles: function(data) {
@@ -14057,13 +14058,13 @@ filemanager.client.models.FilesModel.prototype = {
 		return this._selectedFolderPath;
 	}
 	,onCancelUpload: function(trackID) {
-		haxe.Log.trace("FilesModel - onCancelUpload() " + trackID,{ fileName : "FilesModel.hx", lineNumber : 250, className : "filemanager.client.models.FilesModel", methodName : "onCancelUpload"});
+		haxe.Log.trace("FilesModel - onCancelUpload() " + trackID,{ fileName : "FilesModel.hx", lineNumber : 249, className : "filemanager.client.models.FilesModel", methodName : "onCancelUpload"});
 	}
 	,createNewFolder: function(folderPath,onSuccess) {
 		this._api.createFolder(folderPath,onSuccess);
 	}
-	,renameFile: function(filePath,newName) {
-		haxe.Log.trace("FilesModel - renameFile() " + filePath + " , " + newName,{ fileName : "FilesModel.hx", lineNumber : 232, className : "filemanager.client.models.FilesModel", methodName : "renameFile"});
+	,renameFile: function(filePath,newName,onSuccess) {
+		this._api.renameFile(filePath,newName,onSuccess);
 	}
 	,pasteFile: function(newPath) {
 	}
@@ -14189,7 +14190,7 @@ $hxClasses["filemanager.client.services.Api"] = filemanager.client.services.Api;
 filemanager.client.services.Api.__name__ = ["filemanager","client","services","Api"];
 filemanager.client.services.Api.prototype = {
 	defaultOnError: function(err) {
-		haxe.Log.trace("Error (API default error handler) : " + Std.string(err),{ fileName : "Api.hx", lineNumber : 133, className : "filemanager.client.services.Api", methodName : "defaultOnError"});
+		haxe.Log.trace("Error (API default error handler) : " + Std.string(err),{ fileName : "Api.hx", lineNumber : 145, className : "filemanager.client.services.Api", methodName : "defaultOnError"});
 	}
 	,deleteFile: function(folderPath,onSuccess,onError) {
 		var cnx = haxe.remoting.HttpAsyncConnection.urlConnect("server/index.php");
@@ -14202,7 +14203,10 @@ filemanager.client.services.Api.prototype = {
 		cnx.resolve("api").resolve("createFolder").call([folderPath],onSuccess);
 	}
 	,renameFile: function(filePath,newName,onSuccess,onError) {
-		haxe.Log.trace("Api - renameFile() " + filePath + " // " + newName,{ fileName : "Api.hx", lineNumber : 98, className : "filemanager.client.services.Api", methodName : "renameFile"});
+		var cnx = haxe.remoting.HttpAsyncConnection.urlConnect("server/index.php");
+		if(onError != null) cnx.setErrorHandler(onError); else cnx.setErrorHandler($bind(this,this.defaultOnError));
+		haxe.Log.trace("Api - renameFile() " + filePath + " // " + newName,{ fileName : "Api.hx", lineNumber : 109, className : "filemanager.client.services.Api", methodName : "renameFile"});
+		cnx.resolve("api").resolve("renameFile").call([filePath,newName],onSuccess);
 	}
 	,moveFileToFolder: function(filePath,fileName,folderPath,onSuccess,onError) {
 		var cnx = haxe.remoting.HttpAsyncConnection.urlConnect("server/index.php");
@@ -14922,7 +14926,7 @@ filemanager.client.views.uis.InputDialogPanel.prototype = $extend(filemanager.cl
 		var selectedIsFile = this._filesModel.get_selectedFile() != null?true:false;
 		var selectedPath = this._filesModel.get_selectedFile() != null?this._filesModel.get_selectedFile().path:this._filesModel.get_selectedFolder();
 		var value = this._input.value;
-		if(this._type == 1) this._filesModel.renameFile(selectedPath,value); else if(this._type == 2) this._filesModel.createNewFolder(this._filesModel.get_selectedFolder() + value,($_=this._fileManager,$bind($_,$_.updateFolders)));
+		if(this._type == 1) this._filesModel.renameFile(selectedPath,value,($_=this._fileManager,$bind($_,$_.updateFolders))); else if(this._type == 2) this._filesModel.createNewFolder(this._filesModel.get_selectedFolder() + value,($_=this._fileManager,$bind($_,$_.updateFolders)));
 		this.hide();
 	}
 	,handleKeyboardEvent: function(e) {
@@ -15174,8 +15178,12 @@ filemanager.cross.FolderVO.prototype = {
 		l_result += "\t path: " + this.path + "\n";
 		l_result += "\t childFolders: " + this.childFolders.join(",") + "\n";
 		l_result += "\t children: " + this.children + "\n";
+		l_result += "\t success: " + Std.string(this.success) + "\n";
+		l_result += "\t error: " + this.error + "\n";
 		return l_result;
 	}
+	,error: null
+	,success: null
 	,children: null
 	,childFolders: null
 	,open: null
