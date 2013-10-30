@@ -5,6 +5,7 @@ package js;
  * Used into the filemanager.client.models.FilesModel.as when the user upload files. (multithreading)
  */
 
+
 @:native("Worker")
 extern class Worker {
 	var onmessage 	: Dynamic->Void;
