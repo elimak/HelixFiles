@@ -1,0 +1,1 @@
+This file is used to prevent git to remove the bin/files/ folder

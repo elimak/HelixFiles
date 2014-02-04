@@ -1,0 +1,14 @@
+-js bin/FileManager.js
+-cp src/
+-cp ../Cocktail/src/
+-cp ../SLPlayer/src/
+--macro org.slplayer.core.Builder.create('./src/filemanager/client/index.html')
+-main org.slplayer.core.Application
+-D slpdebug
+-D disableEmbedHtml
+
+--next
+
+-php bin/server
+-main filemanager.server.FileManager
+-cp src
